@@ -66,7 +66,7 @@ describe('AgentOptions.reasoningEffort 请求种子优先级', () => {
 
     expect(adapter.requests[0]?.reasoningEffort).toBe(ReasoningEffortId('low'))
     const header = lastRequestHeader(agent)
-    expect(header?.config.reasoningEffort).toBe(ReasoningEffortId('low'))
+    expect(header?.config?.reasoningEffort).toBe(ReasoningEffortId('low'))
     expect(header?.adapterDefaults).toBeUndefined()
   })
 
