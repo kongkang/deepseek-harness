@@ -7,7 +7,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { Scoped } from '@deepseek-ai/dsh-scope'
-import type { LlmCallConfig, LlmFailure, ResolvedRetryPolicy } from '@deepseek-ai/dsh-llm'
+import type { LlmCallConfig, LlmFailure, ReasoningEffortId, ResolvedRetryPolicy } from '@deepseek-ai/dsh-llm'
 import type { AgentCancelCause, Session, SessionId, UserMessage } from '@deepseek-ai/dsh-session'
 export type { AgentCancelCause } from '@deepseek-ai/dsh-session'
 import type { Inbox } from './inbox.ts'
@@ -28,6 +28,14 @@ export interface AgentOptions {
   model?: string
   /** Maximum output tokens for each conversation-model request. */
   maxTokens?: number
+  /**
+   * Explicit adapter reasoning effort for this agent's requests. On the first
+   * request it wins over the effort a seeded session header would restore
+   * (delegated children get exactly the effort the delegation requested, not
+   * a same-model parent's); later requests follow the logged header. An
+   * installed model selection (`installModelSelection`) still overrides it.
+   */
+  reasoningEffort?: ReasoningEffortId
 }
 
 /** Options for {@link Agent.cancel}. */

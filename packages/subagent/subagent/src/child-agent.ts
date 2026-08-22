@@ -59,7 +59,9 @@ export function resolveChildDepth(parent: Agent, maxDepth: number | undefined): 
 /**
  * Resolve the child's `AgentOptions`: the parent's provider/model/maxTokens
  * route unless the request overrides it, stamped with the child's own
- * delegation depth.
+ * delegation depth. `reasoningEffort` is never inherited from the parent:
+ * only an explicit `requested.reasoningEffort` reaches the child, which then
+ * falls back to the adapter default for its model.
  * @param parent - the delegating parent whose route the child inherits.
  * @param requested - per-child overrides, if any.
  * @param childDepth - the resolved delegation depth to stamp.

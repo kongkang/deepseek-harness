@@ -85,6 +85,8 @@ turn/end
 
 Input reaches the driver through one inbox. Some messages wake it immediately; injected context waits in the inbox until another message does.
 
+`agent/request` seeds its proposal from the declared route, with an explicit `AgentOptions.reasoningEffort` when present; without one it restores only an explicit effort the logged header owns for the same provider/model. A model-selection waterfall listener (for example the web app's session model picker) then overrides the seeded pair and effort.
+
 `agent/pre-step` decides what the model sees. Listeners may rewrite the claimed messages or reject them outright; a rejected or empty first claim still closes a durable turn that spent no step, so the log records the attempt. Each step reads the prompt sections and tool schemas that plugins registered.
 
 Details: the [sequence diagram](agent-lifecycle.md), the [tool pipeline](tool-execution-pipeline.md), and [cancellation and error recovery](subsystems/core.md#the-agent-handle).
