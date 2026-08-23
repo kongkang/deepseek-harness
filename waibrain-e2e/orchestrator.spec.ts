@@ -175,6 +175,11 @@ describe('每轮按配置 fork N 个识别影子', () => {
       expect(request.outputSchema).toEqual(VERDICT_SCHEMA)
       expect(request.persona).toContain(shadow.label)
       expect(request.persona).toContain(shadow.task)
+      // 诚实措辞契约:影子产出用「我查了一下」类说法,禁用「我想起来了」。
+      if (shadow.worker === undefined) {
+        expect(request.persona).toContain('我查了一下')
+        expect(request.persona).toContain('不要用「我想起来了')
+      }
       expect(request.label).toBe(`${shadow.label}·识别`)
       expect(request.prompt[0].text).toContain(USER_TEXT)
       expect(request.signal).toBeInstanceOf(AbortSignal)
@@ -219,6 +224,9 @@ describe('命中 → 派干活影子 → 闪念回灌', () => {
       expect(request.outputSchema).toBeUndefined()
       expect(request.agentOptions).toEqual({ provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningEffort: 'high' })
       expect(request.label?.endsWith('·干活')).toBe(true)
+      // 诚实措辞契约:干活影子如实说「我查了一下」,禁用「我想起来了」。
+      expect(request.persona).toContain('我查了一下')
+      expect(request.persona).toContain('不要用「我想起来了')
     }
     expect(workerStarts[0].request.prompt[0].text).toContain('查一下构建状态')
     expect(workerStarts[1].request.prompt[0].text).toContain('查最近上映的电影')
