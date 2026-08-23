@@ -87,6 +87,7 @@ interface AppState {
 
 const branchColours = ['#635bff', '#d76948', '#168477', '#9b59b6', '#3975c6'] as const
 const SILENT_REPLY = '[[silence]]'
+const PLAIN_REPORT_RETRY = '上一条输出包含结构化载体，不能作为脑分支报告。不要调用或请求任何工具；请把上一条要表达的结论改写成一条自然语言纯文本报告，不要使用 Markdown、HTML/XML、JSON、代码块或 deliverable 载体。'
 
 const icons = {
   brain: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 4.5a3 3 0 0 0-5 2.2 3.2 3.2 0 0 0 .8 6.2A3.5 3.5 0 0 0 9.5 18V4.5Zm5 0a3 3 0 0 1 5 2.2 3.2 3.2 0 0 1-.8 6.2A3.5 3.5 0 0 1 14.5 18V4.5ZM9.5 8H7m7.5 3H17m-7.5 3H7.8m6.7-6H17"/></svg>',
@@ -452,6 +453,20 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+function plainBranchReport(text: string): string | null {
+  const value = text.trim()
+  if (value === '' || /```|<\/?[a-z][^>]*>/i.test(value)) return null
+  if (/^[{[]/.test(value)) {
+    try {
+      JSON.parse(value)
+      return null
+    } catch {
+      // A sentence that starts with punctuation remains ordinary report text.
+    }
+  }
+  return value
+}
+
 /** Mount options for real-browser use and deterministic interface tests. */
 export interface MountAppOptions {
   runtime?: WaiBrainRuntime
@@ -667,16 +682,25 @@ export function mountApp(target: Element | null, options: MountAppOptions = {}):
       const binding = branch.binding
       if (binding === null) return
       try {
-        const reportReply = await runtime.promptAndWait(binding.sessionId, text, binding.endSeq, abort.signal)
+        let reportReply = await runtime.promptAndWait(binding.sessionId, text, binding.endSeq, abort.signal)
         binding.endSeq = reportReply.endSeq
-        const report: BrainReport = { text: reportReply.text, pushed: false }
+        let reportText = plainBranchReport(reportReply.text)
+        if (reportText === null) {
+          reportReply = await runtime.promptAndWait(
+            binding.sessionId, PLAIN_REPORT_RETRY, binding.endSeq, abort.signal,
+          )
+          binding.endSeq = reportReply.endSeq
+          reportText = plainBranchReport(reportReply.text)
+          if (reportText === null) throw new Error('脑分支连续两次未返回自然语言纯文本报告')
+        }
+        const report: BrainReport = { text: reportText, pushed: false }
         turn.reports[branch.id] = report
-        branch.lastReport = reportReply.text
+        branch.lastReport = reportText
         branch.status = 'pushing'
         render()
         await enqueueMain(async () => {
           const response = await runtime.promptAndWait(
-            main.sessionId, internalReportPrompt(branch, text, reportReply.text), main.endSeq, abort.signal,
+            main.sessionId, internalReportPrompt(branch, text, reportText), main.endSeq, abort.signal,
           )
           main.endSeq = response.endSeq
           report.pushed = true

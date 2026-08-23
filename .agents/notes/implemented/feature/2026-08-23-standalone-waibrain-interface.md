@@ -22,7 +22,7 @@ Add an internal standalone interface under `apps/waibrain/` without importing th
 - Read available models and reasoning efforts from the Host's `llm.models` directory. Apply each lane's choice through `session.selectModel({ saveAsDefault: false })` so the interface reuses configured providers without changing the deployment default or reading settings documents.
 - Push each authored branch report into the main Session as injected context. `[[silence]]` remains internal and never appears in the public transcript.
 - Keep worker permission as visible branch configuration without invoking a worker. A worker remains deferred until the branch-owned trigger and reporting lifecycle have their own runtime decision.
-- Display authored branch reports and delivery status rather than raw hidden reasoning. The branch runtime prompt requires one natural-language plain-text report and excludes markup, JSON, code blocks, and deliverable wrappers from this report channel.
+- Display authored branch reports and delivery status rather than raw hidden reasoning. The branch runtime prompt requires one natural-language plain-text report and excludes markup, JSON, code blocks, and deliverable wrappers from this report channel. The interface validates that model-output boundary, requests one plain-text rewrite in the same branch Session when needed, and refuses to push a second structured response to the main Session.
 - Reuse the repository's installed Vite, TypeScript, and Vitest tooling through root commands, but keep the interface source independent from the existing Web UI modules.
 
 ## Consequences
