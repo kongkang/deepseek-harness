@@ -17,7 +17,7 @@ import type {
 import { assertReleasedV2Header } from './validation.ts'
 
 const HEADER_REQUIRED = ['type', 'version', 'id', 'createdAt', 'isSeeded', 'delegationDepth'] as const
-const HEADER_OPTIONAL = ['cwd', 'parentSession', 'origin', 'agentPreset'] as const
+const HEADER_OPTIONAL = ['cwd', 'parentSession', 'origin', 'agentPreset', 'systemPrompt'] as const
 const EVENT_REQUIRED = ['type', 'seq', 'time', 'data'] as const
 const EVENT_OPTIONAL = ['ignorable', 'sourceEventSeqs', 'surfaceOp'] as const
 const EVENT_KEYS: ReadonlySet<string> = new Set([...EVENT_REQUIRED, ...EVENT_OPTIONAL])
@@ -49,7 +49,7 @@ function decodePhysicalHeader(value: unknown): SessionFormatHeader {
   const createdAt = sessionFormatCount(record['createdAt'], 'released v2 header createdAt')
   const delegationDepth = sessionFormatCount(record['delegationDepth'], 'released v2 header delegationDepth')
   if (typeof record['isSeeded'] !== 'boolean') throw new SessionFormatError('released v2 header isSeeded must be boolean')
-  for (const key of ['cwd', 'parentSession', 'agentPreset'] as const) {
+  for (const key of ['cwd', 'parentSession', 'agentPreset', 'systemPrompt'] as const) {
     if (record[key] !== undefined && typeof record[key] !== 'string') {
       throw new SessionFormatError(`released v2 header ${key} must be a string`)
     }
@@ -67,6 +67,7 @@ function decodePhysicalHeader(value: unknown): SessionFormatHeader {
     ...(record['origin'] === undefined ? {} : { origin: record['origin'] }),
     delegationDepth,
     ...(record['agentPreset'] === undefined ? {} : { agentPreset: record['agentPreset'] }),
+    ...(record['systemPrompt'] === undefined ? {} : { systemPrompt: record['systemPrompt'] }),
   }, 'released v2 logical header') as SessionFormatHeader
   assertReleasedV2Header(header)
   return header
@@ -172,6 +173,7 @@ function encodeHeader(
     ...(header.origin === undefined ? {} : { origin: header.origin }),
     delegationDepth: header.delegationDepth,
     ...(header.agentPreset === undefined ? {} : { agentPreset: header.agentPreset }),
+    ...(header.systemPrompt === undefined ? {} : { systemPrompt: header.systemPrompt }),
   }
 }
 

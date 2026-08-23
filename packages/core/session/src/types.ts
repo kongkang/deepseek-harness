@@ -127,6 +127,12 @@ export interface SessionHeader {
    * would replay history the model can no longer act on.
    */
   readonly agentPreset?: string
+  /**
+   * Session-specific persona instructions installed in the deployment persona
+   * slot. Durable because every resumed turn must reconstruct the same model
+   * input that the session was created with.
+   */
+  readonly systemPrompt?: string
 }
 
 /**
@@ -155,6 +161,7 @@ export interface CreateSessionOptions {
     readonly origin?: 'subagent'
     readonly delegationDepth?: number
     readonly agentPreset?: string
+    readonly systemPrompt?: string
   }
 }
 

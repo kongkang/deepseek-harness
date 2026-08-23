@@ -41,7 +41,7 @@ export function assertReleasedV2Header(header: SessionFormatHeader): void {
   if (record['cwd'] !== undefined && (typeof record['cwd'] !== 'string' || !isAbsolute(record['cwd']))) {
     throw new SessionFormatError('format v2 header cwd must be absolute')
   }
-  for (const key of ['parentSession', 'agentPreset'] as const) {
+  for (const key of ['parentSession', 'agentPreset', 'systemPrompt'] as const) {
     if (record[key] !== undefined && typeof record[key] !== 'string') {
       throw new SessionFormatError(`format v2 header ${key} must be a string`)
     }

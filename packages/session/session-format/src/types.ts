@@ -23,6 +23,7 @@ export interface SessionFormatHeader extends SessionFormatJsonObject {
   readonly origin?: 'subagent'
   readonly delegationDepth: number
   readonly agentPreset?: string
+  readonly systemPrompt?: string
 }
 
 /** One decoded logical Session event. */

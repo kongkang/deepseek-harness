@@ -194,6 +194,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'session/agent-busy': { readonly reason: string }
     'session/invalid-time-zone': { readonly value: string }
     'session/workspace-attach-failed': { readonly sessionId: SessionId; readonly workspaceId: string }
+    'session/system-prompt-conflict': { readonly sessionId: SessionId }
     'agent-preset/conflict': {
       readonly sessionId: SessionId
       readonly requestedPreset: string
@@ -267,6 +268,13 @@ export interface SessionCreateRequest {
   readonly cwd?: string
   readonly sessionId?: SessionId
   readonly agentPreset?: string
+  /**
+   * Session-specific persona instructions installed in the deployment persona
+   * slot. Stored with the Session and restored before later turns. A retry
+   * that names the same Session id may omit it or repeat the exact value; a
+   * different value fails with `session/system-prompt-conflict`.
+   */
+  readonly systemPrompt?: string
 }
 
 /** Session creation response value. */
@@ -278,6 +286,11 @@ export interface SessionCreateValue {
 /** Session model-selection request. */
 export interface SessionSelectModelRequest extends ModelSelection {
   readonly sessionId: SessionId
+  /**
+   * Whether the selection also becomes the deployment default. Omitted keeps
+   * the legacy behavior of saving the default.
+   */
+  readonly saveAsDefault?: boolean
 }
 
 /** Accepted model selection after Host resolution. */
@@ -409,6 +422,7 @@ export interface SessionWireHeader {
   readonly origin?: 'subagent'
   readonly delegationDepth?: number
   readonly agentPreset?: string
+  readonly systemPrompt?: string
 }
 
 /** Browser wire surface operation; replacement endpoints are earlier event seqs in surface order. */

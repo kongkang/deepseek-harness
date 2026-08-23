@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "lib/types"
+  },
+  "include": ["src", "tests"],
+  "exclude": ["tests/**/*.e2e.ts"]
+}

@@ -90,10 +90,11 @@ interface HeaderLine {
   origin?: 'subagent'
   delegationDepth: number
   agentPreset?: string
+  systemPrompt?: string
 }
 
 const HEADER_REQUIRED_KEYS = ['type', 'version', 'id', 'createdAt', 'isSeeded', 'delegationDepth'] as const
-const HEADER_OPTIONAL_KEYS = ['cwd', 'parentSession', 'origin', 'agentPreset'] as const
+const HEADER_OPTIONAL_KEYS = ['cwd', 'parentSession', 'origin', 'agentPreset', 'systemPrompt'] as const
 const HEADER_KEYS = new Set<string>([...HEADER_REQUIRED_KEYS, ...HEADER_OPTIONAL_KEYS])
 
 /**
@@ -149,6 +150,7 @@ function fromHeaderLine(line: HeaderLine): SessionStorageMetadata {
       ...line.origin !== undefined ? { origin: line.origin } : {},
       delegationDepth: line.delegationDepth,
       ...line.agentPreset !== undefined ? { agentPreset: line.agentPreset } : {},
+      ...line.systemPrompt !== undefined ? { systemPrompt: line.systemPrompt } : {},
     },
     inheritedEventCount: SessionLogOffset(0),
   }
@@ -181,6 +183,9 @@ function isHeaderLine(value: unknown): value is HeaderLine {
       || (value as { origin?: unknown }).origin === 'subagent')
     && ((value as { agentPreset?: unknown }).agentPreset === undefined
       || typeof (value as { agentPreset?: unknown }).agentPreset === 'string')
+    && ((value as { systemPrompt?: unknown }).systemPrompt === undefined
+      || (typeof (value as { systemPrompt?: unknown }).systemPrompt === 'string'
+        && (value as { systemPrompt: string }).systemPrompt.trim().length > 0))
   )
 }
 

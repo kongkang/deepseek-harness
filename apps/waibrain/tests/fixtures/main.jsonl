@@ -1,0 +1,17 @@
+{"type":"session","version":0,"id":"waibrain-main","createdAt":1}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"text-delta","index":0,"text":"我听见了。我们先把这个想法收敛成一个能验证的最小场景。"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"我听见了。我们先把这个想法收敛成一个能验证的最小场景。"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"text-delta","index":0,"text":"[[silence]]"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"[[silence]]"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"text-delta","index":0,"text":"我们可以先写下一条可验证的产品假设。"}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"我们可以先写下一条可验证的产品假设。"}}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":4,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":4,"step":1,"chunk":{"type":"text-delta","index":0,"text":"[[silence]]"}}}
+{"type":"assistant/chunk","data":{"turn":4,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"[[silence]]"}}}}
+{"type":"assistant/chunk","data":{"turn":4,"step":1,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
