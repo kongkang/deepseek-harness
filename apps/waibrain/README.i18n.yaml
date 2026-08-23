@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write apps/waibrain/README.md
-README.md: 42a35fd0a9583bdf08f3451b3c4cdab58df9062b
-README.zh.md: 2c208fe104410601570057595b425a2279338698
+README.md: c3c11a83b43f288474a7851133ada01eb4e51d3f
+README.zh.md: 416726eefb7a1e11951e43e2bc1485b5c74ef6f9
