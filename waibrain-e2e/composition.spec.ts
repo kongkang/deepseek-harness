@@ -91,6 +91,7 @@ function hasStructuredTool(options) {
 
 function waitForIdle(ctx, agent) {
   return new Promise((resolve) => {
+    if (agent.status === 'idle') return resolve()
     const dispose = ctx.on('agent/status', ({ agent: subject, status }) => {
       if (subject === agent && status === 'idle') {
         dispose()
@@ -113,20 +114,6 @@ function injectedThoughts(agent) {
   for (const event of agent.session.events) {
     if (event.type === 'user/message' && event.data?.source?.plugin === 'waibrain-orchestrator') {
       out.push((event.data.content ?? []).filter(block => block.type === 'text').map(block => block.text).join(''))
-    }
-  }
-  return out
-}
-
-/** 闪念注入后在收件箱里等待下一轮 claim:盯 inbox/spliced 事件里的插件消息。 */
-function pendingThoughts(agent) {
-  const out = []
-  for (const event of agent.session.events) {
-    if (event.type !== 'agent/inbox/spliced') continue
-    for (const message of event.data.inserted ?? []) {
-      if (message.source?.plugin === 'waibrain-orchestrator') {
-        out.push((message.content ?? []).filter(block => block.type === 'text').map(block => block.text).join(''))
-      }
     }
   }
   return out
@@ -201,9 +188,8 @@ it('挂载真实预设配置:1 前台 + 2 识别影子 + 命中派干活影子,�
   try {
     agent.followup(createUserMessage({ content: [{ type: 'text', text: '最近有什么新电影值得看?' }], source: { kind: 'user' } }))
     await waitForIdle(ctx, agent)
-    await waitFor(() => pendingThoughts(agent).length > 0, '闪念注入(收件箱)')
-
-    agent.followup(createUserMessage({ content: [{ type: 'text', text: '哦,那还有别的要注意的吗?' }], source: { kind: 'user' } }))
+    // 闪念回灌是唤醒式:主对话自动开启第二轮把内容说出来,无需用户再发消息。
+    await waitFor(() => adapter.requests.length >= 5, '自动接话(唤醒第二轮)')
     await waitForIdle(ctx, agent)
 
     // ① 影子派发走 fork provider:第一轮 2 识别 + 1 干活;第二轮还会再 fork 识别影子(每轮都编排)。
@@ -246,6 +232,9 @@ it('挂载真实预设配置:1 前台 + 2 识别影子 + 命中派干活影子,�
     const lastText = (lastAssistant?.data.message.content ?? [])
       .filter(block => block.type === 'text').map(block => block.text).join('')
     expect(lastText.length).toBeGreaterThan(0)
+    // 唤醒轮触发编排守卫:闪念消息来源是插件而非用户,不再派新一轮影子。
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(adapter.requests.length).toBe(5)
   } finally {
     await handle.dispose()
     await ctx.fiber?.dispose?.()

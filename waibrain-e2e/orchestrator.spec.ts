@@ -57,7 +57,7 @@ async function waitFor(cond, label, timeoutMs = 3000) {
 function harness(scripted = [], config = CONFIG) {
   const listeners = new Map()
   const starts = []
-  const injected = []
+  const delivered = []
   const searches = []
   const warns = []
   const restrictions = []
@@ -95,10 +95,10 @@ function harness(scripted = [], config = CONFIG) {
   const agent = {
     options: { subagentDepth: 0 },
     session: { header: { delegationDepth: 0 }, events: [] },
-    inject: (message) => { injected.push(message) },
+    followup: (message) => { delivered.push(message) },
   }
   apply(ctx, config)
-  return { ctx, agent, starts, injected, searches, warns, restrictions, listeners }
+  return { ctx, agent, starts,  delivered, searches, warns, restrictions, listeners }
 }
 
 /** 触发一轮 pre-step(返回瀑布决策),并等编排异步完成(由调用方 waitFor 具体条件)。 */
@@ -182,7 +182,7 @@ describe('每轮按配置 fork N 个识别影子', () => {
     // 默认脚本:全部「无关」→ 不派 worker、不注入。
     await new Promise(resolve => setTimeout(resolve, 20))
     expect(h.starts.length).toBe(3)
-    expect(h.injected).toHaveLength(0)
+    expect(h.delivered).toHaveLength(0)
   })
 
   it('识别影子结构化结果缺失(未调工具)时不派、不注入、不抛错', async () => {
@@ -194,7 +194,7 @@ describe('每轮按配置 fork N 个识别影子', () => {
     await trigger(h)
     await new Promise(resolve => setTimeout(resolve, 20))
     expect(h.starts.length).toBe(3)
-    expect(h.injected).toHaveLength(0)
+    expect(h.delivered).toHaveLength(0)
     // 除例行诊断(round start / pre-step)外,不得有错误日志。
     expect(h.warns.filter(w => !w.includes('round start') && !w.includes('pre-step'))).toHaveLength(0)
   })
@@ -210,7 +210,7 @@ describe('命中 → 派干活影子 → 闪念回灌', () => {
       textResult('我刚查了,最近上映的有《XX》。'), // search 干活
     ])
     await trigger(h)
-    await waitFor(() => h.injected.length === 2, '两个干活影子闪念注入')
+    await waitFor(() => h.delivered.length === 1, '命中影子合并为一次回灌')
 
     const workerStarts = h.starts.slice(3)
     expect(workerStarts).toHaveLength(2)
@@ -225,10 +225,10 @@ describe('命中 → 派干活影子 → 闪念回灌', () => {
     expect(workerStarts[1].request.prompt[0].text).toContain('FACTS-CONTENT')
     expect(h.searches).toEqual([USER_TEXT])
 
-    const texts = h.injected.map(message => message.content[0].text)
-    expect(texts).toContain('【闪念】我刚看了一眼,构建还在跑。')
-    expect(texts).toContain('【闪念】我刚查了,最近上映的有《XX》。')
-    for (const message of h.injected) {
+    const lines = h.delivered[0].content[0].text.split('\n')
+    expect(lines).toContain('【闪念】我刚看了一眼,构建还在跑。')
+    expect(lines).toContain('【闪念】我刚查了,最近上映的有《XX》。')
+    for (const message of h.delivered) {
       expect(message.source.kind).toBe('plugin')
       expect(message.source.plugin).toBe('waibrain-orchestrator')
       expect(message.source.form).toBe('notice')
@@ -243,9 +243,9 @@ describe('命中 → 派干活影子 → 闪念回灌', () => {
       verdictResult(true, '气氛有点闷,可以聊聊轻松的话题。'), // mood 直接产出
     ])
     await trigger(h)
-    await waitFor(() => h.injected.length === 1, '无 worker 影子直接注入')
+    await waitFor(() => h.delivered.length === 1, '无 worker 影子直接注入')
     expect(h.starts).toHaveLength(3)
-    expect(h.injected[0].content[0].text).toBe('【闪念】气氛有点闷,可以聊聊轻松的话题。')
+    expect(h.delivered[0].content[0].text).toBe('【闪念】气氛有点闷,可以聊聊轻松的话题。')
   })
 
   it('search 影子搜索失败只记日志,干活影子照派(无搜索结果)', async () => {
@@ -257,7 +257,7 @@ describe('命中 → 派干活影子 → 闪念回灌', () => {
     ])
     h.ctx.web.search = async () => { throw new Error('search down') }
     await trigger(h)
-    await waitFor(() => h.injected.length === 1, '搜索失败仍回灌')
+    await waitFor(() => h.delivered.length === 1, '搜索失败仍回灌')
     expect(h.warns.some(w => w.includes('search failed'))).toBe(true)
     const workerPrompt = h.starts[3].request.prompt[0].text
     expect(workerPrompt).toContain('查最近上映的电影')
@@ -275,8 +275,8 @@ describe('边界与防御', () => {
       textResult(long),
     ])
     await trigger(h)
-    await waitFor(() => h.injected.length === 1, '截断闪念注入')
-    expect(h.injected[0].content[0].text).toBe('【闪念】' + '字'.repeat(300))
+    await waitFor(() => h.delivered.length === 1, '截断闪念注入')
+    expect(h.delivered[0].content[0].text).toBe('【闪念】' + '字'.repeat(300))
   })
 
   it('干活影子输出空白时不注入', async () => {
@@ -288,7 +288,7 @@ describe('边界与防御', () => {
     ])
     await trigger(h)
     await new Promise(resolve => setTimeout(resolve, 20))
-    expect(h.injected).toHaveLength(0)
+    expect(h.delivered).toHaveLength(0)
   })
 
   it('识别影子 start 抛错只记日志,不抛出、不中断其余影子', async () => {
@@ -298,7 +298,7 @@ describe('边界与防御', () => {
       verdictResult(true, '气氛不错。'),
     ])
     const { decision } = await trigger(h)
-    await waitFor(() => h.injected.length === 1, '其余影子照常注入')
+    await waitFor(() => h.delivered.length === 1, '其余影子照常注入')
     expect(decision.kind).toBe('enter')
     expect(h.warns.some(w => w.includes('provider down'))).toBe(true)
   })
