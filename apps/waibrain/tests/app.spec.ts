@@ -39,7 +39,9 @@ const catalog: ModelCatalog = {
 
 class FakeRuntime implements WaiBrainRuntime {
   readonly created: Array<CreateAgentRequest & { sessionId: string }> = []
+  readonly prompted: Array<{ sessionId: string; text: string }> = []
   failCreateAt: number | null = null
+  invalidBranchReportsRemaining = 0
   private readonly prompts = new Map<string, string>()
   private readonly ends = new Map<string, number>()
 
@@ -60,10 +62,18 @@ class FakeRuntime implements WaiBrainRuntime {
   }
 
   promptAndWait(sessionId: string, text: string): Promise<AgentReply> {
+    this.prompted.push({ sessionId, text })
     const prompt = this.prompts.get(sessionId) ?? ''
     const previous = this.ends.get(sessionId) ?? -1
     const endSeq = previous + 10
     this.ends.set(sessionId, endSeq)
+    if (this.invalidBranchReportsRemaining > 0 && prompt.includes('事实核验')) {
+      this.invalidBranchReportsRemaining -= 1
+      return Promise.resolve({ text: '<tool_calls><invoke name="exec_command" /></tool_calls>', endSeq })
+    }
+    if (text.includes('改写成一条自然语言纯文本报告')) {
+      return Promise.resolve({ text: '本轮不依赖外部事实，不需要启动搜索。', endSeq })
+    }
     if (text.includes('<waibrain_internal_report>')) {
       return Promise.resolve({
         text: text.includes('任务推进') ? '我们可以先定义一个最小验收场景。' : '[[silence]]',
@@ -235,6 +245,36 @@ describe('WaiBrain interface', () => {
       expect(screen.getAllByText('已推送主对话')).toHaveLength(3)
     })
     expect(screen.getByText('我们可以先定义一个最小验收场景。')).not.toBeNull()
+  })
+
+  it('re-prompts a structured branch response before pushing its plain-text report', async () => {
+    await createConversation()
+    runtime.invalidBranchReportsRemaining = 1
+    fireEvent.input(screen.getByLabelText('给苏禾发消息'), { target: { value: '帮我核验这个前提。' } })
+    fireEvent.click(screen.getByRole('button', { name: '发送' }))
+
+    await waitFor(() => {
+      expect(screen.getAllByText('已推送主对话')).toHaveLength(2)
+    })
+    expect(document.body.textContent).not.toContain('<tool_calls>')
+    expect(runtime.prompted.some(call => call.text.includes('改写成一条自然语言纯文本报告'))).toBe(true)
+    expect(screen.getByText('本轮不依赖外部事实，不需要启动搜索。')).not.toBeNull()
+  })
+
+  it('fails a branch closed when its corrected report is still structured', async () => {
+    await createConversation()
+    runtime.invalidBranchReportsRemaining = 2
+    fireEvent.input(screen.getByLabelText('给苏禾发消息'), { target: { value: '帮我核验这个前提。' } })
+    fireEvent.click(screen.getByRole('button', { name: '发送' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: '发送' }).disabled).toBe(false)
+    })
+    const facts = screen.getByRole('heading', { name: '事实核验' }).closest('article')
+    expect(facts?.textContent).toContain('运行失败')
+    expect(facts?.textContent).toContain('连续两次未返回自然语言纯文本报告')
+    expect(document.body.textContent).not.toContain('<tool_calls>')
+    expect(runtime.prompted.filter(call => call.text.includes('<waibrain_internal_report>'))).toHaveLength(1)
   })
 
   it('uses the same lane grid for timeline headers and message rows', async () => {
