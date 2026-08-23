@@ -2,13 +2,14 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import AgentRegistry, { agentEvents } from '@deepseek-ai/dsh-agent'
+import AgentRegistry, { agentEvents, assembleContextFor } from '@deepseek-ai/dsh-agent'
 import type { Agent, AgentHandle, CreateAgentOptions } from '@deepseek-ai/dsh-agent'
 import { createUserMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
 import SessionStore from '@deepseek-ai/dsh-session'
 import type { Session, SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import { createScope } from '@deepseek-ai/dsh-scope'
+import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import type { Workspace } from '@deepseek-ai/dsh-workspace'
 import type { RpcRequest } from '@deepseek-ai/dsh-host-apiproxy/api/rpc'
@@ -28,19 +29,31 @@ async function composed(workspaces: readonly Workspace[] = []): Promise<Context>
   await ctx.plugin(SystemPrompt, { persona: '' })
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(UserQuestionService)
+  let agentRoot!: Context
+  await ctx.plugin(Object.assign(
+    (inner: Context) => { agentRoot = inner },
+    { inject: ['systemPrompt'] },
+  ))
   ctx.provide('workspaceRegistry', { list: () => workspaces } as never)
   ctx.agents.setFactory({
-    createAgent: async (ownerCtx: Context, options: CreateAgentOptions): Promise<AgentHandle> => {
+    createAgent: async (_ownerCtx: Context, options: CreateAgentOptions): Promise<AgentHandle> => {
       const session = ctx.sessions.create(options.sessionId, {
         ...options.seed === undefined ? {} : { seed: [...options.seed] },
         ...options.meta === undefined ? {} : { meta: options.meta },
       })
       const agent = {} as Agent
-      const agentCtx = ownerCtx.extend({ agent })
+      const scope = createScope(agentRoot, agent)
+      const agentCtx = scope.ctx.extend({ agent })
       Object.assign(agent, { id: session.id, session, status: 'idle', ctx: agentCtx })
       await options.setup?.(agentCtx)
-      ctx.agents.register(agent)
-      return { agent, dispose: () => Promise.resolve() }
+      const unregister = ctx.agents.register(agent)
+      return {
+        agent,
+        dispose: async () => {
+          unregister()
+          await scope.dispose()
+        },
+      }
     },
     resume: () => Promise.reject(new Error('fork test sources are live')),
   })
@@ -56,8 +69,11 @@ function liveAgent(
   turns: number,
   tail: Tail = 'none',
   lineage: { parentSession?: SessionId; origin?: 'subagent' } = {},
+  systemPrompt?: string,
 ): Session {
-  const session = ctx.sessions.create(sid(id), { meta: { cwd: '/proj', ...lineage } })
+  const session = ctx.sessions.create(sid(id), {
+    meta: { cwd: '/proj', ...lineage, ...systemPrompt === undefined ? {} : { systemPrompt } },
+  })
   for (let turn = 1; turn <= turns; turn++) {
     session.append('turn/start', { turn })
     session.append('user/message', createUserMessage({
@@ -271,7 +287,7 @@ describe('sessions.fork', () => {
     if (!response.result.ok) return
     const child = ctx.agents.get(response.result.value.sessionId)
     if (child === undefined) throw new Error('fork did not publish the child agent')
-    const assembly = await child.ctx.systemPrompt.assemble()
+    const assembly = await child.ctx.systemPrompt.assemble(assembleContextFor(child))
     expect(assembly.variables).toMatchObject({
       provider: 'inherited-provider',
       model: 'inherited-model',
@@ -284,6 +300,23 @@ describe('sessions.fork', () => {
       model: 'inherited-model',
       reasoningEffort: 'high',
     })
+    await ctx.fiber.dispose()
+  })
+
+  it('inherits and installs the source System Prompt', async () => {
+    const ctx = await composed()
+    const systemPrompt = 'Audit every claim and report only concise findings.'
+    const source = liveAgent(ctx, 'session-persona', 1, 'none', {}, systemPrompt)
+
+    const response = await api(ctx).sessions.fork(request({ sessionId: source.id }))
+
+    expect(response.result.ok, JSON.stringify(response)).toBe(true)
+    if (!response.result.ok) return
+    const child = ctx.agents.get(response.result.value.sessionId)
+    if (child === undefined) throw new Error('fork did not publish the child agent')
+    expect(child.session.header.systemPrompt).toBe(systemPrompt)
+    expect(renderPrompt(await child.ctx.systemPrompt.assemble(assembleContextFor(child))))
+      .toContain(systemPrompt)
     await ctx.fiber.dispose()
   })
 })

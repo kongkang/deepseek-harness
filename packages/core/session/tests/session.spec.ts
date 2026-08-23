@@ -1046,6 +1046,8 @@ describe('Session', () => {
       { header: { ...base, createdAt: '123' }, error: /createdAt must be a non-negative safe integer/ },
       { header: { ...base, cwd: 1 }, error: /header cwd must be a string/ },
       { header: { ...base, cwd: 'relative' }, error: /header cwd must be an absolute path/ },
+      { header: { ...base, systemPrompt: 1 }, error: /systemPrompt must be a non-empty string/ },
+      { header: { ...base, systemPrompt: '   ' }, error: /systemPrompt must be a non-empty string/ },
       { header: { ...base, parentSession: 1 }, error: /header parentSession must be a string/ },
       { header: { ...base, seedLength: '1' }, error: /seedLength must be a non-negative safe integer/ },
       { header: { ...base, seedLength: 0.5 }, error: /seedLength must be a non-negative safe integer/ },
@@ -1278,6 +1280,16 @@ describe('SessionStore', () => {
     })
   })
 
+  it('attaches a session-specific System Prompt from meta to the header', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SessionStore)
+    const session = ctx.sessions.create(SessionId('persona'), {
+      meta: { systemPrompt: 'You are the concise fact-checking branch.' },
+    })
+
+    expect(session.header.systemPrompt).toBe('You are the concise fact-checking branch.')
+  })
+
   it('attaches subagent origin and delegationDepth from meta to the header', async () => {
     const ctx = new Context()
     await ctx.plugin(SessionStore)
@@ -1311,6 +1323,8 @@ describe('SessionStore', () => {
       { meta: { delegationDepth: 0.5 }, error: /delegationDepth must be a non-negative safe integer/ },
       { meta: { delegationDepth: -1 }, error: /delegationDepth must be a non-negative safe integer/ },
       { meta: { agentPreset: 1 }, error: /agentPreset must be a string/ },
+      { meta: { systemPrompt: 1 }, error: /systemPrompt must be a non-empty string/ },
+      { meta: { systemPrompt: '' }, error: /systemPrompt must be a non-empty string/ },
     ]
 
     for (const [index, { meta, error }] of cases.entries()) {

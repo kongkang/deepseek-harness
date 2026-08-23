@@ -87,6 +87,7 @@ import { SessionTitleInvalidError } from '@deepseek-ai/dsh-session-title'
 import type { CallId } from '@deepseek-ai/dsh-llm/brand'
 import type { ScopeKey } from '@deepseek-ai/dsh-scope'
 import type { ApprovalOutcome, ApprovalRequestId } from '@deepseek-ai/dsh-user-approval'
+import { PERSONA_ORDER, PERSONA_SECTION } from '@deepseek-ai/dsh-system-prompt'
 // Side-effect type import: resolves the `approval/request` waterfall and
 // `ctx.get('approval')` without a value dependency on the seam (optional composition).
 import type {} from '@deepseek-ai/dsh-user-approval'
@@ -982,6 +983,13 @@ class AgentPresetConflict extends Error {
   }
 }
 
+/** An explicit-id retry tried to replace immutable session persona instructions. */
+class SessionSystemPromptConflict extends Error {
+  constructor(readonly sessionId: SessionId) {
+    super(`session "${sessionId}" already exists with different System Prompt instructions`)
+  }
+}
+
 /** Requested identity already belongs to a session with another project cwd. */
 class SessionCwdConflict extends Error {
   constructor(
@@ -1150,6 +1158,23 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
   }
 
   /**
+   * Reject a retry that would replace the persona stored with an existing
+   * session. Omitting the field adopts the stored instructions.
+   * @param sessionId - the identity being adopted.
+   * @param requested - instructions named by the retry, if any.
+   * @param existing - instructions stored with the session, if any.
+   * @throws when the request names instructions that are not byte-identical.
+   */
+  function assertSystemPromptUnchanged(
+    sessionId: SessionId,
+    requested: string | undefined,
+    existing: string | undefined,
+  ): void {
+    if (requested === undefined || requested === existing) return
+    throw new SessionSystemPromptConflict(sessionId)
+  }
+
+  /**
    * Resolve the preset an agent will be composed from, and the setup that
    * installs it.
    *
@@ -1165,7 +1190,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
    * @returns the id to record on the header (absent without a roster) and the setup callback.
    * @throws when the roster supplies no such preset.
    */
-  async function composeAgent(presetId: string | undefined): Promise<{
+  async function composeAgent(presetId: string | undefined, systemPrompt?: string): Promise<{
     agentPreset?: string
     setup: (agentCtx: Context) => Promise<void>
   }> {
@@ -1174,6 +1199,13 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       return {
         setup: (agentCtx: Context) => {
           installSelection(agentCtx)
+          if (systemPrompt !== undefined) {
+            agentCtx.systemPrompt.section({
+              name: PERSONA_SECTION,
+              order: PERSONA_ORDER,
+              text: systemPrompt,
+            })
+          }
           return Promise.resolve()
         },
       }
@@ -1184,6 +1216,13 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       setup: async (agentCtx: Context) => {
         installSelection(agentCtx)
         await presets.mount(agentCtx, resolvedId)
+        if (systemPrompt !== undefined) {
+          agentCtx.systemPrompt.section({
+            name: PERSONA_SECTION,
+            order: PERSONA_ORDER,
+            text: systemPrompt,
+          })
+        }
       },
     }
   }
@@ -1208,7 +1247,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
   const agentFor = createApiRemoteAgentResolver(ctx, {
     agentOptions,
     setup: async ({ meta, events }) =>
-      (await composeAgent(resolveSessionPreset({ header: meta, events }))).setup,
+      (await composeAgent(resolveSessionPreset({ header: meta, events }), meta.systemPrompt)).setup,
   })
 
   /** Send one transient frame to every connected mux consumer. */
@@ -1561,6 +1600,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
     cwd: string,
     checkPersistedIdentity: boolean,
     presetId?: string,
+    systemPrompt?: string,
   ): Promise<Agent> {
     let creation = sessionCreations.get(sessionId)
     if (creation === undefined) {
@@ -1591,6 +1631,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
           // while blank ran every turn under the newer composition.
           const storedPreset = resolveSessionPreset({ header: inspected.meta, events: inspected.events })
           assertPresetUnchanged(sessionId, presetId, storedPreset)
+          assertSystemPromptUnchanged(sessionId, systemPrompt, inspected.meta.systemPrompt)
           // The stored preset wins over anything the request names: a resumed
           // session's history was produced under that composition, and
           // rebuilding it differently would replay tool calls the model can no
@@ -1598,7 +1639,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
           return (await ctx.agents.resume({
             resumeSessionId: sessionId,
             agentOptions: agentOptions(),
-            setup: (await composeAgent(storedPreset)).setup,
+            setup: (await composeAgent(storedPreset, inspected.meta.systemPrompt)).setup,
           })).agent
         }
 
@@ -1607,13 +1648,14 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         } catch (error: unknown) {
           throw new Error(`failed to ensure project directory "${cwd}": ${String(error)}`, { cause: error })
         }
-        const composition = await composeAgent(presetId)
+        const composition = await composeAgent(presetId, systemPrompt)
         return (await ctx.agents.create({
           sessionId,
           agentOptions: agentOptions(),
           meta: {
             cwd,
             ...composition.agentPreset === undefined ? {} : { agentPreset: composition.agentPreset },
+            ...systemPrompt === undefined ? {} : { systemPrompt },
           },
           setup: composition.setup,
         })).agent
@@ -1641,6 +1683,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
     // covers every path that yields a live agent — freshly created, adopted
     // live, resumed from disk, or recovered by the concurrent-creation catch.
     assertPresetUnchanged(sessionId, presetId, resolveSessionPreset(agent.session))
+    assertSystemPromptUnchanged(sessionId, systemPrompt, agent.session.header.systemPrompt)
     if (agent.session.header.cwd !== cwd) {
       throw new SessionCwdConflict(sessionId, cwd, agent.session.header.cwd)
     }
@@ -2091,8 +2134,15 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         }
         const cwd = workspace?.path ?? request.payload.cwd ?? defaults.cwd
         const requestedPreset = request.payload.agentPreset
+        const requestedSystemPrompt = request.payload.systemPrompt
         try {
-          await ensureSession(sessionId, cwd, request.payload.sessionId !== undefined, requestedPreset)
+          await ensureSession(
+            sessionId,
+            cwd,
+            request.payload.sessionId !== undefined,
+            requestedPreset,
+            requestedSystemPrompt,
+          )
         } catch (error: unknown) {
           if (error instanceof AgentPresetConflict) {
             return err(request, {
@@ -2103,6 +2153,13 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
                 requestedPreset: error.requestedPreset,
                 ...error.existingPreset === undefined ? {} : { existingPreset: error.existingPreset },
               },
+            })
+          }
+          if (error instanceof SessionSystemPromptConflict) {
+            return err(request, {
+              code: 'system-prompt-conflict',
+              message: error.message,
+              details: { sessionId: error.sessionId },
             })
           }
           const refused = presetFailure(request, error)
@@ -2192,7 +2249,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       },
 
       async selectModel(request) {
-        const { sessionId, provider, model, reasoningEffort } = request.payload
+        const { sessionId, provider, model, reasoningEffort, saveAsDefault } = request.payload
         const found = await agentFor(sessionId)
         if ('error' in found) return err(request, found.error)
         return serializeImageAdmission(found.agent, async () => {
@@ -2212,12 +2269,14 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
                 : { reasoningEffort: resolved.reasoningEffort },
             }
             selectionFor(found.agent).current = selected
-            try {
-              await defaults.saveDefaultModelSelection?.(selected)
-            } catch (error: unknown) {
-              ctx.logger.warn(
-                `api-proxy: the model switch applies to this session but was not saved as the default: ${String(error)}`,
-              )
+            if (saveAsDefault !== false) {
+              try {
+                await defaults.saveDefaultModelSelection?.(selected)
+              } catch (error: unknown) {
+                ctx.logger.warn(
+                  `api-proxy: the model switch applies to this session but was not saved as the default: ${String(error)}`,
+                )
+              }
             }
             return ok(request, { selected: { ...selected } })
           } catch (error: unknown) {
@@ -2318,7 +2377,7 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         // those tools, and composing anything else would strand the tool calls
         // it already carries. Now that no model-facing row sits in the host
         // plane, composing nothing would leave the child with no tools at all.
-        const forkComposition = await composeAgent(resolveSessionPreset(source))
+        const forkComposition = await composeAgent(resolveSessionPreset(source), source.header.systemPrompt)
         try {
           await ctx.agents.create({
             sessionId: childId,
@@ -2330,6 +2389,9 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
               ...forkComposition.agentPreset === undefined
                 ? {}
                 : { agentPreset: forkComposition.agentPreset },
+              ...source.header.systemPrompt === undefined
+                ? {}
+                : { systemPrompt: source.header.systemPrompt },
             },
             agentOptions: agentOptions(),
             setup: forkComposition.setup,

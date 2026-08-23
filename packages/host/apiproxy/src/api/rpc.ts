@@ -35,6 +35,8 @@ export interface RpcErrorDetailsMap {
   'session-not-found': { sessionId: SessionId }
   'model-unavailable': { provider: string; model: string }
   'session-conflict': { sessionId: SessionId; requestedCwd: string; existingCwd?: string }
+  /** An explicit-id retry tried to replace the session's durable persona. */
+  'system-prompt-conflict': { sessionId: SessionId }
   'invalid-time-zone': { value: string }
   'workspace-attach-failed': { sessionId: SessionId; workspaceId: string }
   'workspace-not-found': { workspaceId: string }

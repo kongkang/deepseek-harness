@@ -9,9 +9,11 @@ import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import AgentRegistry, { type AgentFactory } from '@deepseek-ai/dsh-agent'
+import AgentRegistry, { assembleContextFor, type AgentFactory } from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import SessionStore, { SessionId, type Session } from '@deepseek-ai/dsh-session'
+import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
+import { createScope } from '@deepseek-ai/dsh-scope'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import { RpcId, type RpcRequest } from '../src/api/rpc.ts'
 import type { HostFrame } from '../src/api/events.ts'
@@ -21,7 +23,7 @@ import {
 import type {} from '@deepseek-ai/dsh-agent-presets/types'
 import { GoalId } from '@deepseek-ai/dsh-goal'
 import { createApiProxy } from '../src/api-proxy.ts'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 let nextRpc = 0
 function request<P>(payload: P): RpcRequest<P> {
@@ -109,8 +111,14 @@ async function harness(
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-apiproxy-preset-')))
   const ctx = new Context()
   await ctx.plugin(SessionStore)
+  await ctx.plugin(SystemPrompt, { persona: 'deployment persona' })
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(UserQuestionService)
+  let agentRoot!: Context
+  await ctx.plugin(Object.assign(
+    (inner: Context) => { agentRoot = inner },
+    { inject: ['systemPrompt'] },
+  ))
   ctx.provide('sessionPersistence', (persistence ?? { list: () => Promise.resolve([]) }) as never)
   if (presets !== undefined) ctx.provide('agentPresets', roster(presets, options.userIds) as never)
 
@@ -124,11 +132,18 @@ async function harness(
       // Setup runs before publication against a context that carries the
       // agent, and the agent reaches back through `agent.ctx` — the pair the
       // gateway's own `installTarget` relies on.
-      const agentCtx = ctx.extend({ agent })
+      const scope = createScope(agentRoot, agent)
+      const agentCtx = scope.ctx.extend({ agent })
       ;(agent as { ctx?: Context }).ctx = agentCtx
       await options.setup?.(agentCtx)
       const unregister = ctx.agents.register(agent)
-      return { agent, dispose: () => { unregister(); return Promise.resolve() } }
+      return {
+        agent,
+        dispose: async () => {
+          unregister()
+          await scope.dispose()
+        },
+      }
     },
     async resume() {
       throw new Error('test harness has no persisted sessions')
@@ -140,10 +155,96 @@ async function harness(
     cwd,
     ...options.defaults,
   })
-  return { api, ctx, cwd }
+  return { agentRoot, api, ctx, cwd }
 }
 
 describe('session.create with an agent preset', () => {
+  it('records and installs a session-specific System Prompt', async () => {
+    const { api, ctx } = await harness(['standard'])
+
+    const created = await api.sessions.create(request({
+      sessionId: SessionId('persona'),
+      agentPreset: 'standard',
+      systemPrompt: 'You are Lin Chuan. Keep the persona stable.',
+    }))
+
+    expect(created.result.ok, JSON.stringify(created)).toBe(true)
+    const agent = ctx.agents.get(SessionId('persona'))
+    expect(agent?.session.header.systemPrompt).toBe('You are Lin Chuan. Keep the persona stable.')
+    if (agent === undefined) throw new Error('created agent missing')
+    expect(renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent))))
+      .toContain('You are Lin Chuan. Keep the persona stable.')
+  })
+
+  it('retries the same System Prompt and redacts conflicts', async () => {
+    const { api } = await harness(['standard'])
+    const sessionId = SessionId('persona-retry')
+    const systemPrompt = 'You are Lin Chuan. Keep the persona stable.'
+
+    await api.sessions.create(request({ sessionId, agentPreset: 'standard', systemPrompt }))
+    const same = await api.sessions.create(request({ sessionId, agentPreset: 'standard', systemPrompt }))
+    const omitted = await api.sessions.create(request({ sessionId, agentPreset: 'standard' }))
+    const conflict = await api.sessions.create(request({
+      sessionId,
+      agentPreset: 'standard',
+      systemPrompt: 'You are a different persona.',
+    }))
+
+    expect(same.result.ok).toBe(true)
+    expect(omitted.result.ok).toBe(true)
+    expect(conflict.result.ok).toBe(false)
+    if (conflict.result.ok) throw new Error('unreachable')
+    expect(conflict.result.error.code).toBe('system-prompt-conflict')
+    expect(conflict.result.error.details).toEqual({ sessionId: 'persona-retry' })
+    expect(JSON.stringify(conflict)).not.toContain(systemPrompt)
+    expect(JSON.stringify(conflict)).not.toContain('different persona')
+  })
+
+  it('reinstalls a persisted System Prompt on cold resume', async () => {
+    const sessionId = SessionId('persona-cold')
+    const systemPrompt = 'You are the durable fact-checking branch.'
+    const meta = {
+      version: 0,
+      id: sessionId,
+      createdAt: 1,
+      cwd: '/tmp/persona-cold',
+      agentPreset: 'standard',
+      systemPrompt,
+    }
+    const { agentRoot, api, ctx } = await harness(['standard'], {
+      list: () => Promise.resolve([meta]),
+      inspect: () => Promise.resolve({ meta, events: [] }),
+    })
+    vi.spyOn(ctx.agents, 'resume').mockImplementation(async (options) => {
+      const session = ctx.sessions.create(sessionId, { meta })
+      const agent = stubAgent(session)
+      const scope = createScope(agentRoot, agent)
+      const agentCtx = scope.ctx.extend({ agent })
+      ;(agent as { ctx?: Context }).ctx = agentCtx
+      await options.setup?.(agentCtx)
+      const unregister = ctx.agents.register(agent)
+      return {
+        agent,
+        dispose: async () => {
+          unregister()
+          await scope.dispose()
+        },
+      }
+    })
+
+    const resumed = await api.sessions.create(request({
+      sessionId,
+      cwd: meta.cwd,
+      agentPreset: 'standard',
+    }))
+
+    expect(resumed.result.ok, JSON.stringify(resumed)).toBe(true)
+    const agent = ctx.agents.get(sessionId)
+    if (agent === undefined) throw new Error('resumed agent missing')
+    expect(renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent))))
+      .toContain(systemPrompt)
+  })
+
   it('records the resolved preset on the session header', async () => {
     const { api, ctx } = await harness(['standard', 'minimal'])
 

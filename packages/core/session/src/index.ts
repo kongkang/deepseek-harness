@@ -132,6 +132,10 @@ function validateSessionHeader(id: SessionId, input: unknown): SessionHeader {
   if (record.agentPreset !== undefined && typeof record.agentPreset !== 'string') {
     throw new Error('session header agentPreset must be a string')
   }
+  if (record.systemPrompt !== undefined
+    && (typeof record.systemPrompt !== 'string' || record.systemPrompt.trim().length === 0)) {
+    throw new Error('session header systemPrompt must be a non-empty string')
+  }
   return deepFreeze(record as unknown as SessionHeader)
 }
 
@@ -884,6 +888,7 @@ export class SessionStore extends Service {
       ...meta?.origin === undefined ? {} : { origin: meta.origin },
       ...meta?.delegationDepth === undefined ? {} : { delegationDepth: meta.delegationDepth },
       ...meta?.agentPreset === undefined ? {} : { agentPreset: meta.agentPreset },
+      ...meta?.systemPrompt === undefined ? {} : { systemPrompt: meta.systemPrompt },
     }
     return Session.create(sessionId, seed, header)
   }
