@@ -441,7 +441,7 @@ function mainPrompt(role: RoleCard): string {
 }
 
 function branchPrompt(role: RoleCard, branch: BrainBranch): string {
-  return `${branch.systemPrompt}\n\n# 分支身份\n你是“${role.name}”的脑分支“${branch.name}”，职责仅限：${branch.direction}。你听见与主对话相同的用户内容，但不直接扮演主对话，也不向用户说话。每次只返回一条可以推送给主对话的简洁报告；没有发现时明确说“本轮无相关信号”。不要输出隐藏推理过程。`
+  return `${branch.systemPrompt}\n\n# 分支身份\n你是“${role.name}”的脑分支“${branch.name}”，职责仅限：${branch.direction}。你听见与主对话相同的用户内容，但不直接扮演主对话，也不向用户说话。每次只返回一条可以推送给主对话的简洁报告；没有发现时明确说“本轮无相关信号”。只返回自然语言纯文本，不使用 Markdown、HTML/XML 标签、JSON、代码块或文件、卡片等 deliverable 载体。不要输出隐藏推理过程。`
 }
 
 function internalReportPrompt(branch: BrainBranch, userText: string, report: string): string {
