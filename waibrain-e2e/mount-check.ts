@@ -4,7 +4,7 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRuntime from '@deepseek-ai/dsh-tools'
+import ToolRuntime, { defineContentToolFixture } from '@deepseek-ai/dsh-tools'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import AgentPresets from '@deepseek-ai/dsh-agent-presets'
@@ -35,6 +35,15 @@ async function main(): Promise<void> {
   await ctx.plugin(SubprocessRuntime)
   await ctx.plugin(BashSandbox)
   await ctx.plugin(ShellEnv)
+  // 模拟用户 web 全局配置里的审查工具:外脑预设挂载时按名藏掉它们。
+  for (const name of ['reviewer_glm', 'reviewer_deepseek']) {
+    ctx.tools.register(defineContentToolFixture({
+      name,
+      description: 'fixture global reviewer tool',
+      parameters: {},
+      execute: async () => [{ type: 'text', text: 'reviewed' }],
+    }))
+  }
   await ctx.plugin(AgentPresets, {
     default: 'waibrain-dialog',
     roots: [{ path: USER_ROOT, trust: 'user' }],
