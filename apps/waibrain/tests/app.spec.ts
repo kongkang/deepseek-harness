@@ -39,6 +39,7 @@ const catalog: ModelCatalog = {
 
 class FakeRuntime implements WaiBrainRuntime {
   readonly created: Array<CreateAgentRequest & { sessionId: string }> = []
+  failCreateAt: number | null = null
   private readonly prompts = new Map<string, string>()
   private readonly ends = new Map<string, number>()
 
@@ -49,6 +50,10 @@ class FakeRuntime implements WaiBrainRuntime {
   createAgent(request: CreateAgentRequest): Promise<string> {
     const sessionId = `session-${String(this.created.length + 1)}`
     this.created.push({ ...request, sessionId })
+    if (this.failCreateAt === this.created.length) {
+      this.failCreateAt = null
+      return Promise.reject(new Error('simulated Session creation failure'))
+    }
     this.prompts.set(sessionId, request.systemPrompt)
     this.ends.set(sessionId, -1)
     return Promise.resolve(sessionId)
@@ -158,6 +163,30 @@ describe('WaiBrain interface', () => {
     expect(runtime.created).toHaveLength(3)
     expect(runtime.created[0]?.selection).toMatchObject({ model: 'deepseek-flash', reasoningEffort: 'off' })
     expect(runtime.created[1]?.selection).toMatchObject({ model: 'deepseek-pro', reasoningEffort: 'high' })
+  })
+
+  it('retries the complete 1+N set after a partial Session creation failure', async () => {
+    fillRoleCard()
+    runtime.failCreateAt = 2
+    fireEvent.click(screen.getByRole('button', { name: '保存角色并创建对话' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('simulated Session creation failure')
+    })
+    expect(runtime.created).toHaveLength(3)
+
+    fireEvent.input(screen.getByLabelText('角色名称'), { target: { value: '澄月' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存角色并创建对话' }))
+    await screen.findByRole('heading', { name: '与澄月对话' })
+
+    expect(runtime.created).toHaveLength(6)
+    expect(runtime.created.slice(3).map(agent => agent.systemPrompt)).toEqual([
+      expect.stringContaining('名称：澄月'),
+      expect.stringContaining('你是“澄月”的脑分支“事实核验”'),
+      expect.stringContaining('你是“澄月”的脑分支“任务推进”'),
+    ])
+    expect(screen.getByText('Session session-5')).not.toBeNull()
+    expect(screen.getByText('Session session-6')).not.toBeNull()
   })
 
   it('edits an existing brain branch and its independent model choice', () => {

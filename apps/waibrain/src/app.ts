@@ -505,12 +505,16 @@ export function mountApp(target: Element | null, options: MountAppOptions = {}):
     return branch
   }
 
+  const createBranchSession = async (branch: BrainBranch, role: RoleCard): Promise<string> => {
+    if (branch.selection === null) throw new Error(`脑分支“${branch.name}”没有可用模型`)
+    return runtime.createAgent({
+      systemPrompt: branchPrompt(role, branch), selection: branch.selection, agentPreset: 'waibrain',
+    }, abort.signal)
+  }
+
   const createBranchBinding = async (branch: BrainBranch): Promise<void> => {
     if (branch.binding !== null) return
-    if (branch.selection === null) throw new Error(`脑分支“${branch.name}”没有可用模型`)
-    const sessionId = await runtime.createAgent({
-      systemPrompt: branchPrompt(state.role, branch), selection: branch.selection, agentPreset: 'waibrain',
-    }, abort.signal)
+    const sessionId = await createBranchSession(branch, state.role)
     branch.binding = { sessionId, endSeq: -1 }
   }
 
@@ -536,13 +540,20 @@ export function mountApp(target: Element | null, options: MountAppOptions = {}):
     state.roleError = ''
     render()
     try {
-      if (state.mainBinding === null) {
-        const sessionId = await runtime.createAgent({
+      const activeBranches = state.branches.filter(branch => branch.active)
+      const [mainSessionId, branchSessions] = await Promise.all([
+        runtime.createAgent({
           systemPrompt: mainPrompt(role), selection: state.mainSelection, agentPreset: 'waibrain',
-        }, abort.signal)
-        state.mainBinding = { sessionId, endSeq: -1 }
+        }, abort.signal),
+        Promise.all(activeBranches.map(async branch => ({
+          branch,
+          sessionId: await createBranchSession(branch, role),
+        }))),
+      ])
+      state.mainBinding = { sessionId: mainSessionId, endSeq: -1 }
+      for (const { branch, sessionId } of branchSessions) {
+        branch.binding = { sessionId, endSeq: -1 }
       }
-      await Promise.all(state.branches.filter(branch => branch.active).map(createBranchBinding))
       state.conversationCreated = true
       state.view = 'conversation'
     } catch (error: unknown) {

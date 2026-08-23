@@ -18,6 +18,7 @@ Add an internal standalone interface under `apps/waibrain/` without importing th
 - Keep the live conversation in two columns: the public conversation and the brain-branch rail. A branch attached from the rail immediately joins the current system and receives subsequent messages.
 - Provide three focused views: role and branch authoring, the public conversation with live branch status, and a timeline aligned by the originating user message. Timeline headers and rows use the same lane grid; small screens render the lanes as labelled cards.
 - Run the main conversation and every branch as independent durable DSH Sessions under a tool-free `waibrain` preset. `session.create.systemPrompt` stores each persona in its Session header; cold resume and fork reinstall that value, and an explicit-id retry cannot replace it.
+- Publish the main and branch bindings to the interface only after the complete 1+N Session set succeeds. A partial creation failure leaves no stale binding in the interface, so a retry uses the current persona and branch configuration for every lane.
 - Read available models and reasoning efforts from the Host's `llm.models` directory. Apply each lane's choice through `session.selectModel({ saveAsDefault: false })` so the interface reuses configured providers without changing the deployment default or reading settings documents.
 - Push each authored branch report into the main Session as injected context. `[[silence]]` remains internal and never appears in the public transcript.
 - Keep worker permission as visible branch configuration without invoking a worker. A worker remains deferred until the branch-owned trigger and reporting lifecycle have their own runtime decision.
@@ -26,7 +27,7 @@ Add an internal standalone interface under `apps/waibrain/` without importing th
 
 ## Consequences
 
-The product logic runs through the real Host, configured model adapters, Session persistence, and browser transport while remaining independent from the existing Web UI. Replay-backed browser tests exercise one main Session, three branch Sessions, dynamic attachment, four model flows, three report pushes, silence filtering, and timeline alignment without requiring a live API key. Provider authentication and cache behavior remain deployment concerns. Worker invocation remains deferred.
+The product logic runs through the real Host, configured model adapters, Session persistence, and browser transport while remaining independent from the existing Web UI. Replay-backed browser tests exercise one main Session, three branch Sessions, dynamic attachment, four model flows, three report pushes, silence filtering, and timeline alignment without requiring a live API key. Interface tests cover retry after partial Session creation. Provider authentication and cache behavior remain deployment concerns. Worker invocation remains deferred.
 
 ## Alternatives considered
 
