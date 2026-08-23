@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-23-standalone-waibrain-interface.md
-2026-08-23-standalone-waibrain-interface.md: 00d930b85013a5023db09dbb32395b6f23a78d3e
-2026-08-23-standalone-waibrain-interface.zh.md: 61986cf64193116e7b2110b27fd87be99b879257
+2026-08-23-standalone-waibrain-interface.md: a3a6a64038ab98c931a81e4d422ae429bc93eb1a
+2026-08-23-standalone-waibrain-interface.zh.md: c3778aef0d343730be8d5678575bfdbdafc6e791
