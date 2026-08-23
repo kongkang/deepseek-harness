@@ -1,5 +1,6 @@
 # 「外脑对话」1+N 预设:1 个前台对话人格(flash 关思考,零工具)+ N 个数据驱动的影子。
 # 影子配置 = 编排器行的 config.shadows;编排器每轮按配置 fork 影子,以「闪念」回灌主对话。
+# 注:编排器(orchestrator.mjs)改动后必须同步动一下本文件,否则运行中的网页不会重载新编排器。
 
 - id: persona
   name: '@deepseek-ai/dsh-persona'

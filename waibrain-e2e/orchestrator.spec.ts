@@ -195,7 +195,8 @@ describe('每轮按配置 fork N 个识别影子', () => {
     await new Promise(resolve => setTimeout(resolve, 20))
     expect(h.starts.length).toBe(3)
     expect(h.injected).toHaveLength(0)
-    expect(h.warns).toHaveLength(0)
+    // 除例行「round start」诊断外,不得有错误日志。
+    expect(h.warns.filter(w => !w.includes('round start'))).toHaveLength(0)
   })
 })
 

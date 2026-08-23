@@ -122,11 +122,11 @@ function workerPersona(shadow) {
   ].join('\n')
 }
 
-/** 可选日志:优先注入的 logger 服务,组合里没有时退回 console(便于本地排查)。 */
+/** 日志:logger 服务 + console 双写(console 直达网页进程的日志文件,便于远程定位)。 */
 function warn(ctx, message) {
   const logger = typeof ctx.get === 'function' ? ctx.get('logger') : undefined
   if (logger?.warn) logger.warn(message)
-  else console.warn(message)
+  console.warn(`[waibrain-orchestrator] ${message}`)
 }
 
 /** 剥掉模型可能自带的【闪念】前缀,统一由注入端加前缀;再按上限截断。 */
@@ -229,6 +229,7 @@ async function handleHit(ctx, agent, userText, signal, shadow, brief) {
  * 全程 void,绝不阻塞主对话;主轮次中止信号传播到所有影子。
  */
 async function orchestrateRound(ctx, agent, userText, parentSignal, shadows) {
+  warn(ctx, `round start: ${shadows.length} shadow(s), user="${userText.slice(0, 60)}"`)
   const controller = new AbortController()
   const onAbort = () => controller.abort()
   if (parentSignal.aborted) controller.abort()
