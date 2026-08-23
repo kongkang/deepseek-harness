@@ -60,9 +60,11 @@ function harness(scripted = [], config = CONFIG) {
   const injected = []
   const searches = []
   const warns = []
+  const restrictions = []
   const ctx = {
     get: (name) => (name === 'logger' ? { warn: (...args) => { warns.push(args.map(String).join(' ')) } } : undefined),
     on: (event, fn) => { listeners.set(event, fn) },
+    tools: { restrict: (restriction) => { restrictions.push(restriction) } },
     subagents: {
       start: async (provider, request) => {
         const index = starts.length
@@ -96,7 +98,7 @@ function harness(scripted = [], config = CONFIG) {
     inject: (message) => { injected.push(message) },
   }
   apply(ctx, config)
-  return { ctx, agent, starts, injected, searches, warns, listeners }
+  return { ctx, agent, starts, injected, searches, warns, restrictions, listeners }
 }
 
 /** 触发一轮 pre-step(返回瀑布决策),并等编排异步完成(由调用方 waitFor 具体条件)。 */
@@ -112,8 +114,15 @@ async function trigger(h, overrides = {}) {
 }
 
 describe('配置校验(fail loud)', () => {
+  it('挂载时隐藏全局审查工具,快脑保持零工具', () => {
+    const h = harness()
+    expect(h.restrictions).toEqual([
+      { deny: ['reviewer_glm', 'reviewer_deepseek'] },
+    ])
+  })
+
   it('config 缺失或 shadows 不是非空数组时抛错', () => {
-    const ctx = { on: () => {} }
+    const ctx = { on: () => {}, tools: { restrict: () => {} } }
     expect(() => apply(ctx, undefined)).toThrow(/waibrain-orchestrator/)
     expect(() => apply(ctx, {})).toThrow(/shadows/)
     expect(() => apply(ctx, { shadows: [] })).toThrow(/shadows/)
@@ -121,7 +130,7 @@ describe('配置校验(fail loud)', () => {
   })
 
   it('影子条目缺字段或类型错时抛错,并指出位置', () => {
-    const ctx = { on: () => {} }
+    const ctx = { on: () => {}, tools: { restrict: () => {} } }
     const cases = [
       [{ task: 't', model: 'm', reasoningEffort: 'low' }], // 缺 id
       [{ id: 'a', model: 'm', reasoningEffort: 'low' }], // 缺 task
@@ -141,7 +150,7 @@ describe('配置校验(fail loud)', () => {
   })
 
   it('合法配置不抛错(label 可缺省回退 id)', () => {
-    const ctx = { on: () => {} }
+    const ctx = { on: () => {}, tools: { restrict: () => {} } }
     expect(() => apply(ctx, CONFIG)).not.toThrow()
     expect(() => apply(ctx, {
       shadows: [{ id: 'solo', task: 't', model: 'm', reasoningEffort: 'off' }],
