@@ -163,6 +163,7 @@ describe('WaiBrain interface', () => {
     expect(runtime.created).toHaveLength(3)
     expect(runtime.created[0]?.selection).toMatchObject({ model: 'deepseek-flash', reasoningEffort: 'off' })
     expect(runtime.created[1]?.selection).toMatchObject({ model: 'deepseek-pro', reasoningEffort: 'high' })
+    expect(runtime.created[1]?.systemPrompt).toContain('只返回自然语言纯文本')
   })
 
   it('retries the complete 1+N set after a partial Session creation failure', async () => {

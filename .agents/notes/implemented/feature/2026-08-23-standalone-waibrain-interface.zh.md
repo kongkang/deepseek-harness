@@ -22,7 +22,7 @@ Status: implemented
 - 从 Host 的 `llm.models` 目录读取可用模型和思考强度。通过 `session.selectModel({ saveAsDefault: false })` 应用各栏目的选择，使界面可以复用已配置提供方，同时不修改部署默认值，也不读取设置文档。
 - 把每份已编写的脑分支报告作为注入上下文推入主 Session。`[[silence]]` 保持为内部状态，绝不进入公开 transcript。
 - 把工作 agent 权限保留为可见的脑分支配置，但不调用工作 agent。所属分支的触发和报告生命周期形成独立运行时决策前，工作 agent 保持暂缓。
-- 展示编写好的脑分支报告和推送状态，不展示原始隐藏推理。
+- 展示编写好的脑分支报告和推送状态，不展示原始隐藏推理。脑分支运行时提示词要求报告只包含一条自然语言纯文本，并从这条报告通道排除标记语言、JSON、代码块和 deliverable 载体。
 - 通过根目录命令复用仓库已安装的 Vite、TypeScript 和 Vitest 工具，但界面源码与现有 Web UI 模块保持独立。
 
 ## Consequences
