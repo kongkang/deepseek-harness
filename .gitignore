@@ -35,6 +35,7 @@ apps/web/dist/
 .dsh-build/
 .playwright-mcp/
 .orig
+.worktree/
 .worktrees/
 worktrees/
 .agents/worktrees/
