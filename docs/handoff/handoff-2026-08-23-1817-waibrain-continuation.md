@@ -1,78 +1,81 @@
-# Handoff: 继续「外脑对话」项目——第 2 步 UI 面板 + 呈现优化 + 维护
+# Handoff: Continue WaiBrain Dialog — Step 2 UI Panel, Presentation Improvements, and Maintenance
 
-> 来源:本会话完成了 1+N 数据驱动编排的落地、真实网页端到端跑通、以及多轮排障 · 生成于 2026-08-23 18:18
-> 上一棒交接:docs/handoff/handoff-2026-08-22-2235-waibrain-dialog.md(1+N 架构决策史,仍然有效,必读)
+English | [中文](handoff-2026-08-23-1817-waibrain-continuation.zh.md)
 
-## 🎯 下个会话要做什么
+> Source: this session implemented data-driven 1+N orchestration, completed real Web end-to-end validation, and resolved several rounds of failures · Generated 2026-08-23 18:18
 
-1. **第 2 步:Web 设置面板**(交接文档里定好的下一步)——主 agent 角色/任务设置 + N 个可动态增删的影子子 agent 卡片(任务/模型/思考程度)。
-2. **呈现优化(用户高度关注,建议优先做)**:把识别影子从网页的子代理列表中隐藏(或折叠),用户只应看到主对话和干活结果——用户原话「识别影子看着像跑了个空白/浪费」。
-3. **日常维护**:官方更新后同步 master、rebase 开发分支、重跑测试适配插件(流程见 `~/.dsh/AGENTS.md` 第 8 节)。
+> Previous handoff: docs/handoff/handoff-2026-08-22-2235-waibrain-dialog.md, which records the still-valid 1+N architecture decisions and is required reading
 
-## 🧠 必读上下文(不可重建,重点中的重点)
+## 🎯 What the next session should do
 
-### 上一棒已定的架构(不可倒退,细节见上一份 handoff)
+1. **Step 2: Web settings panel**, the next step established in the previous handoff: main-agent role and task settings, plus N dynamically addable and removable shadow-agent cards containing task, model, and reasoning effort.
+2. **Presentation improvements, which matter greatly to the user and should come first**: hide or collapse recognition shadows in the Web child-agent list. The user should see only the main conversation and worker results. In the user's words, recognition shadows look like empty or wasted runs.
+3. **Routine maintenance**: after official updates, sync `master`, rebase the development branch, and rerun tests to adapt the plugins. The process is in section 8 of `~/.dsh/AGENTS.md`.
 
-- **1+N**:1 个前台 flash+关思考+零工具,永不阻塞;每轮 fork N 个识别影子(flash+low)独立判断「这轮归不归我管」;命中的派干活影子(pro+high)或直接产出;结果第一人称「闪念」回灌。
-- **成本账(已和用户对齐)**:识别层 = 便宜判断挡住贵的 Pro(两个识别共享同一段对话缓存前缀,边际成本极低);**架构不动**,「浪费感」用 UI 隐藏解决,不要合并识别层。
+## 🧠 Required context (important and not reconstructable)
 
-### 本会话新增的关键决策
+### Architecture established by the previous handoff (do not reverse it)
 
-- **回灌方式 = 唤醒式 followup(用户拍板)**:从「静默 inject(闪念躺在收件箱,等用户说下一句才带出)」改为「agent.followup 唤醒主对话,自动再开一轮把查到的内容自然说出来」;多路命中合并成一次回灌。用户对「发一句只有秒回、看不到结果」非常不满,唤醒式是最终答案。
-- **诚实措辞契约(用户明确要求的价值观)**:说出口必须如实交代来源——「我查了一下/我刚查了/我看了下」;**禁用「我想起来了/我记得」**(用户原话:那是骗用户)。查不到就如实说查不到、不乱编(实测已生效)。这条契约同时写进了主 persona 和影子 persona,单测里钉死了,别改回去。
-- **零工具约束的补丁**:用户的 web 全局配置里有两个审查工具(reviewer_glm/reviewer_deepseek)对**所有会话**可见;外脑预设挂载时用 `tools.restrict({ deny: [两个名字] })` 把它们藏掉。注意:restrict 只能按「全局工具」名单 deny,且名字不存在会直接抛错(挂载失败)——所以测试组合里必须注册这两个 fixture 工具。
-- **仓库改动(分支 waibrain-voice,PR 未合并)**:`AgentOptions` 增加 `reasoningEffort`;loop 首请求种子「显式 options 努力度 > 持久化 header 恢复值」,修掉 fork 影子与主对话同模型时错误恢复父 off 的坑。有 Agent Note + 5 个单测 + 755 项回归。
+- **1+N**: one foreground Flash model with reasoning disabled and zero tools is never blocked. Every turn forks N recognition shadows using Flash with low reasoning, each independently deciding whether the turn is its responsibility. A matching recognition shadow dispatches a worker shadow using Pro with high reasoning, or produces a result directly. The result returns as a first-person "passing thought."
+- **Cost model agreed with the user**: the recognition tier uses inexpensive decisions to prevent unnecessary Pro calls. Two recognition shadows share the same cached conversation prefix, so their marginal cost is very low. **Do not change the architecture**; address the appearance of waste by hiding recognition shadows in the UI, not by combining the recognition tier.
 
-### 踩过的坑(本会话最贵的教训,新会话别重踩)
+### Key decisions added in this session
 
-1. **网页进程会缓存已加载的预设插件模块**:**改 `orchestrator.mjs` 必须重启网页进程**,否则新会话读到的还是旧代码(改 agent.cordis.yml 的人设/配置则新会话即可生效)。曾因此反复「本地全绿、网页不生效」。重启命令:`launchctl kickstart -k gui/$(id -u)/com.deepseek.dsh-web`(launchd 托管,KeepAlive 自动拉起;重启时本 GUI 会话会断一下,会话是持久的,刷新页面续上)。
-2. **用户在网页里测、我看不到界面**——唯一可靠的定位手段是读证据,顺序:① 用户测试会话的日志(`session.jsonl.zstd`,见下);② 网页进程日志(编排器每一步诊断都写 `.err.log`);③ 再下结论。本会话早期多次「推测→被打脸」,全是没先读日志。
-3. **网页组合里没有 logger 服务**,编排器的 warn 必须 `console.warn` 双写才能进网页日志文件——现在就是这么做的,日志以 `[waibrain-orchestrator]` 为前缀。
-4. 用户的审查工具行原本带两处坏配置:`maxDepth: 0`(任何调用报深度错误,已修为 1)和 `toolFilter deny [write, edit]`(这两个名字不是全局工具,restrict 校验必炸,已改为 deny 审查工具自身防递归)。改的是 `~/.dsh/profiles/web/cordis.patch.yml`,只对新会话生效。
-5. flash 主模型在**工具列表为空时仍会幻觉调用审查工具**(训练行为)——所以「藏工具」必须做在预设层,光靠人设「不要用工具」不够。
-6. `subagent/start` 等生命周期事件是 Cordis 事件,**不进会话日志**——别在会话日志里找它们。
-7. worktree 测试基建(供新会话继续用):worktree 无 node_modules,需符号链接镜像主仓库的 node_modules(含各包私有 node_modules + website);vitest 用 `vitest.waibrain.config.ts`(tsx ESM hook 让 Loader 动态 import 走 tsconfig paths);跑法见「相关文件」。
+- **Reinjection uses a waking followup, as approved by the user**: the design changed from a silent inject, where a passing thought remained in the inbox until the user's next message, to `agent.followup`, which wakes the main conversation and automatically starts another turn that communicates the result naturally. Multiple matches are combined into one reinjection. The user strongly disliked sending one message, receiving only the immediate response, and never seeing the background result, so waking followup is the final decision.
+- **Honest wording rule, reflecting a value explicitly required by the user**: spoken responses must accurately disclose their source with wording such as "I checked" or "I just looked it up." **Do not say "I remembered" or "I recall"**, because the user considers that deceptive. If a search finds nothing, say so rather than inventing an answer. This rule is present in both the main persona and shadow personas and is pinned by unit tests; do not reverse it.
+- **Patch for the zero-tool constraint**: the user's global Web configuration exposes two review tools, `reviewer_glm` and `reviewer_deepseek`, to **all sessions**. When the WaiBrain preset mounts, `tools.restrict({ deny: [the two names] })` hides them. `restrict` can deny only names in the global tool list and throws immediately when a name is missing, which prevents the preset from mounting. The test composition must therefore register both fixture tools.
+- **Repository changes on branch `waibrain-voice`, with the PR not yet merged at the time of this handoff**: `AgentOptions` adds `reasoningEffort`. On the loop's first request, explicit option effort takes precedence over a persisted header value. This fixes a forked shadow incorrectly restoring the parent's `off` effort when the shadow and main conversation use the same model. The change includes an Agent Note, five unit tests, and 755 regression tests.
 
-### 用户硬约束(口头,未全部落文件)
+### Expensive lessons from this session (do not repeat them)
 
-- 流畅第一:前台必须 flash+关思考(网页建会话时**手动选模型**,默认是 pro+max);「永远不被阻塞」指首回复,不代表不能唤醒追答。
-- 快脑零工具;编排在 agent 之外(确定性);闪念第一人称、永不逐字复述、永不解释「收到后台消息」。
-- 自有代码是私有知识产权:一律在 fork(kongkang/deepseek-harness)内开发,不提上游 PR;master 只做官方同步镜像,开发走专用分支(waibrain-voice)。
-- 沟通按 PM 视角讲影响/取舍,少堆路径行号。
+1. **The Web process caches loaded preset plugin modules**: **restart the Web process after changing `orchestrator.mjs`**. Otherwise, a new session still loads the old code. Changes to personas or configuration in `agent.cordis.yml` require only a new session. This caused repeated cases where local tests passed but Web behavior did not change. Restart with `launchctl kickstart -k gui/$(id -u)/com.deepseek.dsh-web`. launchd manages the process with KeepAlive; the GUI session disconnects briefly, but the session is durable and resumes after refreshing.
+2. **The user tests in the Web UI, which the agent cannot see**. The only reliable diagnostic process is to read evidence in this order: the user's test-session log at `session.jsonl.zstd`, described below; the Web process log, where every orchestrator step writes diagnostics to `.err.log`; and only then a conclusion. Early failures in this session came from making assumptions before reading logs.
+3. **The Web composition has no logger service**. Orchestrator warnings must also use `console.warn` to reach the Web log file. The current implementation does this with the `[waibrain-orchestrator]` prefix.
+4. The user's review-tool configuration had two invalid settings: `maxDepth: 0`, which made every call fail with a depth error and was changed to 1; and `toolFilter deny [write, edit]`, where neither name was a global tool, causing `restrict` validation to throw. It now denies the review tools themselves to prevent recursion. The modified file is `~/.dsh/profiles/web/cordis.patch.yml`, and it affects only new sessions.
+5. With an **empty tool list**, the Flash main model may still hallucinate review-tool calls because of its training behavior. The preset layer must therefore hide tools; persona text that says not to use tools is insufficient.
+6. Lifecycle events such as `subagent/start` are Cordis events and **do not enter the session log**. Do not search for them there.
+7. The worktree test infrastructure requires symlinking the primary repository's `node_modules`, including private package `node_modules` directories and `website`, because the worktree has none. Vitest uses `vitest.waibrain.config.ts`; its tsx ESM hook lets dynamic Loader imports use tsconfig paths. See Related files for the commands.
 
-## 📍 当前状态
+### User constraints that were stated but not fully recorded elsewhere
 
-- **1+N 闭环在真实网页上已跑通**:17:5x 两轮实测(录音笔话题)全部符合预期——秒回 → 后台识别+搜索+干活 → 主对话自动接话带出数据;查不到时如实说查不到。用户没有再报问题。
-- 测试:单测 23/23(编排器 17 + 组合测试 B0 + 努力度 5)、真 API e2e PASSED、仓库相关包回归 755/755。
-- 分支 waibrain-voice 头部 5bb4bae7a,已推送 fork;fork 内 PR #2 未合并。
-- 用户预设 `~/.dsh/.agent-presets/waibrain-dialog/` = 与仓库 fixture 逐字节一致(最新)。
-- **未做**:第 2 步 UI 面板;识别影子列表隐藏(已向用户推荐,等拍板);PR #2 合并。
-- **已知环境限制(诚实记录)**:worktree 里全量 typecheck 的 client 阶段与 tsdown 打包跑不通(符号链接环境),报错都在未改动的 UI 包;host 侧 tsc 编译通过。CI 未触发过。
-- **会话日志(用户明确要求记入交接)**:
-  - 本会话(完整对话/思考/工具轨迹):`~/.dsh/sessions/--Users-kongkang-Developer-deepseek-harness--/session-fce3713a-a58b-4a33-9db5-098ab80f236d/session.jsonl.zstd`(读取:`zstd -dc <文件>`;每行一条 JSON 事件)
-  - 上一棒会话(关键词方案时代):同目录 `session-cfdb8691-30b6-4b9d-bcd3-2d50ca753ed0/`
-  - 用户历次网页测试会话:同目录 `session-1fed2bf0-*`、`session-09265a16-*`、`session-1059ada9-*` 等(用户可能已在界面里删掉部分)
-  - 网页进程日志:`/Users/kongkang/Library/Logs/com.deepseek.dsh-web.log`、`.err.log`
+- Fluency comes first: the foreground must use Flash with reasoning disabled. When creating a Web session, **select the model manually**, because the default is Pro with maximum reasoning. "Never blocked" describes the first response and does not prohibit a waking followup.
+- The fast brain has zero tools. Orchestration stays outside the agent and remains deterministic. Passing thoughts use first person, are never repeated verbatim, and never prompt an explanation that a background message arrived.
+- Proprietary code is private intellectual property. Develop only in the `kongkang/deepseek-harness` fork and do not open upstream PRs. `master` is only an official-sync mirror; development uses the dedicated `waibrain-voice` branch.
+- Communicate from a product-manager perspective, emphasizing impact and tradeoffs rather than paths and line numbers.
 
-## 📎 相关文件(只引用,不复制内容)
+## 📍 Current state
 
-- `docs/handoff/handoff-2026-08-22-2235-waibrain-dialog.md` — 上一棒交接:1+N 架构决策史、缓存结论、排除过的死胡同
-- `.worktree/voice-skill-design/waibrain-e2e/` — 测试全家桶:`orchestrator.spec.ts`(单测)、`composition.spec.ts`(B0 无 key 组合测试)、`e2e-1n.ts`(真 API e2e,`--user` 挂真实用户预设)、`e2e-webcompose.ts`(真实网页组合复刻,92 个宿主插件)、`e2e-webflow.ts`(空白切换路径复刻)、`fixture/waibrain-dialog/`(预设权威副本)
-- `.worktree/voice-skill-design/vitest.waibrain.config.ts` — worktree 测试入口配置
-- `.worktree/voice-skill-design/docs/voice-skill-dual-brain-design.md` — 设计文档(§9 是已落地的 1+N 蓝图)
-- `.worktree/voice-skill-design/.agents/notes/implemented/architecture/2026-08-23-agent-options-reasoning-effort.md` — 仓库改动的决策记录
-- `packages/core/agent/src/runtime-types.ts`、`packages/core/agent-loop/src/agent.ts`、`packages/subagent/subagent/src/child-agent.ts` — 仓库改动本体(在 waibrain-voice 分支)
-- `~/.dsh/.agent-presets/waibrain-dialog/` — 用户预设实装(agent.cordis.yml 含影子配置与人设;orchestrator.mjs 编排器)
-- `~/.dsh/profiles/web/cordis.patch.yml` — 用户 web 全局配置(审查工具两行,已修)
-- `~/.dsh/AGENTS.md` 第 8 节 — fork 工作流 + 「改 .mjs 必须重启网页」的规则
-- fork 内 PR:`https://github.com/kongkang/deepseek-harness/pull/2`(waibrain-voice → master)
+- **The 1+N closed loop works in the real Web UI**: two rounds of testing around 17:5x, using a voice-recorder topic, matched the expected sequence of immediate response, background recognition/search/work, and an automatic main-conversation followup containing the data. When search returned nothing, the response said so. The user reported no further issue.
+- Tests: 23 of 23 unit tests passed, consisting of 17 orchestrator tests, the keyless B0 composition test, and five effort tests. Real-API e2e passed, and 755 of 755 related repository regression tests passed.
+- Branch `waibrain-voice` was at `5bb4bae7a` and pushed to the fork. Fork PR #2 was not merged at the time of this handoff.
+- The user preset at `~/.dsh/.agent-presets/waibrain-dialog/` is byte-identical to the repository fixture and current.
+- **Not implemented**: the step 2 UI panel and recognition-shadow list hiding. The latter was recommended to the user and awaited approval.
+- **Known environment limitation, recorded accurately**: full typecheck in the worktree failed in the client phase, and tsdown packaging did not run in the symlink environment. Both errors occurred in unchanged UI packages; Host-side tsc passed. CI had not run.
+- **Session logs, which the user explicitly required this handoff to record**:
+  - This session's complete conversation, reasoning, and tool trajectory: `~/.dsh/sessions/--Users-kongkang-Developer-deepseek-harness--/session-fce3713a-a58b-4a33-9db5-098ab80f236d/session.jsonl.zstd`. Read it with `zstd -dc <file>`; each line is one JSON event.
+  - The previous session from the keyword-triggering design: `session-cfdb8691-30b6-4b9d-bcd3-2d50ca753ed0/` in the same directory.
+  - Historical user Web test sessions: `session-1fed2bf0-*`, `session-09265a16-*`, `session-1059ada9-*`, and others in the same directory. The user may have deleted some of them in the UI.
+  - Web process logs: `/Users/kongkang/Library/Logs/com.deepseek.dsh-web.log` and `/Users/kongkang/Library/Logs/com.deepseek.dsh-web.err.log`.
 
-## 🛠 建议先调用的 skills
+## 📎 Related files (pointers only)
 
-- `test-first` — 第 2 步 UI 面板是新的实现任务,动手前先定验收方式(沿用本会话分层验收思路:单测 + 无 key 组合测试 + 真 API e2e + 用户网页复测)
-- `frontend-design` — 做设置面板界面时用(用户对界面质量有要求)
+- `docs/handoff/handoff-2026-08-22-2235-waibrain-dialog.md` — previous handoff containing the 1+N architecture decision history and rejected dead ends.
+- `.worktree/voice-skill-design/waibrain-e2e/` — test suite containing `orchestrator.spec.ts` for unit tests, `composition.spec.ts` for keyless B0 composition testing, `e2e-1n.ts` for real-API e2e against the real user preset through `--user`, `e2e-webcompose.ts` for a 92-plugin reproduction of the real Web composition, `e2e-webflow.ts` for reproduction of the blank-switch path, and `fixture/waibrain-dialog/` as the authoritative preset copy.
+- `.worktree/voice-skill-design/vitest.waibrain.config.ts` — worktree test entry configuration.
+- `.worktree/voice-skill-design/docs/voice-skill-dual-brain-design.md` — design document; section 9 is the implemented 1+N blueprint.
+- `.worktree/voice-skill-design/.agents/notes/implemented/architecture/2026-08-23-agent-options-reasoning-effort.md` — decision record for the repository change.
+- `packages/core/agent/src/runtime-types.ts`, `packages/core/agent-loop/src/agent.ts`, and `packages/subagent/subagent/src/child-agent.ts` — repository implementation on the `waibrain-voice` branch.
+- `~/.dsh/.agent-presets/waibrain-dialog/` — installed user preset; `agent.cordis.yml` contains shadow configuration and personas, while `orchestrator.mjs` is the orchestrator.
+- `~/.dsh/profiles/web/cordis.patch.yml` — user Web global configuration containing the two corrected review-tool entries.
+- Section 8 of `~/.dsh/AGENTS.md` — fork workflow and the rule that changing `.mjs` requires a Web restart.
+- Fork PR: `https://github.com/kongkang/deepseek-harness/pull/2`, from `waibrain-voice` to `master`.
 
-## 🚀 启动指令
+## 🛠 Skills suggested for the next session
+
+- `test-first` — define acceptance for the step 2 UI panel before implementation, using the layered validation from this session: unit tests, keyless composition testing, real-API e2e, and user Web retesting.
+- `frontend-design` — use this when building the settings-panel UI because visual quality matters to the user.
+
+## 🚀 Restart prompt
 
 ```
 读 docs/handoff/handoff-2026-08-23-1817-waibrain-continuation.md,按里面的 🎯 目标继续。
