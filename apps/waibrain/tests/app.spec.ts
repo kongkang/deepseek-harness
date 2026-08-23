@@ -42,6 +42,7 @@ class FakeRuntime implements WaiBrainRuntime {
   readonly prompted: Array<{ sessionId: string; text: string }> = []
   failCreateAt: number | null = null
   invalidBranchReportsRemaining = 0
+  silentMainRepliesRemaining = 0
   private readonly prompts = new Map<string, string>()
   private readonly ends = new Map<string, number>()
 
@@ -67,6 +68,10 @@ class FakeRuntime implements WaiBrainRuntime {
     const previous = this.ends.get(sessionId) ?? -1
     const endSeq = previous + 10
     this.ends.set(sessionId, endSeq)
+    if (this.silentMainRepliesRemaining > 0 && prompt.includes('# 运行规则')) {
+      this.silentMainRepliesRemaining -= 1
+      return Promise.resolve({ text: '[[silence]]', endSeq })
+    }
     if (this.invalidBranchReportsRemaining > 0 && prompt.includes('事实核验')) {
       this.invalidBranchReportsRemaining -= 1
       return Promise.resolve({ text: '<tool_calls><invoke name="exec_command" /></tool_calls>', endSeq })
@@ -245,6 +250,32 @@ describe('WaiBrain interface', () => {
       expect(screen.getAllByText('已推送主对话')).toHaveLength(3)
     })
     expect(screen.getByText('我们可以先定义一个最小验收场景。')).not.toBeNull()
+  })
+
+  it('re-prompts a silent main reply for an ordinary user message', async () => {
+    await createConversation()
+    runtime.silentMainRepliesRemaining = 1
+    fireEvent.input(screen.getByLabelText('给苏禾发消息'), { target: { value: '请直接回应我。' } })
+    fireEvent.click(screen.getByRole('button', { name: '发送' }))
+
+    await screen.findByText('我听见了。我们先把它拆成一个最小、能被验证的下一步。')
+    await waitFor(() => {
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: '发送' }).disabled).toBe(false)
+    })
+    expect(document.body.textContent).not.toContain('[[silence]]')
+    expect(runtime.prompted.some(call => call.text.includes('普通用户消息不能静默'))).toBe(true)
+  })
+
+  it('fails the public reply closed when its retry is still silent', async () => {
+    await createConversation()
+    runtime.silentMainRepliesRemaining = 2
+    fireEvent.input(screen.getByLabelText('给苏禾发消息'), { target: { value: '请直接回应我。' } })
+    fireEvent.click(screen.getByRole('button', { name: '发送' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('连续两次对普通用户消息返回静默标记')
+    })
+    expect(document.body.textContent).not.toContain('[[silence]]')
   })
 
   it('re-prompts a structured branch response before pushing its plain-text report', async () => {
