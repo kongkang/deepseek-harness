@@ -254,16 +254,20 @@ export function apply(ctx, config) {
   const shadows = config.shadows
   // 主对话零工具:藏掉宿主全局的工具(识别影子在子作用域仍能注册 structured_output)。
   ctx.tools.restrict({ deny: DENIED_TOOLS })
+  warn(ctx, 'applied: restrict + pre-step listener registered')
 
   ctx.on('agent/pre-step', async (payload, next) => {
     const { agent, messages, step, signal } = payload
+    warn(ctx, `pre-step fired: depth=${delegationDepth(agent)} step=${step} msgs=${messages.length}`)
     const decision = await next()
+    warn(ctx, `pre-step decision: kind=${decision.kind} depth=${delegationDepth(agent)} step=${step}`)
 
     // 只编排主对话(depth 0),忽略子智能体自己的 turn,避免递归触发。
     if (delegationDepth(agent) > 0) return decision
     if (step !== 1 || decision.kind !== 'enter') return decision
 
     const userText = textOf(messages.filter(message => message.source?.kind === 'user'))
+    warn(ctx, `pre-step userText: "${userText.slice(0, 60)}"`)
     if (userText.trim() === '') return decision
 
     void orchestrateRound(ctx, agent, userText, signal, shadows)
