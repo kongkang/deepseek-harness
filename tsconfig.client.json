@@ -102,6 +102,7 @@
     { "path": "./packages/client/ui-session" },
     { "path": "./packages/client/web" },
     { "path": "./packages/context/file-reference" },
-    { "path": "./apps/web" }
+    { "path": "./apps/web" },
+    { "path": "./apps/waibrain" }
   ]
 }

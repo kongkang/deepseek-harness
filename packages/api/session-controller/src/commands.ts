@@ -23,6 +23,7 @@ import {
   ApiSessionNotFound,
   ApiSessionPresetConflict,
   ApiSessionSubagentOwnership,
+  ApiSessionSystemPromptConflict,
   apiSessionSubagentOwnershipError,
   hasApiSessionSubagentOwner,
   inspectApiSession,
@@ -92,6 +93,7 @@ export class SessionCommandController {
         cwd,
         request.sessionId !== undefined,
         request.agentPreset,
+        request.systemPrompt,
       )
     } catch (error) {
       this.rejectCreation(sessionId, error)
@@ -135,12 +137,14 @@ export class SessionCommandController {
             : { reasoningEffort: resolved.reasoningEffort }),
         }
         this.agents.selectForNextRequest(agent, selected)
-        try {
-          await this.ctx.agentDefaultModel.saveSelection(selected)
-        } catch (error) {
-          this.ctx.logger.warn(
-            `session-controller: model selection changed for the Session but the default was not saved: ${String(error)}`,
-          )
+        if (request.saveAsDefault !== false) {
+          try {
+            await this.ctx.agentDefaultModel.saveSelection(selected)
+          } catch (error) {
+            this.ctx.logger.warn(
+              `session-controller: model selection changed for the Session but the default was not saved: ${String(error)}`,
+            )
+          }
         }
         return { selected: { ...selected } }
       } catch (error) {
@@ -241,7 +245,10 @@ export class SessionCommandController {
       )
     }
     const childId = brandString<SessionId>(`session-${randomUUID()}`)
-    const composition = await this.agents.composeAgent(this.agents.presetForObservation(source))
+    const composition = await this.agents.composeAgent(
+      this.agents.presetForObservation(source),
+      source.header.systemPrompt,
+    )
     try {
       const { provider, model } = this.ctx.agentDefaultModel.currentSelection()
       await this.ctx.agents.create({
@@ -255,6 +262,9 @@ export class SessionCommandController {
           ...(composition.agentPreset === undefined
             ? {}
             : { agentPreset: composition.agentPreset }),
+          ...(source.header.systemPrompt === undefined
+            ? {}
+            : { systemPrompt: source.header.systemPrompt }),
         },
         agentOptions: { provider, model },
         setup: composition.setup,
@@ -460,6 +470,11 @@ export class SessionCommandController {
         sessionId: error.sessionId,
         requestedPreset: error.requestedPreset,
         ...(error.existingPreset === undefined ? {} : { existingPreset: error.existingPreset }),
+      })
+    }
+    if (error instanceof ApiSessionSystemPromptConflict) {
+      throw new RemoteError('session/system-prompt-conflict', error.message, {
+        sessionId: error.sessionId,
       })
     }
     if (error instanceof ApiSessionCwdConflict) {

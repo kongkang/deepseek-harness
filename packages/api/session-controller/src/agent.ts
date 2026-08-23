@@ -12,6 +12,7 @@ import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { Session, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionInspection } from '@deepseek-ai/dsh-session-persistence'
 import { SessionQueryError, type SessionObservation } from '@deepseek-ai/dsh-session-query'
+import { PERSONA_SECTION } from '@deepseek-ai/dsh-system-prompt'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from '@deepseek-ai/dsh-typert-registry'
 import type { ModelSelection } from './types.ts'
@@ -54,6 +55,14 @@ export class ApiSessionPresetConflict extends Error {
         ? `session "${sessionId}" records no agent preset and cannot be adopted under "${requestedPreset}"`
         : `session "${sessionId}" runs agent preset "${existingPreset}", not "${requestedPreset}"`,
     )
+  }
+}
+
+/** An explicit-id retry tried to replace immutable session persona instructions. */
+export class ApiSessionSystemPromptConflict extends Error {
+  /** @param sessionId - identity whose stored persona differs from the request. */
+  constructor(readonly sessionId: SessionId) {
+    super(`session "${sessionId}" already exists with different System Prompt instructions`)
   }
 }
 
@@ -227,6 +236,7 @@ export class ApiSessionAgentController {
    * @param cwd - directory the Session must own.
    * @param checkPersistedIdentity - whether to inspect a cold identity before creation.
    * @param presetId - optional Agent preset the Session must own.
+   * @param systemPrompt - optional persona instructions the Session must own.
    * @returns the matching live ordinary Agent.
    */
   async ensureSession(
@@ -234,10 +244,11 @@ export class ApiSessionAgentController {
     cwd: string,
     checkPersistedIdentity: boolean,
     presetId?: string,
+    systemPrompt?: string,
   ): Promise<Agent> {
     let creation = this.creations.get(sessionId)
     if (creation === undefined) {
-      creation = this.createOrAdopt(sessionId, cwd, checkPersistedIdentity, presetId)
+      creation = this.createOrAdopt(sessionId, cwd, checkPersistedIdentity, presetId, systemPrompt)
         .catch((error: unknown) => {
           const live = this.ctx.agents.get(sessionId)
           if (live !== undefined) {
@@ -262,6 +273,7 @@ export class ApiSessionAgentController {
     if (presetId !== undefined) {
       this.assertPresetUnchanged(sessionId, presetId, this.presetForSession(agent.session))
     }
+    this.assertSystemPromptUnchanged(sessionId, systemPrompt, agent.session.header.systemPrompt)
     if (agent.session.header.cwd !== cwd) {
       throw new ApiSessionCwdConflict(sessionId, cwd, agent.session.header.cwd)
     }
@@ -369,22 +381,41 @@ export class ApiSessionAgentController {
   /**
    * Resolve the preset id and pre-publication Agent setup for a create or resume.
    * @param presetId - requested preset or the configured default when omitted.
+   * @param systemPrompt - session-specific persona installed in the deployment persona slot.
    * @returns the resolved preset identity and Agent setup callback.
    */
-  async composeAgent(presetId: string | undefined): Promise<{
+  async composeAgent(presetId: string | undefined, systemPrompt?: string): Promise<{
     readonly agentPreset?: string
     readonly setup: AgentSetup
   }> {
     const presets = this.ctx.get('agentPresets')
-    if (presets === undefined) return { setup: (agentCtx) => { this.installSelection(agentCtx) } }
+    if (presets === undefined) {
+      return {
+        setup: (agentCtx) => {
+          this.installSelection(agentCtx)
+          this.installPersona(agentCtx, systemPrompt)
+        },
+      }
+    }
     const resolvedId = (await presets.resolve(presetId)).id
     return {
       agentPreset: resolvedId,
       setup: async (agentCtx) => {
         this.installSelection(agentCtx)
         await presets.mount(agentCtx, resolvedId)
+        this.installPersona(agentCtx, systemPrompt)
       },
     }
+  }
+
+  /** Install a session persona after preset mounting so it owns the persona slot. */
+  private installPersona(agentCtx: Context, systemPrompt: string | undefined): void {
+    if (systemPrompt === undefined) return
+    agentCtx.systemPrompt.section({
+      name: PERSONA_SECTION,
+      order: agentCtx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA'),
+      text: systemPrompt,
+    })
   }
 
   private liveAgent(sessionId: SessionId): ApiSessionAgentResult | undefined {
@@ -419,7 +450,10 @@ export class ApiSessionAgentController {
     if (hasApiSessionSubagentOwner(this.ctx, { header: observation.header }, undefined)) {
       throw new ApiSessionSubagentOwnership(sessionId)
     }
-    const composition = await this.composeAgent(this.presetForObservation(observation))
+    const composition = await this.composeAgent(
+      this.presetForObservation(observation),
+      observation.header.systemPrompt,
+    )
     const published = this.ctx.sessions.get(sessionId)
     const live = this.ctx.agents.get(sessionId)
     if (published !== undefined && hasApiSessionSubagentOwner(this.ctx, published, live)) {
@@ -437,6 +471,7 @@ export class ApiSessionAgentController {
     cwd: string,
     checkPersistedIdentity: boolean,
     presetId: string | undefined,
+    systemPrompt: string | undefined,
   ): Promise<Agent> {
     const attached = this.ctx.sessions.get(sessionId)
     const live = this.ctx.agents.get(sessionId)
@@ -456,7 +491,8 @@ export class ApiSessionAgentController {
         }
         const storedPreset = this.presetForObservation(observation)
         this.assertPresetUnchanged(sessionId, presetId, storedPreset)
-        const composition = await this.composeAgent(storedPreset)
+        this.assertSystemPromptUnchanged(sessionId, systemPrompt, observation.header.systemPrompt)
+        const composition = await this.composeAgent(storedPreset, observation.header.systemPrompt)
         return (await this.ctx.agents.resume({
           resumeSessionId: sessionId,
           agentOptions: this.agentOptions(),
@@ -473,13 +509,14 @@ export class ApiSessionAgentController {
     } catch (error: unknown) {
       throw new Error(`failed to ensure project directory "${cwd}": ${String(error)}`, { cause: error })
     }
-    const composition = await this.composeAgent(presetId)
+    const composition = await this.composeAgent(presetId, systemPrompt)
     return (await this.ctx.agents.create({
       sessionId,
       agentOptions: this.agentOptions(),
       meta: {
         cwd,
         ...(composition.agentPreset === undefined ? {} : { agentPreset: composition.agentPreset }),
+        ...systemPrompt === undefined ? {} : { systemPrompt },
       },
       setup: composition.setup,
     })).agent
@@ -515,6 +552,22 @@ export class ApiSessionAgentController {
   ): void {
     if (requested === undefined || requested === existing) return
     throw new ApiSessionPresetConflict(sessionId, requested, existing)
+  }
+
+  /**
+   * Reject a retry that would replace the persona stored with an existing
+   * Session. Omitting the field adopts the stored instructions.
+   * @param sessionId - the identity being adopted.
+   * @param requested - instructions named by the retry, if any.
+   * @param existing - instructions stored with the Session, if any.
+   */
+  private assertSystemPromptUnchanged(
+    sessionId: SessionId,
+    requested: string | undefined,
+    existing: string | undefined,
+  ): void {
+    if (requested === undefined || requested === existing) return
+    throw new ApiSessionSystemPromptConflict(sessionId)
   }
 }
 

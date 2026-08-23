@@ -2,13 +2,13 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import AgentRegistry, { agentEvents } from '@deepseek-ai/dsh-agent'
+import AgentRegistry, { agentEvents, assembleContextFor } from '@deepseek-ai/dsh-agent'
 import type { Agent, AgentHandle, CreateAgentOptions } from '@deepseek-ai/dsh-agent'
 import { createUserMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { LlmCallConfig } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
 import type { Session, SessionEvent, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
-import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import type { Workspace } from '@deepseek-ai/dsh-workspace'
 import {
   createSessionTestRemote, installSessionReadTestServices, testSessionPersistence,
@@ -57,8 +57,11 @@ function liveAgent(
   turns: number,
   tail: Tail = 'none',
   lineage: { parentSession?: SessionId; origin?: 'subagent' } = {},
+  systemPrompt?: string,
 ): Session {
-  const session = ctx.sessions.create(sid(id), { meta: { cwd: '/proj', ...lineage } })
+  const session = ctx.sessions.create(sid(id), {
+    meta: { cwd: '/proj', ...lineage, ...systemPrompt === undefined ? {} : { systemPrompt } },
+  })
   for (let turn = 1; turn <= turns; turn++) {
     session.append('turn/start', { turn })
     session.append('user/message', createUserMessage({
@@ -286,7 +289,7 @@ describe('sessions.fork', () => {
     if (!response.ok) return
     const child = ctx.agents.get(response.value.sessionId)
     if (child === undefined) throw new Error('fork did not publish the child agent')
-    const assembly = await child.ctx.systemPrompt.assemble()
+    const assembly = await child.ctx.systemPrompt.assemble(assembleContextFor(child))
     expect(assembly.variables).toMatchObject({
       provider: 'inherited-provider',
       model: 'inherited-model',
@@ -299,6 +302,23 @@ describe('sessions.fork', () => {
       model: 'inherited-model',
       reasoningEffort: 'high',
     })
+    await ctx.fiber.dispose()
+  })
+
+  it('inherits and installs the source System Prompt', async () => {
+    const ctx = await composed()
+    const systemPrompt = 'Audit every claim and report only concise findings.'
+    const source = liveAgent(ctx, 'session-persona', 1, 'none', {}, systemPrompt)
+
+    const response = await remote(ctx).fork(request({ sessionId: source.id }))
+
+    expect(response.ok ? null : response.error).toBeNull()
+    if (!response.ok) return
+    const child = ctx.agents.get(response.value.sessionId)
+    if (child === undefined) throw new Error('fork did not publish the child agent')
+    expect(child.session.header.systemPrompt).toBe(systemPrompt)
+    expect(renderPrompt(await child.ctx.systemPrompt.assemble(assembleContextFor(child))))
+      .toContain(systemPrompt)
     await ctx.fiber.dispose()
   })
 })

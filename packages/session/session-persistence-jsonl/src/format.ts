@@ -54,6 +54,7 @@ interface HeaderLine {
   origin?: 'subagent'
   delegationDepth: number
   agentPreset?: string
+  systemPrompt?: string
 }
 
 /**
@@ -85,6 +86,7 @@ export function toHeaderLine(
     ...header.origin !== undefined ? { origin: header.origin } : {},
     delegationDepth: header.delegationDepth ?? 0,
     ...header.agentPreset !== undefined ? { agentPreset: header.agentPreset } : {},
+    ...header.systemPrompt !== undefined ? { systemPrompt: header.systemPrompt } : {},
   }
 }
 
@@ -108,6 +110,7 @@ function fromHeaderLine(line: HeaderLine): SessionStorageMetadata {
       ...line.origin !== undefined ? { origin: line.origin } : {},
       delegationDepth: line.delegationDepth,
       ...line.agentPreset !== undefined ? { agentPreset: line.agentPreset } : {},
+      ...line.systemPrompt !== undefined ? { systemPrompt: line.systemPrompt } : {},
     },
     inheritedEventCount: SessionLogOffset(line.seedLength ?? 0),
   }
@@ -137,6 +140,9 @@ function isHeaderLine(value: unknown): value is HeaderLine {
       || (value as { origin?: unknown }).origin === 'subagent')
     && ((value as { agentPreset?: unknown }).agentPreset === undefined
       || typeof (value as { agentPreset?: unknown }).agentPreset === 'string')
+    && ((value as { systemPrompt?: unknown }).systemPrompt === undefined
+      || (typeof (value as { systemPrompt?: unknown }).systemPrompt === 'string'
+        && (value as { systemPrompt: string }).systemPrompt.trim().length > 0))
   )
 }
 
