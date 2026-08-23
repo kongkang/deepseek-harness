@@ -143,13 +143,13 @@ function thoughtText(result) {
     .join('')
 }
 
-/** 第一人称闪念注入:非唤醒的 next-step 上下文,主对话下一轮自然带出。 */
-function injectThought(agent, thought) {
-  if (thought === '') return
-  agent.inject({
+/** 第一人称闪念回灌:唤醒主对话(永不阻塞首回复),它自然接一句把内容说出来。 */
+function deliverThoughts(agent, thoughts) {
+  if (thoughts.length === 0) return
+  agent.followup({
     id: crypto.randomUUID(),
     role: 'user',
-    content: [{ type: 'text', text: `【闪念】${thought}` }],
+    content: [{ type: 'text', text: thoughts.map(thought => `【闪念】${thought}`).join('\n') }],
     source: { kind: 'plugin', plugin: 'waibrain-orchestrator', form: 'notice', summary: '后台闪念' },
   })
 }
@@ -186,7 +186,7 @@ async function recognize(ctx, agent, userText, signal, shadow) {
   }
 }
 
-/** 命中一个影子:可选先搜索,再派干活影子(或直接产出),结果注入闪念。 */
+/** 命中一个影子:可选先搜索,再派干活影子(或直接产出),返回最终闪念文本(空串=无产出)。 */
 async function handleHit(ctx, agent, userText, signal, shadow, brief) {
   try {
     let facts = ''
@@ -202,8 +202,7 @@ async function handleHit(ctx, agent, userText, signal, shadow, brief) {
       }
     }
     if (shadow.worker === undefined) {
-      injectThought(agent, normalizeThought(brief))
-      return
+      return normalizeThought(brief)
     }
     const run = await ctx.subagents.start('fork', {
       label: `${shadow.label ?? shadow.id}·干活`,
@@ -215,12 +214,13 @@ async function handleHit(ctx, agent, userText, signal, shadow, brief) {
     })
     try {
       const result = await run.result
-      injectThought(agent, normalizeThought(thoughtText(result)))
+      return normalizeThought(thoughtText(result))
     } finally {
       await run.dispose()
     }
   } catch (error) {
     warn(ctx, `waibrain-orchestrator: ${shadow.id}: ${error?.message ?? error}`)
+    return ''
   }
 }
 
@@ -239,9 +239,10 @@ async function orchestrateRound(ctx, agent, userText, parentSignal, shadows) {
       shadows.map(shadow => recognize(ctx, agent, userText, controller.signal, shadow)),
     )
     const hits = recognitions.filter(entry => entry.error === undefined && entry.verdict?.relevant === true)
-    await Promise.all(hits.map(({ shadow, verdict }) => (
+    const thoughts = (await Promise.all(hits.map(({ shadow, verdict }) => (
       handleHit(ctx, agent, userText, controller.signal, shadow, verdict.brief.trim())
-    )))
+    )))).filter(thought => thought !== '')
+    deliverThoughts(agent, thoughts)
   } catch (error) {
     warn(ctx, `waibrain-orchestrator: ${error?.message ?? error}`)
   } finally {

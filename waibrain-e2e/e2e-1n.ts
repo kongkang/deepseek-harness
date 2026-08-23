@@ -32,6 +32,7 @@ const PRESET_ROOT = process.argv.includes('--user') ? USER_ROOT : FIXTURE_ROOT
 
 function waitIdle(ctx, agent) {
   return new Promise((resolve) => {
+    if (agent.status === 'idle') return resolve()
     const dispose = ctx.on('agent/status', ({ agent: subject, status }) => {
       if (subject === agent && status === 'idle') {
         dispose()
@@ -63,18 +64,6 @@ function claimedThoughts(agent) {
   for (const event of agent.session.events) {
     if (event.type === 'user/message' && event.data?.source?.plugin === 'waibrain-orchestrator') {
       out.push(textOf(event.data))
-    }
-  }
-  return out
-}
-
-/** 闪念注入后在收件箱里等下一轮 claim。 */
-function pendingThoughts(agent) {
-  const out = []
-  for (const event of agent.session.events) {
-    if (event.type !== 'agent/inbox/spliced') continue
-    for (const message of event.data.inserted ?? []) {
-      if (message.source?.plugin === 'waibrain-orchestrator') out.push(textOf(message))
     }
   }
   return out
@@ -148,12 +137,10 @@ async function main() {
     console.log('===== 第一轮主对话回复(后台影子并行跑,不应阻塞)=====')
     console.log(firstReply)
 
-    await waitFor(() => pendingThoughts(agent).length > 0, '闪念注入', 120_000)
-    const pending = pendingThoughts(agent)
+    // 唤醒式回灌:闪念到达后主对话自动开启第二轮,把内容自然说出来,无需用户再发消息。
+    await waitFor(() => claimedThoughts(agent).length > 0, '闪念注入并被消费', 120_000)
     console.log('===== 后台注入的闪念 =====')
-    for (const thought of pending) console.log(`  ${thought}`)
-
-    agent.followup(createUserMessage({ content: [{ type: 'text', text: '哦,那还有别的要注意的吗?' }], source: { kind: 'user' } }))
+    for (const thought of claimedThoughts(agent)) console.log(`  ${thought}`)
     await waitIdle(ctx, agent)
     const secondReply = lastAssistantText(agent)
     console.log('===== 第二轮主对话回复(应自然带出闪念)=====')
