@@ -30,6 +30,7 @@ async function waitFor(cond, label, timeoutMs) {
 
 function waitIdle(ctx, agent) {
   return new Promise((resolve) => {
+    if (agent.status === 'idle') return resolve()
     const dispose = ctx.on('agent/status', ({ agent: subject, status }) => {
       if (subject === agent && status === 'idle') {
         dispose()
