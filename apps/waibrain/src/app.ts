@@ -87,6 +87,7 @@ interface AppState {
 
 const branchColours = ['#635bff', '#d76948', '#168477', '#9b59b6', '#3975c6'] as const
 const SILENT_REPLY = '[[silence]]'
+const PUBLIC_REPLY_RETRY = '上一条输入是普通用户消息，普通用户消息不能静默。请回到你的人物角色，直接、自然地回应用户刚才的消息；不要输出 [[silence]]。'
 const PLAIN_REPORT_RETRY = '上一条输出包含结构化载体，不能作为脑分支报告。不要调用或请求任何工具；请把上一条要表达的结论改写成一条自然语言纯文本报告，不要使用 Markdown、HTML/XML、JSON、代码块或 deliverable 载体。'
 
 const icons = {
@@ -666,8 +667,15 @@ export function mountApp(target: Element | null, options: MountAppOptions = {}):
     render()
 
     const mainRun = enqueueMain(async () => {
-      const reply = await runtime.promptAndWait(main.sessionId, text, main.endSeq, abort.signal)
+      let reply = await runtime.promptAndWait(main.sessionId, text, main.endSeq, abort.signal)
       main.endSeq = reply.endSeq
+      if (reply.text.trim().toLowerCase() === SILENT_REPLY) {
+        reply = await runtime.promptAndWait(main.sessionId, PUBLIC_REPLY_RETRY, main.endSeq, abort.signal)
+        main.endSeq = reply.endSeq
+        if (reply.text.trim().toLowerCase() === SILENT_REPLY) {
+          throw new Error('主对话连续两次对普通用户消息返回静默标记')
+        }
+      }
       turn.mainMessages.push(reply.text)
       state.mainThinking = false
       render()
