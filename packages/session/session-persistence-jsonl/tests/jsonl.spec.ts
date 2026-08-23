@@ -942,6 +942,25 @@ describe('JsonlSessionPersistence: scanLog unit', () => {
     expect(scanLog(Buffer.from(log)).meta.agentPreset).toBe('minimal')
   })
 
+  it('round-trips the session-specific System Prompt', () => {
+    const line = toHeaderLine({
+      version: 0,
+      id: SessionId('persona'),
+      createdAt: 1,
+      delegationDepth: 0,
+      systemPrompt: 'You are the fact-checking brain branch.',
+    })
+
+    expect(scanLog(Buffer.from(`${JSON.stringify(line)}\n`)).meta.systemPrompt)
+      .toBe('You are the fact-checking brain branch.')
+  })
+
+  it('rejects a session header whose systemPrompt is not a string', () => {
+    const log = '{"type":"session","version":0,"id":"bad-prompt","createdAt":1,"delegationDepth":0,"systemPrompt":7}\n'
+
+    expect(() => scanLog(Buffer.from(log))).toThrow(/session header/)
+  })
+
   it('rejects a session header whose agentPreset is not a string', () => {
     const log = '{"type":"session","version":0,"id":"bad-preset","createdAt":1,"delegationDepth":0,"agentPreset":7}\n'
 

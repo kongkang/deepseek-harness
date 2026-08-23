@@ -191,7 +191,10 @@ describe('sessions domain schemas', () => {
       ),
       hasMore: true,
     })).toThrow()
-    expect(sessionCreateRequestSchema.parse({ cwd: '/w' }).cwd).toBe('/w')
+    expect(sessionCreateRequestSchema.parse({
+      cwd: '/w',
+      systemPrompt: 'You are a dedicated brain branch.',
+    }).systemPrompt).toBe('You are a dedicated brain branch.')
     // The refine's both-sides branch: workspaceId alone passes, workspaceId+cwd rejects.
     expect(sessionCreateRequestSchema.parse({ workspaceId: 'w1', sessionId: 's1' }).sessionId).toBe('s1')
     expect(() => sessionCreateRequestSchema.parse({ workspaceId: 'w1', cwd: '/w' })).toThrow(/not both/)
@@ -230,7 +233,8 @@ describe('sessions domain schemas', () => {
       provider: 'deepseek-official',
       model: 'deepseek-v4-pro',
       reasoningEffort: 'max',
-    }).reasoningEffort).toBe('max')
+      saveAsDefault: false,
+    }).saveAsDefault).toBe(false)
     expect(sessionSelectModelValueSchema.parse({
       selected: { provider: 'deepseek-official', model: 'deepseek-v4-pro', reasoningEffort: 'max' },
     }).selected.reasoningEffort).toBe('max')

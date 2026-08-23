@@ -261,8 +261,19 @@ export interface SessionsApi {
    * the session header, so a later resume rebuilds the same agent. An unknown
    * id fails with `agent-preset-not-found`, and a preset whose composition
    * cannot be mounted fails with `agent-preset-invalid`.
+   *
+   * `systemPrompt` replaces the deployment persona for this session. It is
+   * stored with the session and restored before later turns. A retry that
+   * names the same session id may omit it or repeat the exact value; a
+   * different value fails with `system-prompt-conflict`.
    */
-  create(request: RpcRequest<{ workspaceId?: WorkspaceId; cwd?: string; sessionId?: SessionId; agentPreset?: string }>):
+  create(request: RpcRequest<{
+    workspaceId?: WorkspaceId
+    cwd?: string
+    sessionId?: SessionId
+    agentPreset?: string
+    systemPrompt?: string
+  }>):
   Promise<RpcResponse<{ sessionId: SessionId; agentPreset?: string }>>
 
   /**
@@ -295,13 +306,16 @@ export interface SessionsApi {
   /**
    * Selects the complete model selection for this session. Exact model metadata
    * validates an optional reasoning effort, while catalog membership remains
-   * advisory. Session-backed subagents reject with `agent-busy`.
+   * advisory. `saveAsDefault` defaults to true for existing clients; false
+   * changes only this session. Session-backed subagents reject with
+   * `agent-busy`.
    */
   selectModel(request: RpcRequest<{
     sessionId: SessionId
     provider: string
     model: string
     reasoningEffort?: string
+    saveAsDefault?: boolean
   }>):
   Promise<RpcResponse<{ selected: ModelSelection }>>
 
