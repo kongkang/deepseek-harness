@@ -19,7 +19,10 @@
  * @module waibrain-orchestrator
  */
 export const name = 'waibrain-orchestrator'
-export const inject = ['subagents', 'web']
+export const inject = ['subagents', 'web', 'tools']
+
+/** 宿主全局配置里可见的审查工具名:外脑主对话必须零工具,在预设层藏掉它们。 */
+const DENIED_TOOLS = ['reviewer_glm', 'reviewer_deepseek']
 
 /** 影子请求的 provider 路由(配置只声明模型与思考程度,路由固定)。 */
 const PROVIDER = 'deepseek-official'
@@ -248,6 +251,8 @@ async function orchestrateRound(ctx, agent, userText, parentSignal, shadows) {
 export function apply(ctx, config) {
   validateConfig(config)
   const shadows = config.shadows
+  // 主对话零工具:藏掉宿主全局的工具(识别影子在子作用域仍能注册 structured_output)。
+  ctx.tools.restrict({ deny: DENIED_TOOLS })
 
   ctx.on('agent/pre-step', async (payload, next) => {
     const { agent, messages, step, signal } = payload
