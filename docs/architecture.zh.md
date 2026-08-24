@@ -89,6 +89,8 @@ turn/end
 
 输入通过同一个 inbox 到达驱动器。有些消息会立即唤醒它；注入的上下文会留在 inbox 中，直到另一条消息将其唤醒。
 
+`agent/request` 从声明的路由生成提案；如果提供了显式 `AgentOptions.reasoningEffort`，它会一并成为初始值，否则只恢复已记录 header 针对同一提供方／模型明确保存的强度。模型选择 waterfall 监听器（例如 Web 应用的会话模型选择器）随后可以覆盖这组提供方、模型和强度。
+
 `agent/pre-step` 决定模型看到什么。监听器可以改写已领取的消息，也可以直接拒绝它们；首次领取被拒绝或被改写为空时，仍会关闭一个不含步骤的持久轮次，因此日志会记录这次尝试。每个步骤读取插件注册的提示词片段和工具 schema。
 
 详情见[时序图](agent-lifecycle.zh.md)、[工具流水线](tool-execution-pipeline.zh.md)和[取消与错误恢复](subsystems/core.zh.md#the-agent-handle)。

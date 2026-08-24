@@ -163,10 +163,18 @@ interface AgentOptions {
   model?: string
   /** Maximum output tokens for each conversation-model request. */
   maxTokens?: number
+  /**
+   * Explicit adapter reasoning effort for this agent's requests. On the first
+   * request it wins over the effort a seeded session header would restore
+   * (delegated children get exactly the effort the delegation requested, not
+   * a same-model parent's); later requests follow the logged header. An
+   * installed model selection (`installModelSelection`) still overrides it.
+   */
+  reasoningEffort?: ReasoningEffortId
 }
 ```
 
-Dispatch requires `provider` and `model` after `agent/request`. When present, `maxTokens` must be a positive safe integer and caps every conversation-model request; omission allows the exact-model adapter default to materialize before the request header, or otherwise leaves provider behavior unchanged. An agent-scoped `deployment:persona` prompt section may shadow the global default persona.
+Dispatch requires `provider` and `model` after `agent/request`. When present, `maxTokens` must be a positive safe integer and caps every conversation-model request; omission allows the exact-model adapter default to materialize before the request header, or otherwise leaves provider behavior unchanged. An explicit `reasoningEffort` seeds the first request ahead of a seeded header's effort, while later requests follow the logged header and installed model selection still has precedence. An agent-scoped `deployment:persona` prompt section may shadow the global default persona.
 
 The inbox is the delivery vocabulary — two ordered pending-message lists the agent owns as a durable projection:
 
