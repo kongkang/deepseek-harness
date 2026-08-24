@@ -147,7 +147,7 @@ Docs accompany every code change: update affected README and JSDoc contracts tog
 
 ## Fork-based development
 
-This checkout is a private fork: `origin` is the owner's fork, `upstream` is deepseek-ai. `master` mirrors upstream — sync it with `git fetch upstream && git merge upstream/master`, never commit to it directly. Owner work lives on dedicated branches, developed in worktrees and merged through in-fork PRs, never contributed upstream. The 外脑 Voice dialog lives on `waibrain-voice`; after each upstream sync, rebase that branch onto the new master and re-run its e2e harness to adapt the plugins.
+This checkout is a private fork: `origin` is the owner's fork, `upstream` is deepseek-ai. `master` mirrors upstream — sync it with `git fetch upstream && git merge upstream/master`, never commit to it directly. Owner work lives on dedicated branches, developed in worktrees and merged through in-fork PRs, never contributed upstream. The 外脑 Voice dialog lives on `wianao-voice`; after each upstream sync, rebase that branch onto the new master and re-run its e2e harness to adapt the plugins.
 
 ## Editing these instructions
 
