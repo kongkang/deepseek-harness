@@ -5,10 +5,9 @@ import { createRequire } from 'node:module'
 import { createServer as createNetServer, type AddressInfo } from 'node:net'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { Browser, Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { launchWebScaffold, type WebScaffold } from '../../web/tests/scaffold.ts'
-import { REPO_ROOT } from '../../web/tests/support.ts'
+import { REPO_ROOT, type Browser, type Page, type PlaywrightModule } from '../../web/tests/support.ts'
 
 const APP_ROOT = join(REPO_ROOT, 'apps/waibrain')
 const MAIN_FIXTURE = join(APP_ROOT, 'tests/fixtures/main.jsonl')
@@ -82,7 +81,7 @@ describe('WaiBrain browser E2E', () => {
     const address = vite.httpServer.address()
     if (address === null || typeof address === 'string') throw new Error('WaiBrain Vite server has no TCP address')
     const playwrightEntry = requireFromWeb.resolve('playwright')
-    const playwright = await import(pathToFileURL(playwrightEntry).href) as typeof import('playwright')
+    const playwright = await import(pathToFileURL(playwrightEntry).href) as PlaywrightModule
     browser = await playwright.chromium.launch()
     page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, locale: 'zh-CN' })
     page.on('pageerror', error => pageErrors.push(error.message))

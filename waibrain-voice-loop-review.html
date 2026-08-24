@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>外脑 · 核心闭环评审 — 一轮表达，最多一次开口</title>
+<style>
+  :root{
+    --paper:#f6f1e7;
+    --paper-2:#efe7d7;
+    --paper-3:#e8dec9;
+    --ink:#221d16;
+    --ink-soft:#5c5344;
+    --ink-faint:#8a7f6c;
+    --vermilion:#bf3a1c;
+    --vermilion-deep:#96260f;
+    --green:#2e6e4e;
+    --line:#d8cdb6;
+    --serif:"Songti SC","Noto Serif SC","Source Han Serif SC","STSong","SimSun",serif;
+    --sans:"PingFang SC","Noto Sans SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    --mono:"SF Mono","Menlo","JetBrains Mono","Courier New",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--serif);
+    font-size:17px;
+    line-height:1.9;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* 纸张肌理 */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:999;opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  }
+  .page{max-width:880px;margin:0 auto;padding:0 28px 120px}
+
+  /* ============ 报头 ============ */
+  header{border-top:6px solid var(--ink);padding-top:26px}
+  .masthead{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+  .masthead .brand{font-family:var(--sans);font-size:12px;letter-spacing:.35em;color:var(--ink-soft)}
+  .masthead .brand b{color:var(--vermilion);font-weight:700}
+  .masthead .meta{font-family:var(--sans);font-size:12px;letter-spacing:.12em;color:var(--ink-faint)}
+  h1{
+    font-size:clamp(34px,6vw,56px);font-weight:900;letter-spacing:.02em;
+    line-height:1.25;margin:26px 0 10px;
+  }
+  h1 .accent{color:var(--vermilion)}
+  .standfirst{font-size:15px;color:var(--ink-soft);font-family:var(--sans);line-height:1.8;max-width:640px}
+  .hero-line{
+    margin:34px 0 8px;padding:26px 0;
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    display:flex;align-items:baseline;gap:22px;flex-wrap:wrap;
+  }
+  .hero-line .num{
+    font-family:var(--serif);font-size:15px;color:var(--vermilion);letter-spacing:.2em;white-space:nowrap;
+  }
+  .hero-line .txt{font-size:clamp(22px,3.4vw,30px);font-weight:700;letter-spacing:.04em}
+
+  /* 结论牌 */
+  .verdict{
+    margin:36px 0 10px;background:var(--paper-2);border-left:5px solid var(--vermilion);
+    padding:24px 28px 24px 24px;position:relative;
+  }
+  .verdict::after{
+    content:"评";position:absolute;top:-14px;right:18px;width:34px;height:34px;
+    background:var(--vermilion);color:var(--paper);font-family:var(--serif);font-weight:900;
+    display:flex;align-items:center;justify-content:center;font-size:17px;
+    box-shadow:2px 2px 0 rgba(34,29,22,.25);
+  }
+  .verdict p{font-size:16.5px}
+  .verdict p + p{margin-top:10px}
+  .verdict strong{color:var(--vermilion-deep)}
+
+  /* ============ 章节 ============ */
+  section{margin-top:84px}
+  .sec-head{display:flex;align-items:baseline;gap:18px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:8px}
+  .sec-head .no{
+    font-family:var(--serif);font-size:52px;font-weight:900;color:var(--vermilion);
+    line-height:1;letter-spacing:0;min-width:64px;
+  }
+  .sec-head h2{font-size:24px;font-weight:900;letter-spacing:.06em}
+  .sec-sub{font-family:var(--sans);font-size:13px;color:var(--ink-faint);margin-bottom:26px;letter-spacing:.05em}
+
+  h3{font-size:18px;font-weight:900;margin:34px 0 12px;letter-spacing:.03em}
+  h3::before{content:"◆ ";color:var(--vermilion);font-size:13px;vertical-align:2px}
+  p.body{margin:14px 0;color:var(--ink)}
+  p.body em{font-style:normal;border-bottom:2px solid var(--vermilion);padding-bottom:1px}
+  .soft{color:var(--ink-soft)}
+
+  code,.mono{font-family:var(--mono);font-size:.86em;background:var(--paper-3);padding:1px 6px;border-radius:3px;color:var(--ink)}
+  .ref{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);background:var(--paper-3);padding:2px 7px;border-radius:3px;white-space:nowrap}
+
+  /* ============ 事实核对卡 ============ */
+  .facts{border:1px solid var(--line);background:#fbf8f1}
+  .fact{display:flex;gap:16px;padding:18px 22px;border-bottom:1px dashed var(--line);align-items:flex-start}
+  .fact:last-child{border-bottom:none}
+  .fact .stamp{
+    flex:none;width:26px;height:26px;border-radius:50%;background:var(--green);color:#fff;
+    font-family:var(--sans);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:5px;
+  }
+  .fact.warn .stamp{background:var(--vermilion)}
+  .fact .t{font-weight:700}
+  .fact .d{font-size:15px;color:var(--ink-soft);margin-top:2px;line-height:1.8}
+
+  /* ============ 闭环图 ============ */
+  .loop{
+    background:var(--ink);color:var(--paper);padding:34px 30px;margin:26px 0 14px;position:relative;overflow:hidden;
+  }
+  .loop::before{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(ellipse 60% 80% at 85% 10%,rgba(191,58,28,.22),transparent 60%);
+  }
+  .loop-title{
+    position:relative;font-family:var(--sans);font-size:12px;letter-spacing:.4em;color:#cbbfa4;margin-bottom:24px;
+  }
+  .flow{position:relative;display:flex;flex-wrap:wrap;gap:10px 0;align-items:stretch}
+  .step{
+    flex:1 1 130px;min-width:126px;border:1px solid #564c3d;padding:14px 12px 12px;position:relative;background:rgba(246,241,231,.03);
+  }
+  .step .k{font-family:var(--serif);font-size:17px;font-weight:700;letter-spacing:.04em}
+  .step .e{font-family:var(--mono);font-size:10.5px;color:#a89a7d;margin-top:6px;line-height:1.5}
+  .step.hot{border-color:var(--vermilion);background:rgba(191,58,28,.12)}
+  .step.hot .k{color:#f0b6a4}
+  .arrow{
+    flex:none;display:flex;align-items:center;padding:0 6px;color:#7d7159;font-size:18px;font-family:var(--mono);
+  }
+  .loop-note{position:relative;margin-top:22px;padding-top:16px;border-top:1px dashed #564c3d;font-size:14px;color:#cbbfa4;line-height:1.9}
+  .loop-note b{color:var(--paper);font-weight:700}
+
+  /* ============ 表格 ============ */
+  table{width:100%;border-collapse:collapse;font-size:14.5px;margin:22px 0 10px;background:#fbf8f1}
+  th{
+    font-family:var(--sans);font-size:12.5px;letter-spacing:.14em;color:var(--paper);
+    background:var(--ink);padding:10px 14px;text-align:left;font-weight:600;white-space:nowrap;
+  }
+  td{padding:14px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.8}
+  td:first-child{font-weight:700;white-space:nowrap}
+  tr:last-child td{border-bottom:2px solid var(--ink)}
+
+  .chip{
+    display:inline-block;font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.08em;
+    padding:3px 10px;border-radius:2px;white-space:nowrap;
+  }
+  .chip.ok{background:#e3efe7;color:var(--green);border:1px solid #b7d3c2}
+  .chip.fix{background:#f7e3dc;color:var(--vermilion-deep);border:1px solid #e4bcae}
+  .chip.hold{background:#ece7db;color:var(--ink-faint);border:1px solid var(--line)}
+
+  /* ============ 修正卡 ============ */
+  .fix-card{
+    border:1px solid var(--line);border-top:3px solid var(--vermilion);background:#fbf8f1;
+    padding:24px 26px;margin:20px 0;counter-increment:fix;
+  }
+  .fix-head{display:flex;align-items:baseline;gap:14px;margin-bottom:10px}
+  .fix-head .fno{
+    font-family:var(--serif);font-size:34px;font-weight:900;color:var(--vermilion);line-height:1;
+  }
+  .fix-head h4{font-size:17.5px;font-weight:900;letter-spacing:.02em}
+  .fix-card p{font-size:15.5px;margin:8px 0}
+  .fix-card .why{
+    margin-top:14px;padding:10px 14px;background:var(--paper-2);border-left:3px solid var(--line);
+    font-size:14px;color:var(--ink-soft);
+  }
+  .fix-card .why b{color:var(--ink)}
+
+  /* ============ 路线 ============ */
+  .phase{display:flex;gap:22px;margin:26px 0;align-items:stretch}
+  .phase .ph-no{
+    flex:none;width:74px;font-family:var(--serif);font-size:40px;font-weight:900;color:var(--vermilion);
+    border-right:2px solid var(--ink);line-height:1.05;padding-right:16px;text-align:right;
+  }
+  .phase .ph-no small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.25em;color:var(--ink-faint);margin-top:6px;font-weight:400}
+  .phase .ph-body h4{font-size:17px;font-weight:900;margin-bottom:6px}
+  .phase ul{list-style:none;margin-top:8px}
+  .phase li{
+    font-size:15px;padding:5px 0 5px 20px;position:relative;line-height:1.75;
+  }
+  .phase li::before{content:"—";position:absolute;left:0;color:var(--vermilion)}
+  .phase .ph-body p{font-size:14.5px;color:var(--ink-soft);margin-top:8px}
+
+  .hold{
+    margin:34px 0 6px;padding:22px 26px;background:var(--paper-2);border:1px dashed var(--ink-faint);
+  }
+  .hold h4{font-family:var(--sans);font-size:13px;letter-spacing:.3em;color:var(--ink-soft);margin-bottom:14px;font-weight:700}
+  .hold ul{list-style:none;columns:2;column-gap:36px}
+  .hold li{font-size:14.5px;padding:4px 0;color:var(--ink-soft);break-inside:avoid}
+  .hold li::before{content:"✕ ";color:var(--ink-faint)}
+
+  /* ============ 验收清单 ============ */
+  .accept{margin:22px 0;border:1px solid var(--line)}
+  .acc{
+    display:flex;gap:18px;padding:20px 24px;border-bottom:1px solid var(--line);background:#fbf8f1;align-items:flex-start;
+  }
+  .acc:last-child{border-bottom:none}
+  .acc .box{
+    flex:none;width:24px;height:24px;border:2px solid var(--ink);margin-top:4px;position:relative;background:var(--paper);
+  }
+  .acc .box::after{
+    content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:var(--vermilion);font-weight:900;font-size:16px;font-family:var(--sans);
+  }
+  .acc .a-t{font-weight:700;font-size:16px}
+  .acc .a-t .idx{font-family:var(--mono);color:var(--vermilion);margin-right:8px;font-size:14px}
+  .acc .a-d{font-size:14px;color:var(--ink-soft);margin-top:4px;line-height:1.8}
+  .acc .a-d .mono{font-size:.9em}
+
+  /* ============ 对照表 ============ */
+  .map td:first-child{white-space:normal;width:38%}
+
+  /* ============ 尾注 ============ */
+  .colophon{
+    margin-top:90px;border-top:3px double var(--ink);padding-top:26px;
+    font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);line-height:2.1;
+  }
+  .colophon h5{font-size:12px;letter-spacing:.3em;color:var(--ink);margin:14px 0 6px;font-weight:700}
+  .colophon .refs{display:flex;flex-wrap:wrap;gap:8px}
+
+  /* ============ 动效 ============ */
+  header,.verdict,section{animation:rise .7s cubic-bezier(.2,.7,.3,1) both}
+  header{animation-delay:.05s}.verdict{animation-delay:.2s}
+  section:nth-of-type(1){animation-delay:.3s}section:nth-of-type(2){animation-delay:.35s}
+  section:nth-of-type(3){animation-delay:.4s}section:nth-of-type(4){animation-delay:.45s}
+  section:nth-of-type(5){animation-delay:.5s}section:nth-of-type(6){animation-delay:.55s}
+  @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  @media (max-width:640px){
+    body{font-size:16px}
+    .phase{flex-direction:column;gap:10px}
+    .phase .ph-no{border-right:none;border-bottom:2px solid var(--ink);width:auto;text-align:left;padding:0 0 6px;display:flex;align-items:baseline;gap:10px}
+    .hold ul{columns:1}
+    .arrow{display:none}
+    .step{flex:1 1 100%}
+    table{font-size:13.5px}
+    td:first-child{white-space:normal}
+  }
+  @media print{
+    body::before{display:none}
+    .page{max-width:none;padding:0 8mm}
+    section{margin-top:40px;animation:none}
+    .loop{background:#221d16!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="masthead">
+    <div class="brand">WAI&nbsp;BRAIN&nbsp;·&nbsp;<b>外脑</b>&nbsp;内部评审</div>
+    <div class="meta">2026-08-30 · 分支 wianao-voice · 依据：录音梳理 + 执行计划 + 代码核对</div>
+  </div>
+  <h1>核心闭环评审：<br>先让 AI 学会<span class="accent">闭嘴</span>，再谈说话</h1>
+  <p class="standfirst">这份评审回应两份输入：你上午一小时的产品口述（录音梳理），和另一份对话产出的执行计划。我对计划里的每一条现状描述都回到代码里核对过，下面是结论——七成照单执行，三成按仓库的现实约束修正。</p>
+  <div class="hero-line">
+    <span class="num">一句话</span>
+    <span class="txt">一轮表达，最多一次开口。</span>
+  </div>
+</header>
+
+<div class="verdict">
+  <p><strong>总评：这份计划方向正确，现状描述准确，可以作为 WaiBrain 下一阶段的执行蓝本。</strong>「先做完核心闭环、不一下子做完所有语音功能」的判断，比你录音里“先全做完再单变量调优”更收敛、更可执行——它把调优对象缩小到了一个可以被测试证明的闭环上。</p>
+  <p>需要修正的集中在四处：事件别一次定义七个、连续表达要先改轮次模型（今天的情况比计划描述的更糟）、表达期间干脆不调用主模型而不是调了再让它闭嘴、主脑零工具这一步先别破（计划自己前后矛盾）。详见第 04 节。</p>
+</div>
+
+<!-- ================= 01 ================= -->
+<section id="s1">
+  <div class="sec-head"><span class="no">01</span><h2>事实核对</h2></div>
+  <p class="sec-sub">计划对现状的每一条关键描述，逐条回到代码验证</p>
+
+  <div class="facts">
+    <div class="fact">
+      <span class="stamp">✓</span>
+      <div>
+        <div class="t">「每条消息启动全部已启用外脑」——属实</div>
+        <div class="d"><span class="ref">packages/host/waibrain/src/index.ts:460</span>&nbsp; 外脑筛选只有 <code>filter(brain =&gt; brain.enabled)</code> 一个条件：开了就跑，没有相关性判断。</div>
+      </div>
+    </div>
+    <div class="fact">
+      <span class="stamp">✓</span>
+      <div>
+        <div class="t">「每个外脑完成后分别唤醒主脑」——属实</div>
+        <div class="d"><span class="ref">index.ts:851</span>&nbsp; <code>settleExternalBrain</code> 出结果就建 <code>wake-pending</code>，<code>deliverPendingWake</code> 逐个注入并各触发一轮回复。三个外脑 = 最多三次额外开口，和录音要求的「只说一次」直接冲突。</div>
+      </div>
+    </div>
+    <div class="fact">
+      <span class="stamp">✓</span>
+      <div>
+        <div class="t">「主脑和外脑全部零工具」——属实</div>
+        <div class="d"><span class="ref">packages/host/waibrain/src/session.ts:28</span>&nbsp; 预设层 <code>ctx.tools.restrict({ allow: [] })</code>；外脑 fork 时同样 <code>toolFilter: { allow: [] }</code>。所以「联网调研」今天根本做不了。</div>
+      </div>
+    </div>
+    <div class="fact warn">
+      <span class="stamp">!</span>
+      <div>
+        <div class="t">计划低估了一点：连续输入今天不是「主脑反复回复」，而是直接被拒收</div>
+        <div class="d"><span class="ref">index.ts:473</span>&nbsp; 主脑非空闲或还有未投递结果时，新输入被 <code>conversation-busy</code> 拒绝。也就是说「用户正在大段表达」这个场景在今天的轮次模型下不成立——<b>改轮次模型是第一优先级的硬前提</b>，不只是体验问题。</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="body soft" style="margin-top:18px">计划里三条原则性的判断我也逐条对过仓库规矩，全部成立：路由器放 Host 插件、不进 <code>agent-loop</code>（符合「plugins, not loop changes」铁律）；保留 <code>wake</code> 的精确一次投递机制、改用途而不是推翻；工具分级授权而不是全开。这三条不要动摇。</p>
+</section>
+
+<!-- ================= 02 ================= -->
+<section id="s2">
+  <div class="sec-head"><span class="no">02</span><h2>核心闭环长什么样</h2></div>
+  <p class="sec-sub">录音前三十分钟的全部诉求，压缩成一条流水线</p>
+
+  <div class="loop">
+    <div class="loop-title">CORE&nbsp;LOOP&nbsp;·&nbsp;一轮表达的生命周期</div>
+    <div class="flow">
+      <div class="step"><div class="k">用户连续表达</div><div class="e">utterance-started<br>utterance-updated</div></div>
+      <div class="arrow">→</div>
+      <div class="step hot"><div class="k">路由器</div><div class="e">判模式 · 选外脑<br>定发言策略</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="k">后台研究</div><div class="e">并行 · 可联网<br>零打断</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="k">结果收件箱</div><div class="e">相关性 · 增量<br>等待 · 合并</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="k">表达结束</div><div class="e">utterance-ended</div></div>
+      <div class="arrow">→</div>
+      <div class="step hot"><div class="k">一次回复</div><div class="e">无增量则沉默<br>只落库不发声</div></div>
+    </div>
+    <div class="loop-note"><b>表达期间，主脑根本不被调用。</b>路由器和外脑照常工作，但主脑的模型请求一次都不发——这既是「绝不打断」的保证，也是 token 上最便宜的做法。等到表达结束、收件箱筛完合并，主脑才被叫起来说那唯一的一次，或者决定不说。</div>
+  </div>
+
+  <h3>七个修改点，我的逐条判定</h3>
+  <table>
+    <tr><th>修改点</th><th>今天的事实</th><th>计划的目标</th><th>判定</th></tr>
+    <tr>
+      <td>交互状态</td>
+      <td>只有「一条文本消息」</td>
+      <td>增加开始说 / 正在说 / 说完 / 被打断</td>
+      <td><span class="chip fix">修正后执行</span><div class="soft" style="font-size:13.5px;margin-top:6px">utterance 三事件现在就定；playback 三事件等真有 TTS 再定（见修正一）</div></td>
+    </tr>
+    <tr>
+      <td>外脑启动</td>
+      <td>启用即全跑</td>
+      <td>路由器只启动真正相关的外脑</td>
+      <td><span class="chip ok">照做</span><div class="soft" style="font-size:13.5px;margin-top:6px">路由器放 Host；识别脑（Flash+low）是现成的载体，先规则后轻模型</div></td>
+    </tr>
+    <tr>
+      <td>结果回流</td>
+      <td>每个外脑各自唤醒一次</td>
+      <td>先进收件箱，等待、筛选、合并</td>
+      <td><span class="chip ok">照做</span><div class="soft" style="font-size:13.5px;margin-top:6px">wake 机制原样保留，只是从「逐个使用」改成「汇总后使用一次」</div></td>
+    </tr>
+    <tr>
+      <td>发言决策</td>
+      <td>有结果基本就会说</td>
+      <td>现在说 / 等说完 / 只保存 / 不说</td>
+      <td><span class="chip fix">修正后执行</span><div class="soft" style="font-size:13.5px;margin-top:6px">四档里只有 speak 归主模型；wait / silent / acknowledge 由 Host 和路由器决定（见修正三）</div></td>
+    </tr>
+    <tr>
+      <td>工具权限</td>
+      <td>主脑外脑全零工具</td>
+      <td>三级授权：live-safe / research / durable-task</td>
+      <td><span class="chip fix">修正后执行</span><div class="soft" style="font-size:13.5px;margin-top:6px">第一步只给研究外脑挂受限 web 检索；主脑继续零工具（见修正四）</div></td>
+    </tr>
+    <tr>
+      <td>回复形式</td>
+      <td>只有普通文本回复</td>
+      <td>区分短语音 / 完整文本 / 异步通知</td>
+      <td><span class="chip hold">缓行</span><div class="soft" style="font-size:13.5px;margin-top:6px">第一版先区分「短文本 / 完整文本」；语音形式等第三阶段接 TTS 时再分</div></td>
+    </tr>
+    <tr>
+      <td>验收方式</td>
+      <td>验证并行与回灌是否工作</td>
+      <td>验证不打断、有增量、只说一次</td>
+      <td><span class="chip ok">照做</span><div class="soft" style="font-size:13.5px;margin-top:6px">五条全部落成可回放的测试断言（见第 06 节）</div></td>
+    </tr>
+  </table>
+</section>
+
+<!-- ================= 03 ================= -->
+<section id="s3">
+  <div class="sec-head"><span class="no">03</span><h2>五个修正</h2></div>
+  <p class="sec-sub">计划里需要按仓库现实约束调整的地方，按重要性排序</p>
+
+  <div class="fix-card">
+    <div class="fix-head"><span class="fno">一</span><h4>事件分两批定义，不要一次定七个</h4></div>
+    <p>计划把 <code>utterance-started / updated / ended</code> 和 <code>playback-started / progress / interrupted</code> 一起列为第一批。建议拆开：<b>utterance 三个现在就定</b>，核心闭环离不开它们（判断「用户在说」和「说完了」）；<b>playback 三个等第三阶段真有 TTS 再定</b>。</p>
+    <p class="soft">文本阶段「用户听没听见」就是「渲染没渲染」，用会话视图层的状态就够了，不必进持久日志。</p>
+    <div class="why"><b>为什么：</b>这个仓库的 session 事件是强契约——<code>SessionEventMap</code> 默认 required-on-read，不认识该事件的构建会拒绝读取日志，而且新增事件要联动 TypeScript 和 Python 两套 SDK 的快照。在没有音频之前定义「播放进度」，大概率是将来要改版的投机性 schema，成本先付、收益后验。</div>
+  </div>
+
+  <div class="fix-card">
+    <div class="fix-head"><span class="fno">二</span><h4>「连续表达」的前提是改轮次模型，而且比计划说的更紧迫</h4></div>
+    <p>计划的验收第一条是「用户连续输入多个片段时，主脑不反复回复」。但今天的代码在主脑非空闲时<b>直接拒收</b>新输入（<code>conversation-busy</code>），所以要先动的是轮次结构：把「一轮 = 一条消息 + 一次主脑回复」改成「<b>一轮表达 = N 条用户片段 + 至多一次主脑回复</b>」，表达期间允许继续追加片段。</p>
+    <p>相应的，busy 门的语义从「忙就拒」改成「表达中就攒」。这是第一个 PR 里最重的结构改动，别的都挂在它上面。</p>
+    <div class="why"><b>为什么：</b>不改轮次模型，收件箱、路由器、汇总后唤醒全都无处安放——它们的生命周期就是「一轮表达」，不是「一条消息」。</div>
+  </div>
+
+  <div class="fix-card">
+    <div class="fix-head"><span class="fno">三</span><h4>表达期间干脆不调主模型，而不是调了再让它闭嘴</h4></div>
+    <p>计划的 <code>ResponseDecision</code> 四档（speak / acknowledge / wait / silent）方向对，但实现位置要分清：<b>speak 归主模型判断，wait / silent / acknowledge 归 Host 和路由器决定</b>。表达未结束时根本不起主脑的模型请求——零延迟、零打断、token 最省。</p>
+    <p>主模型真正要判断的只有一件事：表达结束后，把收件箱里筛过的结果合并成「这一次说什么」。acknowledge（异步任务的「好的，我去研究」）用模板或快模型即可，不值得一次完整请求。</p>
+    <div class="why"><b>为什么：</b>「让模型自己决定闭嘴」每次都要付一次模型调用，而且模型拒答的稳定性远不如「根本不调用」。录音里「AI 可以有想法但不说话」，工程上最便宜的实现就是「想的时候不在场」。</div>
+  </div>
+
+  <div class="fix-card">
+    <div class="fix-head"><span class="fno">四</span><h4>主脑零工具这一步先别破——计划自己前后矛盾</h4></div>
+    <p>计划的表格里写「主脑用实时工具」，后文又说「第一步可以只开放一个受限的联网研究外脑，主脑暂时继续零工具」。<b>按后文执行。</b>第一个 PR 的工具面只做一件事：给研究型外脑挂上受限的 web 检索（dsh-web 的 search / fetch），主脑继续 <code>allow: []</code>。</p>
+    <div class="why"><b>为什么：</b>主脑零工具是为了流畅性，这在 handoff 文档里属于「不要推翻」级别的决定。live-safe 级工具（记忆查询之类）等闭环跑通、有了真实延迟数据之后再逐个放行——录音里你自己也把工具分成了「实时等结果」和「后台不等结果」两类，实时类的准入门槛应该是测出来的延迟，不是设计时的想象。</div>
+  </div>
+
+  <div class="fix-card">
+    <div class="fix-head"><span class="fno">五</span><h4>验收要落成仓库认的测试形态</h4></div>
+    <p>五条验收里，1、2、4、5 都能做成<b>无 key 的 e2e 夹具回放断言</b>（现有 <code>apps/waibrain/tests/waibrain.e2e.ts</code> + <code>main.jsonl / brain.jsonl</code> 就是现成骨架）：不打断、不全启动、只回一次、该沉默时沉默，全部可以从会话事件流里断言。</p>
+    <p>第 3 条「外脑真正联网研究」拆两层：夹具回放保证 CI 无 key 可跑，真实 API e2e 有 key 才跑、无 key 自跳过。按仓库规矩，行为变更要带快照——转录里应当能直接看到「多片段输入、单次回复」的形态。</p>
+    <div class="why"><b>为什么：</b>「验证有没有打断、有没有增量」如果只靠人肉试用，就会回到你录音 00:48 的评估困惑。夹具回放正是「其他变量不变、只调一个变量」的工程化载体：改一条 persona 措辞或一个模型档位，回放、diff 转录、看结论。</div>
+  </div>
+</section>
+
+<!-- ================= 04 ================= -->
+<section id="s4">
+  <div class="sec-head"><span class="no">04</span><h2>三阶段路线</h2></div>
+  <p class="sec-sub">认可计划的三段划分，微调各阶段的边界</p>
+
+  <div class="phase">
+    <div class="ph-no">壹<small>PHASE&nbsp;1</small></div>
+    <div class="ph-body">
+      <h4>核心闭环（从第一个 PR 开始）</h4>
+      <ul>
+        <li>utterance 三事件 + 开放式轮次（N 片段进、至多一次出）</li>
+        <li>路由器：判模式、选外脑、定发言策略——识别脑作载体，先规则后轻模型</li>
+        <li>结果收件箱：相关性、增量、等待合并，汇总后最多唤醒一次</li>
+        <li>研究外脑挂受限 web 检索；主脑保持零工具</li>
+        <li>沉默闸门：无信息增量的结果只落库、不发声</li>
+      </ul>
+      <p>完成标志：演示「用户连说五段 → 两个外脑各自调研 → 全程无打断 → 结束后一条合并回复」。</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="ph-no">贰<small>PHASE&nbsp;2</small></div>
+    <div class="ph-body">
+      <h4>异步任务</h4>
+      <ul>
+        <li>独立的持久任务通道（task-created 到 task-delivered 事件族）——不是把 120 秒超时拉长</li>
+        <li>任务产出双版本：完整文本报告 + 适合语音的三点简报</li>
+        <li>回执式开场白自动生成：「三小时前你让我调研的……已经完成了，我主要发现三点」</li>
+      </ul>
+      <p>复用仓库现成的 workflow / 后台任务注册表，wake 投递机制继续当「送达」这一段用。</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="ph-no">叁<small>PHASE&nbsp;3</small></div>
+    <div class="ph-body">
+      <h4>语音接入</h4>
+      <ul>
+        <li>先走非实时链路：语音 → STT → WaiBrain → 文本 → TTS，语音 I/O 留在 DSH 外部（既有边界不变）</li>
+        <li>此时才定义 playback 事件族与打断回退（从未播报点 fork）</li>
+        <li>交互策略验证跑通后，最后才换实时双工模型——同一个 seam 后面换 provider，不动 Host</li>
+      </ul>
+      <p>顺序和录音 00:59 的选型一致：非实时链路成本更低、适配更强，先把对话逻辑调好，再碰音频延迟和设备问题。</p>
+    </div>
+  </div>
+
+  <div class="hold">
+    <h4>暂 缓 清 单 · 等 核 心 闭 环 跑 通 后 再 作 为 策 略 插 件 增 加</h4>
+    <ul>
+      <li>复杂的用户心理分类</li>
+      <li>真正的贝叶斯用户模型</li>
+      <li>每 12 小时重置的全局算力预算</li>
+      <li>英语教学、管理学课程的完整产品</li>
+      <li>大规模页面重设计</li>
+      <li>恢复旧的 orchestrator.mjs</li>
+    </ul>
+  </div>
+
+  <h3>录音想法 → 计划覆盖对照</h3>
+  <table class="map">
+    <tr><th>录音里的想法</th><th>覆盖情况</th></tr>
+    <tr><td>大段表达 + 后台调研 + 绝不打断</td><td><span class="chip ok">第一阶段覆盖</span></td></tr>
+    <tr><td>「声音足够小、内容足够尖」，有增量才说</td><td><span class="chip ok">第一阶段覆盖</span>（收件箱筛选 + 沉默闸门）</td></tr>
+    <tr><td>非实时工具「先回应、结果回来再沟通」</td><td><span class="chip ok">已有机制</span>（wake），第一阶段收敛为「汇总后一次」</td></tr>
+    <tr><td>异步任务 + 回执式开场白</td><td><span class="chip fix">第二阶段</span></td></tr>
+    <tr><td>打断回退（没说出口的不算说过）</td><td><span class="chip fix">第三阶段</span></td></tr>
+    <tr><td>无感知模式切换</td><td><span class="chip hold">埋了种子</span>路由器的 mode 字段是入口，策略后续加</td></tr>
+    <tr><td>算力预算 / 用户分层 / 多端适配</td><td><span class="chip hold">暂缓</span>（正确）</td></tr>
+  </table>
+</section>
+
+<!-- ================= 05 ================= -->
+<section id="s5">
+  <div class="sec-head"><span class="no">05</span><h2>第一个 PR：验收五条</h2></div>
+  <p class="sec-sub">PR 定义沿用计划原文，每条附测试形态——验收即测试，不靠人肉感觉</p>
+
+  <div class="accept">
+    <div class="acc">
+      <div class="box"></div>
+      <div>
+        <div class="a-t"><span class="idx">01</span>用户连续输入多个片段时，主脑不反复回复</div>
+        <div class="a-d">e2e 断言：一轮内 <span class="mono">user/message</span> 有 N 条，assistant 回复至多 1 条；且不再出现 <span class="mono">conversation-busy</span> 拒收。</div>
+      </div>
+    </div>
+    <div class="acc">
+      <div class="box"></div>
+      <div>
+        <div class="a-t"><span class="idx">02</span>不是所有外脑都会启动</div>
+        <div class="a-d">e2e 断言：<span class="mono">waibrain/brain-status</span> 的 running 只出现在被路由器选中的外脑上。</div>
+      </div>
+    </div>
+    <div class="acc">
+      <div class="box"></div>
+      <div>
+        <div class="a-t"><span class="idx">03</span>外脑可以真正联网研究</div>
+        <div class="a-d">两层：夹具回放（CI 无 key 可跑，验证工具挂载与调用链）+ 真实 API e2e（有 key 才跑，self-skip）。</div>
+      </div>
+    </div>
+    <div class="acc">
+      <div class="box"></div>
+      <div>
+        <div class="a-t"><span class="idx">04</span>多个外脑结果最终只触发一次主回复</div>
+        <div class="a-d">e2e 断言：合并后 <span class="mono">wake-delivered</span> 恰好一次、followup 恰好一次；精确一次与重启恢复语义不回退。</div>
+      </div>
+    </div>
+    <div class="acc">
+      <div class="box"></div>
+      <div>
+        <div class="a-t"><span class="idx">05</span>无价值结果不会被说出来</div>
+        <div class="a-d">e2e 断言：silent 路径有事件落库（模型可见⟺日志，天然合规）、无 assistant 消息产生。</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="body" style="margin-top:20px">这五条全过，WaiBrain 就从「多模型并行演示」变成了你录音里描述的那个东西的骨架：<em>说得少，但每句都有来处。</em></p>
+</section>
+
+<div class="colophon">
+  <h5>代码证据</h5>
+  <div class="refs">
+    <span class="ref">packages/host/waibrain/src/index.ts:460</span>
+    <span class="ref">index.ts:473（busy 拒收）</span>
+    <span class="ref">index.ts:851（deliverPendingWake）</span>
+    <span class="ref">packages/host/waibrain/src/session.ts:28（零工具）</span>
+    <span class="ref">apps/waibrain/tests/waibrain.e2e.ts（夹具回放骨架）</span>
+  </div>
+  <h5>依据文档</h5>
+  <div class="refs">
+    <span class="ref">plans/2026-08-23-voice-skill-dual-brain-design.md</span>
+    <span class="ref">docs/handoff/handoff-2026-08-22-2235-waibrain-dialog.md</span>
+    <span class="ref">plans/2026-08-24-waibrain-confirmed-requirements.md</span>
+    <span class="ref">AGENTS.md（plugins not loop changes / 模型可见⟺日志 / 快照要求）</span>
+  </div>
+  <h5>评审立场</h5>
+  <p>本页为个人评审意见，非仓库正式文档；所有「照做 / 修正 / 缓行」判定以代码核对为准，录音转写来自得到大脑，2026-08-30。</p>
+</div>
+
+</div>
+</body>
+</html>
