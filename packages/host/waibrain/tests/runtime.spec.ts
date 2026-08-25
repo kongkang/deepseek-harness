@@ -1087,6 +1087,98 @@ describe('WaiBrain Host standard Session runtime', () => {
     failedFlush.mockRestore()
   }, 20_000)
 
+  it('persists child and parent results before release and releases every failed run', async () => {
+    const instance = await harness()
+    const saved = await instance.service.saveAgent({ expectedRevision: null, config: config() })
+    if (!saved.ok) throw new Error(saved.error.code)
+    const created = await instance.service.createConversation({ agentId: saved.value.agent.id })
+    if (!created.ok) throw new Error(created.error.code)
+    const parent = instance.ctx.agents.get(SessionId(created.value.conversation.sessionId))
+    if (parent === undefined) throw new Error('missing settlement parent Agent')
+    const internals = runtimeInternals(instance.service)
+    const brain = saved.value.agent.config.externalBrains[0]!
+    const appendRunningRound = (roundId: WaiBrainRoundId, suffix: string): void => {
+      parent.session.append('waibrain/round-admitted', {
+        conversationId: created.value.conversation.id,
+        roundId,
+        configRevision: saved.value.agent.revision,
+        config: saved.value.agent.config,
+        userMessageId: MessageId(`00000000-0000-4000-8000-00000000019${suffix}`),
+        externalBrains: [brain],
+      })
+      parent.session.append('waibrain/main-status', { roundId, status: 'completed' })
+      parent.session.append('waibrain/brain-status', {
+        roundId,
+        externalBrainId: brain.id,
+        label: brain.label,
+        status: 'running',
+      })
+    }
+
+    const orderedRoundId = '00000000-0000-4000-8000-000000000191' as WaiBrainRoundId
+    appendRunningRound(orderedRoundId, '2')
+    await instance.ctx.sessions.flush(parent.session)
+    const child = await instance.ctx.agents.create({
+      sessionId: SessionId('00000000-0000-4000-8000-000000000193'),
+      agentOptions: { provider: 'mock', model: 'facts' },
+      setup: async () => {},
+    })
+    const order: string[] = []
+    const flushSession = instance.ctx.sessions.flush.bind(instance.ctx.sessions)
+    const flush = vi.spyOn(instance.ctx.sessions, 'flush').mockImplementation(async (session) => {
+      order.push(session.header.id === child.agent.id ? 'child' : 'parent')
+      return flushSession(session)
+    })
+    await internals.settleExternalBrain(created.value.conversation.id, orderedRoundId, brain, {
+      id: child.agent.id,
+      localAgent: child.agent,
+      result: Promise.resolve({ output: [], stopReason: 'completed' }),
+      dispose: async () => {
+        order.push('dispose')
+        await child.dispose()
+      },
+    }, new AbortController())
+    flush.mockRestore()
+    expect(order).toEqual(['child', 'parent', 'dispose'])
+    const persisted = await instance.ctx.sessionPersistence.inspect(parent.id)
+    expect(persisted.events.some(event => event.type === 'waibrain/brain-status'
+      && event.data.roundId === orderedRoundId
+      && event.data.childSessionId === child.agent.id)).toBe(true)
+
+    const rejectedDispose = vi.fn().mockResolvedValue(undefined)
+    await internals.settleExternalBrain(
+      '00000000-0000-4000-8000-000000000194' as never,
+      '00000000-0000-4000-8000-000000000195' as never,
+      brain,
+      {
+        id: SessionId('00000000-0000-4000-8000-000000000196'),
+        localAgent: undefined,
+        result: Promise.reject(new Error('result transport failed')),
+        dispose: rejectedDispose,
+      },
+      new AbortController(),
+    )
+    expect(rejectedDispose).toHaveBeenCalledOnce()
+
+    const releaseFailureRoundId = '00000000-0000-4000-8000-000000000197' as WaiBrainRoundId
+    appendRunningRound(releaseFailureRoundId, '8')
+    await instance.ctx.sessions.flush(parent.session)
+    const releaseFailureChild = await instance.ctx.agents.create({
+      sessionId: SessionId('00000000-0000-4000-8000-000000000199'),
+      agentOptions: { provider: 'mock', model: 'facts' },
+      setup: async () => {},
+    })
+    await expect(internals.settleExternalBrain(created.value.conversation.id, releaseFailureRoundId, brain, {
+      id: releaseFailureChild.agent.id,
+      localAgent: releaseFailureChild.agent,
+      result: Promise.resolve({ output: [], stopReason: 'completed' }),
+      dispose: vi.fn().mockRejectedValue(new Error('child release failed')),
+    }, new AbortController())).resolves.toBeUndefined()
+    const view = await instance.service.conversation({ conversationId: created.value.conversation.id })
+    if (!view.ok) throw new Error(view.error.code)
+    expect(view.value.rounds.find(round => round.id === releaseFailureRoundId)?.externalBrains[0]?.status).toBe('empty')
+  }, 20_000)
+
   it('rolls back failed creation and reports prompt admission configuration failures', async () => {
     const instance = await harness()
     const saved = await instance.service.saveAgent({ expectedRevision: null, config: config() })

@@ -17,6 +17,8 @@ pnpm run waibrain:build
 
 `pnpm run waibrain:dev` 会在 `127.0.0.1:4174` 启动 Host，并在 `http://127.0.0.1:5173/` 启动本界面。`WAIBRAIN_UI_PORT` 与 `WAIBRAIN_DSH_PORT` 可覆盖这两个端口。
 
+`pnpm run waibrain:test` 同时运行单元测试和无需密钥的浏览器流程，覆盖 Agent 持久化、右侧栏编辑外挂外脑、结果回灌和永久对话。
+
 ## 产品流程
 
 1. 新建 Agent，填写完整人格并选择主模型，然后保存。每次保存都会在 Host 中创建不可变配置 revision。
