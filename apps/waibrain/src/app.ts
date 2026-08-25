@@ -208,17 +208,33 @@ function renderMessages(state: AppState): string {
     : `<article class="message assistant-message"><span class="message-author">${escapeHtml(state.draft.role.name)}</span><p>${escapeHtml(message.text)}</p></article>`).join('')
 }
 
+/** Content of `.chat-scroll`; shared by the full render and the poll-driven patch. */
+function renderChatScrollContent(state: AppState): string {
+  const busy = state.conversation?.busy === true || state.sending
+  return `${renderMessages(state)}${busy ? '<article class="message assistant-message pending-message"><span class="message-author">运行状态</span><p>主对话或已提交的外挂结果正在处理…</p></article>' : ''}`
+}
+
+/** Content of `.runtime-branch-list`; shared by the full render and the poll-driven patch. */
+function renderRuntimeBrainList(state: AppState): string {
+  const cards = state.draft.externalBrains.map((brain, index) => renderBrainCard(state, brain, index, true)).join('')
+  return cards || '<p class="timeline-empty">尚未配置外挂外脑。</p>'
+}
+
 function renderConversation(state: AppState): string {
   const closed = state.conversation?.conversation.status === 'closed'
   const busy = state.conversation?.busy === true || state.sending
-  const cards = state.draft.externalBrains.map((brain, index) => renderBrainCard(state, brain, index, true)).join('')
-  return `<main class="conversation-page"><section class="chat-panel"><header class="conversation-heading"><div class="conversation-identity"><span class="medium-avatar">${escapeHtml(state.draft.role.name.slice(0, 1) || '？')}</span><div><span class="eyebrow">主对话 · ${closed ? '已关闭' : '公开可见'}</span><h1>与${escapeHtml(state.draft.role.name)}对话</h1><p>${escapeHtml(state.draft.role.tagline)}</p></div></div><button class="secondary-button" type="button" data-action="close-conversation"${closed || state.selectedConversationId === null ? ' disabled' : ''}>${closed ? '对话已关闭' : '关闭对话'}</button></header><div class="chat-scroll" aria-live="polite">${renderMessages(state)}${busy ? '<article class="message assistant-message pending-message"><span class="message-author">运行状态</span><p>主对话或已提交的外挂结果正在处理…</p></article>' : ''}</div><form class="composer" data-form="composer"><label class="sr-only" for="message-composer">给${escapeHtml(state.draft.role.name)}发消息</label><textarea id="message-composer" name="message" aria-label="给${escapeHtml(state.draft.role.name)}发消息" placeholder="写下你想聊的内容…"${closed ? ' disabled' : ''}>${escapeHtml(state.composer)}</textarea><div class="composer-footer"><span>${closed ? '这场对话已关闭，只能查看历史。' : 'Enter 发送 · Shift + Enter 换行'}</span><button class="send-button" type="button" data-action="send" aria-label="发送"${closed || busy || state.composer.trim() === '' ? ' disabled' : ''}>${icon.send}</button></div></form>${state.error === '' ? '' : `<p class="wb-global-error" role="alert">${escapeHtml(state.error)}</p>`}</section><aside class="runtime-rail"><div class="rail-heading"><div><span class="eyebrow">EDITABLE EXTERNAL BRAINS</span><h2>外挂外脑</h2><p>右侧可直接编辑；保存后从下一条消息生效。</p></div><button class="add-button" type="button" data-action="add-brain" aria-label="添加外挂外脑">${icon.plus}</button></div><div class="runtime-branch-list">${cards || '<p class="timeline-empty">尚未配置外挂外脑。</p>'}</div>${renderBrainEditor(state)}</aside></main>`
+  return `<main class="conversation-page"><section class="chat-panel"><header class="conversation-heading"><div class="conversation-identity"><span class="medium-avatar">${escapeHtml(state.draft.role.name.slice(0, 1) || '？')}</span><div><span class="eyebrow">主对话 · ${closed ? '已关闭' : '公开可见'}</span><h1>与${escapeHtml(state.draft.role.name)}对话</h1><p>${escapeHtml(state.draft.role.tagline)}</p></div></div><button class="secondary-button" type="button" data-action="close-conversation"${closed || state.selectedConversationId === null ? ' disabled' : ''}>${closed ? '对话已关闭' : '关闭对话'}</button></header><div class="chat-scroll" aria-live="polite">${renderChatScrollContent(state)}</div><form class="composer" data-form="composer"><label class="sr-only" for="message-composer">给${escapeHtml(state.draft.role.name)}发消息</label><textarea id="message-composer" name="message" aria-label="给${escapeHtml(state.draft.role.name)}发消息" placeholder="写下你想聊的内容…"${closed ? ' disabled' : ''}>${escapeHtml(state.composer)}</textarea><div class="composer-footer"><span>${closed ? '这场对话已关闭，只能查看历史。' : 'Enter 发送 · Shift + Enter 换行'}</span><button class="send-button" type="button" data-action="send" aria-label="发送"${closed || busy || state.composer.trim() === '' ? ' disabled' : ''}>${icon.send}</button></div></form>${state.error === '' ? '' : `<p class="wb-global-error" role="alert">${escapeHtml(state.error)}</p>`}</section><aside class="runtime-rail"><div class="rail-heading"><div><span class="eyebrow">外挂外脑 · 可编辑</span><h2>外挂外脑</h2><p>右侧可直接编辑；保存后从下一条消息生效。</p></div><button class="add-button" type="button" data-action="add-brain" aria-label="添加外挂外脑">${icon.plus}</button></div><div class="runtime-branch-list">${renderRuntimeBrainList(state)}</div>${renderBrainEditor(state)}</aside></main>`
+}
+
+/** Content of `.wb-round-list`; shared by the full render and the poll-driven patch. */
+function renderRoundListContent(state: AppState): string {
+  const rounds = state.conversation?.rounds ?? []
+  const rows = rounds.map((round, roundIndex) => `<section class="wb-round"><header><strong>消息 ${String(roundIndex + 1).padStart(2, '0')}</strong><span>配置 v${String(round.configRevision)}</span><span>主路：${round.mainStatus}</span></header><div class="wb-round-lanes">${round.externalBrains.map((lane, index) => `<article style="--branch-colour:${colours[index % colours.length]}"><i></i><strong>${escapeHtml(lane.label)}</strong><span>${escapeHtml(laneStatus(lane))}</span><p>${escapeHtml(lane.summary ?? '等待结果')}</p></article>`).join('') || '<p>本轮没有启用外挂外脑。</p>'}</div></section>`).join('')
+  return rows || '<div class="timeline-empty"><h2>还没有消息轮次</h2><p>发送第一条消息后，这里会展示真实 Host 运行状态。</p></div>'
 }
 
 function renderTimeline(state: AppState): string {
-  const rounds = state.conversation?.rounds ?? []
-  const rows = rounds.map((round, roundIndex) => `<section class="wb-round"><header><strong>消息 ${String(roundIndex + 1).padStart(2, '0')}</strong><span>配置 v${String(round.configRevision)}</span><span>主路：${round.mainStatus}</span></header><div class="wb-round-lanes">${round.externalBrains.map((lane, index) => `<article style="--branch-colour:${colours[index % colours.length]}"><i></i><strong>${escapeHtml(lane.label)}</strong><span>${escapeHtml(laneStatus(lane))}</span><p>${escapeHtml(lane.summary ?? '等待结果')}</p></article>`).join('') || '<p>本轮没有启用外挂外脑。</p>'}</div></section>`).join('')
-  return `<main class="timeline-page"><header class="timeline-heading"><div><span class="hero-kicker"><i></i>DURABLE 1+N TRACE</span><h1>认知时间轴</h1><p>每一轮都显示冻结的配置版本、主路状态和全部外挂外脑结算结果。</p></div></header><div class="wb-round-list">${rows || '<div class="timeline-empty"><h2>还没有消息轮次</h2><p>发送第一条消息后，这里会展示真实 Host 运行状态。</p></div>'}</div></main>`
+  return `<main class="timeline-page"><header class="timeline-heading"><div><span class="hero-kicker"><i></i>DURABLE 1+N TRACE</span><h1>认知时间轴</h1><p>每一轮都显示冻结的配置版本、主路状态和全部外挂外脑结算结果。</p></div></header><div class="wb-round-list">${renderRoundListContent(state)}</div></main>`
 }
 
 function renderApp(state: AppState): string {
@@ -282,16 +298,35 @@ export function mountApp(target: Element | null, options: MountAppOptions = {}):
       : available[0]?.id ?? null
   }
 
+  const patchConversationView = (): void => {
+    if (disposed) return
+    if (state.view === 'conversation') {
+      const scroll = target.querySelector<HTMLElement>('.chat-scroll')
+      if (scroll !== null) scroll.innerHTML = renderChatScrollContent(state)
+      const list = target.querySelector<HTMLElement>('.runtime-branch-list')
+      if (list !== null) list.innerHTML = renderRuntimeBrainList(state)
+    } else if (state.view === 'timeline') {
+      const list = target.querySelector<HTMLElement>('.wb-round-list')
+      if (list !== null) list.innerHTML = renderRoundListContent(state)
+    }
+  }
+
   const refreshConversation = async (): Promise<void> => {
     if (refreshing || state.selectedConversationId === null || abort.signal.aborted) return
     refreshing = true
     try {
       const result = await runtime.conversation({ conversationId: state.selectedConversationId }, abort.signal)
       if (result.ok) {
+        if (JSON.stringify(result.value) === JSON.stringify(state.conversation)) return
+        const previous = state.conversation
         state.conversation = result.value
         const row = state.bootstrap?.conversations.find(item => item.id === result.value.conversation.id)
         if (row !== undefined) Object.assign(row, result.value.conversation)
-        render()
+        const headerStateChanged = previous === null
+          || previous.conversation.status !== result.value.conversation.status
+          || previous.busy !== result.value.busy
+        if (state.view === 'conversation' && headerStateChanged) render()
+        else patchConversationView()
       }
     } catch (error: unknown) {
       if (error instanceof DOMException && error.name === 'AbortError') return
