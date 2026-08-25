@@ -1,82 +1,167 @@
-/** Browser-safe DSH RPC client used by the standalone WaiBrain interface. */
+/** Browser-safe clients and wire types for the Host-backed WaiBrain application. */
 
 export type RpcFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
-/** One provider/model/reasoning target selected for a DSH Session. */
+/** One provider/model/reasoning route selected for a main or external brain. */
 export interface ModelSelection {
   provider: string
   model: string
   reasoningEffort?: string
 }
 
-/** Reasoning option advertised by a configured model route. */
+/** Reasoning option advertised by one exact model route. */
 export interface ModelReasoningEffort {
   id: string
   name: string
 }
 
-/** Model row advertised by the Host-wide DSH model directory. */
+/** Model advertised by the Host model directory. */
 export interface ModelCatalogEntry {
   id: string
   name?: string
-  reasoning?: {
-    efforts: ModelReasoningEffort[]
-    defaultEffort?: string
-  }
+  reasoning?: { efforts: ModelReasoningEffort[]; defaultEffort?: string }
 }
 
-/** Provider group advertised by the Host-wide DSH model directory. */
+/** Provider group advertised by the Host model directory. */
 export interface ModelProviderGroup {
   id: string
   name?: string
   models: ModelCatalogEntry[]
 }
 
-/** Session-independent model directory consumed by the setup UI. */
+/** Session-independent model directory consumed by configuration forms. */
 export interface ModelCatalog {
   groups: ModelProviderGroup[]
   failures: Array<{ provider: string; message: string }>
 }
 
-/** Arguments for creating and configuring one WaiBrain-backed DSH Session. */
-export interface CreateAgentRequest {
+/** Editable main-character fields persisted by the Host. */
+export interface WaiBrainRole {
+  name: string
+  tagline: string
+  personality: string
+  voice: string
+  scenario: string
+  greeting: string
+  examples: string
   systemPrompt: string
+}
+
+/** One dynamically managed external brain. */
+export interface WaiBrainExternalBrain {
+  id: string
+  label: string
+  direction: string
+  persona: string
   selection: ModelSelection
-  agentPreset?: string
+  enabled: boolean
 }
 
-/** Settled assistant result from one prompted Session turn. */
-export interface AgentReply {
+/** Complete editable Agent configuration. */
+export interface WaiBrainAgentConfig {
+  label: string
+  role: WaiBrainRole
+  mainSelection: ModelSelection
+  externalBrains: WaiBrainExternalBrain[]
+}
+
+/** One immutable Agent revision. */
+export interface WaiBrainAgentRevision {
+  id: string
+  revision: number
+  config: WaiBrainAgentConfig
+  createdAt: number
+}
+
+/** Durable conversation selector row. */
+export interface WaiBrainConversationSummary {
+  id: string
+  agentId: string
+  sessionId: string
+  createdAt: number
+  status: 'open' | 'closed'
+}
+
+/** One public main-conversation message. */
+export interface WaiBrainConversationMessage {
+  id: string
+  role: 'user' | 'assistant'
   text: string
-  endSeq: number
+  seq: number
 }
 
-/** Runtime operations the UI depends on; tests can provide a deterministic implementation. */
+/** Public state of one external-brain execution. */
+export interface WaiBrainExternalBrainRound {
+  externalBrainId: string
+  label: string
+  status: 'running' | 'completed' | 'empty' | 'error' | 'timeout' | 'host-restarted'
+  childSessionId?: string
+  summary?: string
+  truncated?: boolean
+  resultUnavailable?: boolean
+}
+
+/** One admitted 1+N round. */
+export interface WaiBrainRoundView {
+  id: string
+  configRevision: number
+  userMessageId: string
+  mainStatus: 'running' | 'completed' | 'failed' | 'host-restarted'
+  externalBrains: WaiBrainExternalBrainRound[]
+}
+
+/** Host projection for one conversation. */
+export interface WaiBrainConversationView {
+  conversation: WaiBrainConversationSummary
+  busy: boolean
+  messages: WaiBrainConversationMessage[]
+  rounds: WaiBrainRoundView[]
+}
+
+/** Host limits shown before the user enables external brains. */
+export interface WaiBrainLimits {
+  maxAdmittedBranches: number
+  externalBrainTimeoutMs: number
+  externalBrainMaxTokens: number
+  maxResultBytes: number
+}
+
+/** Initial durable application state. */
+export interface WaiBrainBootstrap {
+  limits: WaiBrainLimits
+  agents: WaiBrainAgentRevision[]
+  selectedAgentId: string | null
+  conversations: WaiBrainConversationSummary[]
+  selectedConversationId: string | null
+}
+
+/** Business result returned inside the transport result. */
+export type WaiBrainResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code: string; message?: string; field?: string; offset?: number; [key: string]: unknown } }
+
+/** Runtime operations used by the first WaiBrain tab. */
 export interface WaiBrainRuntime {
   models(signal?: AbortSignal): Promise<ModelCatalog>
-  createAgent(request: CreateAgentRequest, signal?: AbortSignal): Promise<string>
-  promptAndWait(sessionId: string, text: string, afterSeq: number, signal?: AbortSignal): Promise<AgentReply>
+  bootstrap(signal?: AbortSignal): Promise<WaiBrainBootstrap>
+  saveAgent(
+    request: { agentId?: string; expectedRevision: number | null; config: WaiBrainAgentConfig },
+    signal?: AbortSignal,
+  ): Promise<WaiBrainResult<{ agent: WaiBrainAgentRevision }>>
+  selectAgent(request: { agentId: string }, signal?: AbortSignal): Promise<WaiBrainResult<{ selectedAgentId: string }>>
+  createConversation(
+    request: { agentId: string },
+    signal?: AbortSignal,
+  ): Promise<WaiBrainResult<{ conversation: WaiBrainConversationSummary }>>
+  selectConversation(request: { conversationId: string }, signal?: AbortSignal): Promise<WaiBrainResult<{ selectedConversationId: string }>>
+  conversation(request: { conversationId: string }, signal?: AbortSignal): Promise<WaiBrainResult<WaiBrainConversationView>>
+  prompt(request: { conversationId: string; text: string }, signal?: AbortSignal): Promise<WaiBrainResult<{ roundId: string }>>
+  closeConversation(request: { conversationId: string }, signal?: AbortSignal): Promise<WaiBrainResult<{ closed: true }>>
 }
 
 interface RpcEnvelope<T> {
   rpcId?: unknown
-  result?: {
-    ok?: unknown
-    value?: T
-    error?: { message?: unknown }
-  }
-}
-
-interface HistoryEvent {
-  event?: {
-    type?: unknown
-    seq?: unknown
-    data?: unknown
-  }
-}
-
-interface HistoryValue {
-  events?: HistoryEvent[]
+  result?: { ok?: unknown; value?: T; error?: { message?: unknown } }
 }
 
 function rpcId(): string {
@@ -84,145 +169,50 @@ function rpcId(): string {
   return `waibrain-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
 }
 
-function record(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : undefined
-}
-
-function assistantText(data: unknown): string | undefined {
-  const message = record(record(data)?.message)
-  const content = message?.content
-  if (!Array.isArray(content)) return undefined
-  const text = content.flatMap((block) => {
-    const item = record(block)
-    return item?.type === 'text' && typeof item.text === 'string' ? [item.text] : []
-  }).join('')
-  return text.length === 0 ? undefined : text
-}
-
-function turnFailure(data: unknown): string | undefined {
-  const reason = record(record(data)?.reason)
-  if (reason?.kind === 'completed') return undefined
-  if (typeof reason?.kind !== 'string') return 'turn ended without a valid reason'
-  if (reason.kind === 'error') {
-    const error = record(reason.error)
-    return typeof error?.message === 'string' ? error.message : 'model turn failed'
-  }
-  return `turn ended with ${reason.kind}`
-}
-
-/** Minimal same-origin client over DSH's authenticated `/api/<method>` carrier. */
+/** Same-origin client over the legacy model directory and strict WaiBrain Typert Remote. */
 export class DshRuntimeClient implements WaiBrainRuntime {
-  private readonly pollIntervalMs: number
+  /** @param rpcFetch - same-origin fetch implementation. */
+  constructor(private readonly rpcFetch: RpcFetch = globalThis.fetch.bind(globalThis)) {}
 
-  /**
-   * @param rpcFetch - fetch implementation; defaults to the browser's same-origin fetch.
-   * @param options - polling interval used while waiting for durable turn completion.
-   */
-  constructor(
-    private readonly rpcFetch: RpcFetch = globalThis.fetch.bind(globalThis),
-    options: { pollIntervalMs?: number } = {},
-  ) {
-    this.pollIntervalMs = options.pollIntervalMs ?? 120
-  }
-
-  /** @returns the configured DSH provider/model directory. */
+  /** @returns configured provider/model routes. */
   models(signal?: AbortSignal): Promise<ModelCatalog> {
     return this.call<ModelCatalog>('llm.models', {}, signal)
   }
 
-  /**
-   * Create a Session with durable persona instructions, then apply its
-   * session-only model target.
-   * @param request - prompt, preset, and model selection for the new agent.
-   * @param signal - optional cancellation signal.
-   * @returns the created Session id.
-   */
-  async createAgent(request: CreateAgentRequest, signal?: AbortSignal): Promise<string> {
-    const created = await this.call<{ sessionId: string }>('session.create', {
-      systemPrompt: request.systemPrompt,
-      ...(request.agentPreset === undefined ? {} : { agentPreset: request.agentPreset }),
-    }, signal)
-    await this.call('session.selectModel', {
-      sessionId: created.sessionId,
-      provider: request.selection.provider,
-      model: request.selection.model,
-      ...(request.selection.reasoningEffort === undefined
-        ? {}
-        : { reasoningEffort: request.selection.reasoningEffort }),
-      saveAsDefault: false,
-    }, signal)
-    return created.sessionId
+  bootstrap(signal?: AbortSignal): Promise<WaiBrainBootstrap> {
+    return this.remote<WaiBrainBootstrap>('bootstrap', {}, signal)
   }
 
-  /**
-   * Queue a user-role input and poll the durable log until its turn ends.
-   * @param sessionId - target DSH Session.
-   * @param text - input text.
-   * @param afterSeq - last turn boundary already consumed by this caller.
-   * @param signal - optional cancellation signal.
-   * @returns the newest assistant text and its turn boundary sequence.
-   */
-  async promptAndWait(
-    sessionId: string,
-    text: string,
-    afterSeq: number,
-    signal?: AbortSignal,
-  ): Promise<AgentReply> {
-    const clientTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    await this.call('session.prompt', {
-      sessionId,
-      mode: 'queue',
-      content: [{ type: 'text', text }],
-      ...typeof clientTimeZone === 'string'
-        ? { clientTimeZone }
-        : {},
-    }, signal)
+  saveAgent(request: Parameters<WaiBrainRuntime['saveAgent']>[0], signal?: AbortSignal): ReturnType<WaiBrainRuntime['saveAgent']> {
+    return this.remote('saveAgent', { request }, signal)
+  }
 
-    while (true) {
-      signal?.throwIfAborted()
-      const history = await this.call<HistoryValue>('session.history', {
-        sessionId,
-        maxMessages: 20,
-      }, signal)
-      const rows = Array.isArray(history.events) ? history.events : []
-      const end = rows
-        .map(row => row.event)
-        .filter((event): event is NonNullable<HistoryEvent['event']> => event !== undefined)
-        .findLast(event => event.type === 'turn/end'
-          && typeof event.seq === 'number'
-          && event.seq > afterSeq)
-      if (end !== undefined && typeof end.seq === 'number') {
-        const endSeq = end.seq
-        const failure = turnFailure(end.data)
-        if (failure !== undefined) throw new Error(failure)
-        const reply = rows
-          .map(row => row.event)
-          .filter((event): event is NonNullable<HistoryEvent['event']> => event !== undefined)
-          .filter(event => event.type === 'assistant/message'
-            && typeof event.seq === 'number'
-            && event.seq > afterSeq
-            && event.seq < endSeq)
-          .map(event => assistantText(event.data))
-          .filter((value): value is string => value !== undefined)
-          .at(-1)
-        if (reply === undefined) throw new Error('turn completed without assistant text')
-        return { text: reply, endSeq }
-      }
-      await new Promise<void>((resolve, reject) => {
-        const onAbort = (): void => {
-          clearTimeout(timer)
-          const reason = signal?.reason as unknown
-          reject(reason instanceof Error ? reason : new Error('request aborted', { cause: reason }))
-        }
-        const timer = setTimeout(() => {
-          signal?.removeEventListener('abort', onAbort)
-          resolve()
-        }, this.pollIntervalMs)
-        signal?.addEventListener('abort', onAbort, { once: true })
-      })
-    }
+  selectAgent(request: Parameters<WaiBrainRuntime['selectAgent']>[0], signal?: AbortSignal): ReturnType<WaiBrainRuntime['selectAgent']> {
+    return this.remote('selectAgent', { request }, signal)
+  }
+
+  createConversation(request: Parameters<WaiBrainRuntime['createConversation']>[0], signal?: AbortSignal): ReturnType<WaiBrainRuntime['createConversation']> {
+    return this.remote('createConversation', { request }, signal)
+  }
+
+  selectConversation(request: Parameters<WaiBrainRuntime['selectConversation']>[0], signal?: AbortSignal): ReturnType<WaiBrainRuntime['selectConversation']> {
+    return this.remote('selectConversation', { request }, signal)
+  }
+
+  conversation(request: Parameters<WaiBrainRuntime['conversation']>[0], signal?: AbortSignal): ReturnType<WaiBrainRuntime['conversation']> {
+    return this.remote('conversation', { request }, signal)
+  }
+
+  prompt(request: Parameters<WaiBrainRuntime['prompt']>[0], signal?: AbortSignal): ReturnType<WaiBrainRuntime['prompt']> {
+    return this.remote('prompt', { request }, signal)
+  }
+
+  closeConversation(request: Parameters<WaiBrainRuntime['closeConversation']>[0], signal?: AbortSignal): ReturnType<WaiBrainRuntime['closeConversation']> {
+    return this.remote('closeConversation', { request }, signal)
+  }
+
+  private remote<T>(method: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+    return this.call<T>(`waibrain/${method}`, { args }, signal)
   }
 
   private async call<T>(method: string, payload: Record<string, unknown>, signal?: AbortSignal): Promise<T> {

@@ -1,155 +1,170 @@
 // @vitest-environment jsdom
-/** Acceptance tests for the standalone WaiBrain interface. */
 
-import { fireEvent, screen, waitFor } from '@testing-library/dom'
+/** User acceptance for the Host-backed first WaiBrain tab. */
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { fireEvent, screen, waitFor } from '@testing-library/dom'
 import { mountApp } from '../src/app.ts'
 import type {
-  AgentReply,
-  CreateAgentRequest,
   ModelCatalog,
+  WaiBrainAgentConfig,
+  WaiBrainAgentRevision,
+  WaiBrainBootstrap,
+  WaiBrainConversationSummary,
+  WaiBrainConversationView,
+  WaiBrainResult,
   WaiBrainRuntime,
 } from '../src/dsh-runtime.ts'
 
 const catalog: ModelCatalog = {
   groups: [{
-    id: 'deepseek',
+    id: 'deepseek-official',
     name: 'DeepSeek',
     models: [
-      {
-        id: 'deepseek-flash',
-        name: 'DeepSeek Flash',
-        reasoning: {
-          efforts: [{ id: 'off', name: '关闭' }, { id: 'high', name: '高' }],
-          defaultEffort: 'off',
-        },
-      },
-      {
-        id: 'deepseek-pro',
-        name: 'DeepSeek Pro',
-        reasoning: {
-          efforts: [{ id: 'low', name: '低' }, { id: 'high', name: '高' }],
-          defaultEffort: 'high',
-        },
-      },
+      { id: 'deepseek-v4-flash', name: 'V4 Flash', reasoning: { efforts: [{ id: 'off', name: '关闭' }, { id: 'high', name: '高' }], defaultEffort: 'off' } },
+      { id: 'deepseek-v4-pro', name: 'V4 Pro', reasoning: { efforts: [{ id: 'low', name: '低' }, { id: 'high', name: '高' }], defaultEffort: 'high' } },
     ],
   }],
   failures: [],
 }
 
+function agentConfig(name = '林川'): WaiBrainAgentConfig {
+  return {
+    label: name,
+    role: {
+      name, tagline: '长期思考伙伴', personality: '温和、诚实', voice: '自然简洁',
+      scenario: '长期陪伴', greeting: '我在。', examples: '用户：你好。', systemPrompt: `你是${name}。`,
+    },
+    mainSelection: { provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'off' },
+    externalBrains: [{
+      id: 'facts', label: '事实与新知', direction: '查证事实', persona: '先查证。', enabled: true,
+      selection: { provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'high' },
+    }],
+  }
+}
+
 class FakeRuntime implements WaiBrainRuntime {
-  readonly created: Array<CreateAgentRequest & { sessionId: string }> = []
-  readonly prompted: Array<{ sessionId: string; text: string }> = []
-  failCreateAt: number | null = null
-  invalidBranchReportsRemaining = 0
-  silentMainRepliesRemaining = 0
-  private readonly prompts = new Map<string, string>()
-  private readonly ends = new Map<string, number>()
+  readonly agents: WaiBrainAgentRevision[] = []
+  readonly conversations: WaiBrainConversationSummary[] = []
+  readonly views = new Map<string, WaiBrainConversationView>()
+  readonly savedConfigs: WaiBrainAgentConfig[] = []
+  selectedAgentId: string | null = null
+  selectedConversationId: string | null = null
+  prompts: Array<{ conversationId: string; text: string }> = []
+
+  constructor(seed = false) {
+    if (!seed) return
+    const agent: WaiBrainAgentRevision = { id: 'agent-1', revision: 3, createdAt: 1, config: agentConfig() }
+    const conversation: WaiBrainConversationSummary = {
+      id: 'conversation-1', agentId: agent.id, sessionId: 'session-1', createdAt: 2, status: 'open',
+    }
+    this.agents.push(agent)
+    this.conversations.push(conversation)
+    this.selectedAgentId = agent.id
+    this.selectedConversationId = conversation.id
+    this.views.set(conversation.id, { conversation, busy: false, messages: [], rounds: [] })
+  }
 
   models(): Promise<ModelCatalog> {
-    return Promise.resolve(catalog)
+    return Promise.resolve(structuredClone(catalog))
   }
 
-  createAgent(request: CreateAgentRequest): Promise<string> {
-    const sessionId = `session-${String(this.created.length + 1)}`
-    this.created.push({ ...request, sessionId })
-    if (this.failCreateAt === this.created.length) {
-      this.failCreateAt = null
-      return Promise.reject(new Error('simulated Session creation failure'))
-    }
-    this.prompts.set(sessionId, request.systemPrompt)
-    this.ends.set(sessionId, -1)
-    return Promise.resolve(sessionId)
+  bootstrap(): Promise<WaiBrainBootstrap> {
+    return Promise.resolve(structuredClone({
+      limits: { maxAdmittedBranches: 8, externalBrainTimeoutMs: 10_000, externalBrainMaxTokens: 256, maxResultBytes: 4096 },
+      agents: this.agents,
+      selectedAgentId: this.selectedAgentId,
+      conversations: this.conversations,
+      selectedConversationId: this.selectedConversationId,
+    }))
   }
 
-  promptAndWait(sessionId: string, text: string): Promise<AgentReply> {
-    this.prompted.push({ sessionId, text })
-    const prompt = this.prompts.get(sessionId) ?? ''
-    const previous = this.ends.get(sessionId) ?? -1
-    const endSeq = previous + 10
-    this.ends.set(sessionId, endSeq)
-    if (this.silentMainRepliesRemaining > 0 && prompt.includes('# 运行规则')) {
-      this.silentMainRepliesRemaining -= 1
-      return Promise.resolve({ text: '[[silence]]', endSeq })
+  saveAgent(
+    request: { agentId?: string; expectedRevision: number | null; config: WaiBrainAgentConfig },
+  ): Promise<WaiBrainResult<{ agent: WaiBrainAgentRevision }>> {
+    const existing = request.agentId === undefined ? undefined : this.agents.find(agent => agent.id === request.agentId)
+    const revision: WaiBrainAgentRevision = {
+      id: existing?.id ?? `agent-${String(this.agents.length + 1)}`,
+      revision: (existing?.revision ?? 0) + 1,
+      createdAt: Date.now(),
+      config: structuredClone(request.config),
     }
-    if (this.invalidBranchReportsRemaining > 0 && prompt.includes('事实核验')) {
-      this.invalidBranchReportsRemaining -= 1
-      return Promise.resolve({ text: '<tool_calls><invoke name="exec_command" /></tool_calls>', endSeq })
+    if (existing === undefined) this.agents.push(revision)
+    else this.agents[this.agents.indexOf(existing)] = revision
+    this.selectedAgentId = revision.id
+    this.savedConfigs.push(structuredClone(request.config))
+    return Promise.resolve({ ok: true, value: { agent: structuredClone(revision) } })
+  }
+
+  selectAgent(request: { agentId: string }): Promise<WaiBrainResult<{ selectedAgentId: string }>> {
+    this.selectedAgentId = request.agentId
+    return Promise.resolve({ ok: true, value: { selectedAgentId: request.agentId } })
+  }
+
+  createConversation(request: { agentId: string }): Promise<WaiBrainResult<{ conversation: WaiBrainConversationSummary }>> {
+    const conversation: WaiBrainConversationSummary = {
+      id: `conversation-${String(this.conversations.length + 1)}`,
+      agentId: request.agentId,
+      sessionId: `session-${String(this.conversations.length + 1)}`,
+      createdAt: Date.now(),
+      status: 'open',
     }
-    if (text.includes('改写成一条自然语言纯文本报告')) {
-      return Promise.resolve({ text: '本轮不依赖外部事实，不需要启动搜索。', endSeq })
-    }
-    if (text.includes('<waibrain_internal_report>')) {
-      return Promise.resolve({
-        text: text.includes('任务推进') ? '我们可以先定义一个最小验收场景。' : '[[silence]]',
-        endSeq,
-      })
-    }
-    if (prompt.includes('事实核验')) {
-      return Promise.resolve({ text: '本轮不依赖外部事实，不需要启动搜索。', endSeq })
-    }
-    if (prompt.includes('任务推进')) {
-      return Promise.resolve({ text: '这是一条明确的产品推进意图，可以先定义一个最小验收场景。', endSeq })
-    }
-    if (prompt.includes('长期记忆')) {
-      return Promise.resolve({ text: '这条产品验证偏好值得长期记住。', endSeq })
-    }
-    return Promise.resolve({ text: '我听见了。我们先把它拆成一个最小、能被验证的下一步。', endSeq })
+    this.conversations.push(conversation)
+    this.views.set(conversation.id, { conversation, busy: false, messages: [], rounds: [] })
+    this.selectedConversationId = conversation.id
+    return Promise.resolve({ ok: true, value: { conversation } })
+  }
+
+  selectConversation(request: { conversationId: string }): Promise<WaiBrainResult<{ selectedConversationId: string }>> {
+    this.selectedConversationId = request.conversationId
+    return Promise.resolve({ ok: true, value: { selectedConversationId: request.conversationId } })
+  }
+
+  conversation(request: { conversationId: string }): Promise<WaiBrainResult<WaiBrainConversationView>> {
+    const view = this.views.get(request.conversationId)
+    if (view === undefined) return Promise.resolve({ ok: false, error: { code: 'conversation-not-found' } })
+    return Promise.resolve({ ok: true, value: structuredClone(view) })
+  }
+
+  prompt(request: { conversationId: string; text: string }): Promise<WaiBrainResult<{ roundId: string }>> {
+    this.prompts.push(request)
+    const view = this.views.get(request.conversationId)
+    const agent = this.agents.find(item => item.id === view?.conversation.agentId)
+    if (view === undefined || agent === undefined) return Promise.resolve({ ok: false, error: { code: 'conversation-not-found' } })
+    const number = view.rounds.length + 1
+    view.messages.push(
+      { id: `u${String(number)}`, role: 'user', text: request.text, seq: number * 10 },
+      { id: `a${String(number)}`, role: 'assistant', text: '我听见了，我们慢慢拆开。', seq: number * 10 + 1 },
+    )
+    view.rounds.push({
+      id: `round-${String(number)}`, configRevision: agent.revision, userMessageId: `u${String(number)}`,
+      mainStatus: 'completed',
+      externalBrains: agent.config.externalBrains.filter(brain => brain.enabled).map(brain => ({
+        externalBrainId: brain.id, label: brain.label, status: 'completed', summary: `${brain.label}的独立答案`,
+      })),
+    })
+    return Promise.resolve({ ok: true, value: { roundId: `round-${String(number)}` } })
+  }
+
+  closeConversation(request: { conversationId: string }): Promise<WaiBrainResult<{ closed: true }>> {
+    const view = this.views.get(request.conversationId)
+    if (view === undefined) return Promise.resolve({ ok: false, error: { code: 'conversation-not-found' } })
+    view.conversation.status = 'closed'
+    const row = this.conversations.find(item => item.id === request.conversationId)
+    if (row !== undefined) row.status = 'closed'
+    return Promise.resolve({ ok: true, value: { closed: true } })
   }
 }
 
-function fillRoleCard(): void {
-  fireEvent.input(screen.getByLabelText('角色名称'), { target: { value: '苏禾' } })
-  fireEvent.input(screen.getByLabelText('一句话定位'), {
-    target: { value: '帮用户拆解混乱并找到下一步的陪伴者' },
-  })
-  fireEvent.input(screen.getByLabelText('性格特质'), {
-    target: { value: '温和、清醒、诚实，不急着替用户做决定' },
-  })
-  fireEvent.input(screen.getByLabelText('说话方式'), {
-    target: { value: '简洁自然，先接住感受，再给一个可行的问题' },
-  })
-  fireEvent.input(screen.getByLabelText('关系与场景'), {
-    target: { value: '一个长期在场、尊重边界的思考伙伴' },
-  })
-  fireEvent.input(screen.getByLabelText('开场白'), { target: { value: '我在。你想先从哪里开始？' } })
-  fireEvent.input(screen.getByLabelText('对话示例'), {
-    target: { value: '用户：我有点乱。\n苏禾：那我们先只抓住最占心的一件。' },
-  })
-  fireEvent.input(screen.getByLabelText('主对话 System Prompt'), {
-    target: { value: '你是苏禾。脑分支的报告是内部信号，由你判断如何对用户表达。' },
-  })
-}
-
-async function createConversation(): Promise<void> {
-  fillRoleCard()
-  fireEvent.click(screen.getByRole('button', { name: '保存角色并创建对话' }))
-  await screen.findByRole('heading', { name: '与苏禾对话' })
-}
-
-async function attachRuntimeBranch(): Promise<void> {
-  fireEvent.click(screen.getByRole('button', { name: '添加脑分支' }))
-  fireEvent.input(screen.getByLabelText('新分支名称'), { target: { value: '长期记忆' } })
-  fireEvent.input(screen.getByLabelText('新分支职责'), { target: { value: '关注长期约定和个人偏好' } })
-  fireEvent.input(screen.getByLabelText('新分支 System Prompt'), {
-    target: { value: '你只汇报值得长期记住的信息。' },
-  })
-  fireEvent.click(screen.getByRole('button', { name: '挂接到当前对话' }))
-  await waitFor(() => {
-    expect(screen.getByRole('heading', { name: '长期记忆' })).not.toBeNull()
-  })
-}
-
-describe('WaiBrain interface', () => {
-  let dispose: () => void
+describe('Host-backed WaiBrain application', () => {
   let runtime: FakeRuntime
+  let dispose: () => void
 
-  beforeEach(async () => {
+  beforeEach(() => {
     runtime = new FakeRuntime()
     const root = document.createElement('div')
     document.body.append(root)
-    dispose = mountApp(root, { runtime })
-    await screen.findByLabelText('主对话模型')
+    dispose = mountApp(root, { runtime, pollIntervalMs: 60_000 })
   })
 
   afterEach(() => {
@@ -157,173 +172,118 @@ describe('WaiBrain interface', () => {
     document.body.replaceChildren()
   })
 
-  it('starts with one configuration workspace and DSH-backed model choices', () => {
-    expect(screen.getByRole('heading', { name: '先定义谁在说话' })).not.toBeNull()
-    expect(screen.getByRole('heading', { name: '角色卡' })).not.toBeNull()
-    expect(screen.getByRole('heading', { name: '脑分支设置' })).not.toBeNull()
-    expect(screen.getByLabelText<HTMLSelectElement>('主对话模型').value).toBe('deepseek:deepseek-flash')
-    expect(screen.queryByRole('heading', { name: '与林川对话' })).toBeNull()
-  })
+  async function ready(): Promise<void> {
+    await screen.findByText('Host 数据已同步')
+  }
 
-  it('requires the role card before creating real Sessions', async () => {
-    fireEvent.input(screen.getByLabelText('角色名称'), { target: { value: '' } })
-    fireEvent.click(screen.getByRole('button', { name: '保存角色并创建对话' }))
-    expect(screen.getByRole('alert').textContent).toContain('请先完成角色名称、定位、性格和开场白。')
+  it('creates a durable Agent with a dynamically added external brain', async () => {
+    await ready()
+    expect(screen.getByRole('heading', { name: '外挂外脑' })).not.toBeNull()
+    expect(screen.queryByText(/页面内草稿|后端待接入/)).toBeNull()
 
-    fillRoleCard()
-    fireEvent.click(screen.getByRole('button', { name: '保存角色并创建对话' }))
-    await screen.findByRole('heading', { name: '与苏禾对话' })
-
-    expect(screen.getByText('我在。你想先从哪里开始？')).not.toBeNull()
-    expect(runtime.created).toHaveLength(3)
-    expect(runtime.created[0]?.selection).toMatchObject({ model: 'deepseek-flash', reasoningEffort: 'off' })
-    expect(runtime.created[1]?.selection).toMatchObject({ model: 'deepseek-pro', reasoningEffort: 'high' })
-    expect(runtime.created[1]?.systemPrompt).toContain('只返回自然语言纯文本')
-  })
-
-  it('retries the complete 1+N set after a partial Session creation failure', async () => {
-    fillRoleCard()
-    runtime.failCreateAt = 2
-    fireEvent.click(screen.getByRole('button', { name: '保存角色并创建对话' }))
+    fireEvent.click(screen.getByRole('button', { name: '添加外挂外脑' }))
+    fireEvent.input(screen.getByLabelText('外挂外脑名称'), { target: { value: '长期记忆' } })
+    fireEvent.input(screen.getByLabelText('外挂外脑职责'), { target: { value: '维护长期偏好与约定' } })
+    fireEvent.input(screen.getByLabelText('人格提示词'), { target: { value: '只保留长期有用的事实。' } })
+    fireEvent.change(screen.getByLabelText('外挂外脑模型'), { target: { value: 'deepseek-official:deepseek-v4-pro' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存外挂外脑' }))
+    fireEvent.click(screen.getAllByRole('button', { name: '保存 Agent' })[0]!)
 
     await waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toContain('simulated Session creation failure')
+      expect(runtime.agents).toHaveLength(1)
     })
-    expect(runtime.created).toHaveLength(3)
-
-    fireEvent.input(screen.getByLabelText('角色名称'), { target: { value: '澄月' } })
-    fireEvent.click(screen.getByRole('button', { name: '保存角色并创建对话' }))
-    await screen.findByRole('heading', { name: '与澄月对话' })
-
-    expect(runtime.created).toHaveLength(6)
-    expect(runtime.created.slice(3).map(agent => agent.systemPrompt)).toEqual([
-      expect.stringContaining('名称：澄月'),
-      expect.stringContaining('你是“澄月”的脑分支“事实核验”'),
-      expect.stringContaining('你是“澄月”的脑分支“任务推进”'),
-    ])
-    expect(screen.getByText('Session session-5')).not.toBeNull()
-    expect(screen.getByText('Session session-6')).not.toBeNull()
+    const brain = runtime.agents[0]?.config.externalBrains[0]
+    expect(brain?.label).toBe('长期记忆')
+    expect(brain?.direction).toBe('维护长期偏好与约定')
+    expect(brain?.persona).toBe('只保留长期有用的事实。')
+    expect(brain?.enabled).toBe(true)
+    expect(brain?.selection.model).toBe('deepseek-v4-pro')
+    await screen.findByText(/Agent 已保存为配置 v1/)
   })
 
-  it('edits an existing brain branch and its independent model choice', () => {
-    fireEvent.click(screen.getByRole('button', { name: '编辑 事实核验' }))
-    const model = screen.getByLabelText('脑分支模型') as HTMLSelectElement
-    const reasoning = screen.getByLabelText('脑分支思考强度') as HTMLSelectElement
-    fireEvent.change(model, { target: { value: 'deepseek:deepseek-flash' } })
-    expect([...reasoning.options].map(option => option.value)).toEqual(['off', 'high'])
-    fireEvent.change(reasoning, { target: { value: 'off' } })
-    fireEvent.input(screen.getByLabelText('脑分支名称'), { target: { value: '风险观察' } })
-    fireEvent.input(screen.getByLabelText('脑分支职责'), { target: { value: '识别风险和未知前提' } })
-    fireEvent.input(screen.getByLabelText('脑分支 System Prompt'), {
-      target: { value: '只汇报会改变决策的风险。' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: '保存脑分支' }))
+  it('restores Host state after remount instead of creating example records', async () => {
+    dispose()
+    document.body.replaceChildren()
+    runtime = new FakeRuntime(true)
+    const firstRoot = document.createElement('div')
+    document.body.append(firstRoot)
+    dispose = mountApp(firstRoot, { runtime, pollIntervalMs: 60_000 })
+    await ready()
+    expect(screen.getByLabelText<HTMLSelectElement>('选择 Agent').value).toBe('agent-1')
+    expect(screen.getByLabelText<HTMLSelectElement>('选择历史对话').value).toBe('conversation-1')
 
-    const branchCard = screen.getByRole('heading', { name: '风险观察' }).closest('article')
-    expect(branchCard).not.toBeNull()
-    expect(screen.getByText('只汇报会改变决策的风险。')).not.toBeNull()
-    expect(branchCard?.textContent).toContain('DeepSeek Flash · 关闭')
+    dispose()
+    document.body.replaceChildren()
+    const secondRoot = document.createElement('div')
+    document.body.append(secondRoot)
+    dispose = mountApp(secondRoot, { runtime, pollIntervalMs: 60_000 })
+    await ready()
+    expect(runtime.agents).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: '事实与新知' })).not.toBeNull()
   })
 
-  it('attaches a new DSH Session from the live conversation', async () => {
-    await createConversation()
-    await attachRuntimeBranch()
+  it('edits and toggles external brains directly in the conversation right rail', async () => {
+    dispose()
+    document.body.replaceChildren()
+    runtime = new FakeRuntime(true)
+    const root = document.createElement('div')
+    document.body.append(root)
+    dispose = mountApp(root, { runtime, pollIntervalMs: 60_000 })
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: '主对话' }))
 
-    const branchCard = screen.getByRole('heading', { name: '长期记忆' }).closest('article')
-    expect(branchCard?.textContent).toContain('已挂接 · 等待消息')
-    expect(branchCard?.textContent).toContain('Session session-4')
-    expect(runtime.created[3]?.systemPrompt).toContain('你是“苏禾”的脑分支“长期记忆”')
+    expect(screen.getByText(/右侧可直接编辑/)).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '编辑 事实与新知' }))
+    fireEvent.input(screen.getByLabelText('外挂外脑名称'), { target: { value: '事实核验' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存外挂外脑' }))
+    await waitFor(() => {
+      expect(runtime.agents[0]?.config.externalBrains[0]?.label).toBe('事实核验')
+    })
+    expect(screen.getByRole('heading', { name: '事实核验' })).not.toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭 事实核验' }))
+    await waitFor(() => {
+      expect(runtime.agents[0]?.config.externalBrains[0]?.enabled).toBe(false)
+    })
+    expect(runtime.agents[0]?.revision).toBe(5)
   })
 
-  it('runs the main Session and all branches, then pushes every report back', async () => {
-    await createConversation()
-    await attachRuntimeBranch()
-    fireEvent.input(screen.getByLabelText('给苏禾发消息'), {
-      target: { value: '我想把这个想法变成一个能验证的产品。' },
+  it('keeps one Agent while creating permanent selectable conversations', async () => {
+    dispose()
+    document.body.replaceChildren()
+    runtime = new FakeRuntime(true)
+    const root = document.createElement('div')
+    document.body.append(root)
+    dispose = mountApp(root, { runtime, pollIntervalMs: 60_000 })
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: '新对话' }))
+    await waitFor(() => {
+      expect(runtime.conversations).toHaveLength(2)
     })
+    expect(runtime.agents).toHaveLength(1)
+    await waitFor(() => {
+      expect(screen.getByLabelText<HTMLSelectElement>('选择历史对话').options).toHaveLength(3)
+    })
+    await screen.findByRole('heading', { name: '与林川对话' })
+  })
+
+  it('sends through Host, shows the 1+N result, and closes the selected conversation', async () => {
+    dispose()
+    document.body.replaceChildren()
+    runtime = new FakeRuntime(true)
+    const root = document.createElement('div')
+    document.body.append(root)
+    dispose = mountApp(root, { runtime, pollIntervalMs: 60_000 })
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: '主对话' }))
+    fireEvent.input(screen.getByLabelText('给林川发消息'), { target: { value: '帮我核验一下' } })
     fireEvent.click(screen.getByRole('button', { name: '发送' }))
+    await screen.findByText('我听见了，我们慢慢拆开。')
+    expect(runtime.prompts).toEqual([{ conversationId: 'conversation-1', text: '帮我核验一下' }])
+    expect(screen.getByText('事实与新知的独立答案')).not.toBeNull()
 
-    await screen.findByText('我听见了。我们先把它拆成一个最小、能被验证的下一步。')
-    await screen.findByText('这是一条明确的产品推进意图，可以先定义一个最小验收场景。')
-    await screen.findByText('这条产品验证偏好值得长期记住。')
-    await waitFor(() => {
-      expect(screen.getAllByText('已推送主对话')).toHaveLength(3)
-    })
-    expect(screen.getByText('我们可以先定义一个最小验收场景。')).not.toBeNull()
-  })
-
-  it('re-prompts a silent main reply for an ordinary user message', async () => {
-    await createConversation()
-    runtime.silentMainRepliesRemaining = 1
-    fireEvent.input(screen.getByLabelText('给苏禾发消息'), { target: { value: '请直接回应我。' } })
-    fireEvent.click(screen.getByRole('button', { name: '发送' }))
-
-    await screen.findByText('我听见了。我们先把它拆成一个最小、能被验证的下一步。')
-    await waitFor(() => {
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: '发送' }).disabled).toBe(false)
-    })
-    expect(document.body.textContent).not.toContain('[[silence]]')
-    expect(runtime.prompted.some(call => call.text.includes('普通用户消息不能静默'))).toBe(true)
-  })
-
-  it('fails the public reply closed when its retry is still silent', async () => {
-    await createConversation()
-    runtime.silentMainRepliesRemaining = 2
-    fireEvent.input(screen.getByLabelText('给苏禾发消息'), { target: { value: '请直接回应我。' } })
-    fireEvent.click(screen.getByRole('button', { name: '发送' }))
-
-    await waitFor(() => {
-      expect(screen.getByRole('alert').textContent).toContain('连续两次对普通用户消息返回静默标记')
-    })
-    expect(document.body.textContent).not.toContain('[[silence]]')
-  })
-
-  it('re-prompts a structured branch response before pushing its plain-text report', async () => {
-    await createConversation()
-    runtime.invalidBranchReportsRemaining = 1
-    fireEvent.input(screen.getByLabelText('给苏禾发消息'), { target: { value: '帮我核验这个前提。' } })
-    fireEvent.click(screen.getByRole('button', { name: '发送' }))
-
-    await waitFor(() => {
-      expect(screen.getAllByText('已推送主对话')).toHaveLength(2)
-    })
-    expect(document.body.textContent).not.toContain('<tool_calls>')
-    expect(runtime.prompted.some(call => call.text.includes('改写成一条自然语言纯文本报告'))).toBe(true)
-    expect(screen.getByText('本轮不依赖外部事实，不需要启动搜索。')).not.toBeNull()
-  })
-
-  it('fails a branch closed when its corrected report is still structured', async () => {
-    await createConversation()
-    runtime.invalidBranchReportsRemaining = 2
-    fireEvent.input(screen.getByLabelText('给苏禾发消息'), { target: { value: '帮我核验这个前提。' } })
-    fireEvent.click(screen.getByRole('button', { name: '发送' }))
-
-    await waitFor(() => {
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: '发送' }).disabled).toBe(false)
-    })
-    const facts = screen.getByRole('heading', { name: '事实核验' }).closest('article')
-    expect(facts?.textContent).toContain('运行失败')
-    expect(facts?.textContent).toContain('连续两次未返回自然语言纯文本报告')
-    expect(document.body.textContent).not.toContain('<tool_calls>')
-    expect(runtime.prompted.filter(call => call.text.includes('<waibrain_internal_report>'))).toHaveLength(1)
-  })
-
-  it('uses the same lane grid for timeline headers and message rows', async () => {
-    await createConversation()
-    await attachRuntimeBranch()
-    fireEvent.input(screen.getByLabelText('给苏禾发消息'), { target: { value: '帮我确认时间轴的对齐。' } })
-    fireEvent.click(screen.getByRole('button', { name: '发送' }))
-    await waitFor(() => {
-      expect(screen.getByRole<HTMLButtonElement>('button', { name: '发送' }).disabled).toBe(false)
-    })
-    fireEvent.click(screen.getByRole('button', { name: '认知时间轴' }))
-
-    for (const label of ['用户消息', '主对话', '事实核验', '任务推进', '长期记忆']) {
-      expect(screen.getByText(label, { selector: '[data-lane-label]' })).not.toBeNull()
-    }
-    const header = document.querySelector<HTMLElement>('[data-timeline-grid="header"]')
-    const row = document.querySelector<HTMLElement>('[data-timeline-grid="消息 01"]')
-    expect(header?.style.getPropertyValue('--branch-count')).toBe('3')
-    expect(row?.style.getPropertyValue('--branch-count')).toBe('3')
+    fireEvent.click(screen.getByRole('button', { name: '关闭对话' }))
+    await screen.findByRole('button', { name: '对话已关闭' })
+    expect(screen.getByLabelText<HTMLTextAreaElement>('给林川发消息').disabled).toBe(true)
   })
 })

@@ -1,0 +1,38 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "text": "请帮我想一想。"
+    },
+    {
+      "role": "assistant",
+      "text": "我先接住这个问题。"
+    },
+    {
+      "role": "assistant",
+      "text": "我吸收了这条闪念。"
+    },
+    {
+      "role": "assistant",
+      "text": "我吸收了这条闪念。"
+    }
+  ],
+  "rounds": [
+    {
+      "configRevision": 1,
+      "mainStatus": "completed",
+      "externalBrains": [
+        {
+          "label": "事实与新知",
+          "status": "completed",
+          "summary": "事实路答案"
+        },
+        {
+          "label": "任务与进程",
+          "status": "completed",
+          "summary": "任务路答案"
+        }
+      ]
+    }
+  ]
+}
