@@ -1133,6 +1133,7 @@ h2,
 .chat-panel {
   display: grid;
   min-width: 0;
+  min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
   background: var(--white);
 }
@@ -1143,6 +1144,7 @@ h2,
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  min-width: 0;
   min-height: 94px;
   padding: 17px 24px;
   border-bottom: 1px solid var(--line);
@@ -1155,6 +1157,10 @@ h2,
   gap: 13px;
 }
 
+.conversation-identity > div {
+  min-width: 0;
+}
+
 .medium-avatar {
   width: 48px;
   height: 48px;
@@ -1163,9 +1169,19 @@ h2,
 }
 
 .conversation-heading h1 {
+  overflow: hidden;
   margin-top: 3px;
   font-size: 21px;
   font-weight: 690;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-heading .secondary-button {
+  width: auto;
+  flex: 0 0 auto;
+  padding: 0 16px;
+  white-space: nowrap;
 }
 
 .conversation-heading p {
@@ -1178,10 +1194,19 @@ h2,
 }
 
 .chat-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   padding: 32px clamp(24px, 6vw, 92px) 40px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scroll-behavior: smooth;
+}
+
+.chat-scroll::before {
+  flex: 1 1 auto;
+  min-height: 0;
+  content: "";
 }
 
 .message {
@@ -1791,10 +1816,6 @@ h2,
     overflow: visible;
   }
 
-  .chat-panel {
-    min-height: calc(100vh - 100px);
-  }
-
   .chat-scroll {
     min-height: 480px;
   }
@@ -1973,10 +1994,6 @@ h2,
 
   .conversation-heading .model-chip {
     display: none;
-  }
-
-  .chat-panel {
-    min-height: calc(100vh - 128px);
   }
 
   .chat-scroll {
