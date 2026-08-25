@@ -993,6 +993,120 @@ Source: [`packages/core/session/src/types.ts:250`](../packages/core/session/src/
 
 Source: [`packages/core/session/src/types.ts:271`](../packages/core/session/src/types.ts)
 
+### `waibrain/*`
+
+<a id="waibrainbrain-status--log-only"></a>
+
+#### `waibrain/brain-status` — log-only
+
+```ts persistence-catalog
+/** External-brain lane lifecycle; full output remains authoritative in the child Session. */
+'waibrain/brain-status': {
+  roundId: WaiBrainRoundId
+  externalBrainId: string
+  label: string
+  status: 'running' | 'completed' | 'empty' | 'error' | 'timeout' | 'host-restarted'
+  childSessionId?: import('@deepseek-ai/dsh-session').SessionId
+  summary?: string
+  truncated?: boolean
+}
+```
+
+Source: [`packages/host/waibrain/src/events.ts:41`](../packages/host/waibrain/src/events.ts)
+
+<a id="waibrainforeign-turn-rejected--log-only"></a>
+
+#### `waibrain/foreign-turn-rejected` — log-only
+
+```ts persistence-catalog
+/** A non-Host inbox message was rejected before it reached the model-visible surface. */
+'waibrain/foreign-turn-rejected': {
+  sourceKind: string
+  messageId: string
+}
+```
+
+Source: [`packages/host/waibrain/src/events.ts:71`](../packages/host/waibrain/src/events.ts)
+
+<a id="waibrainmain-status--log-only"></a>
+
+#### `waibrain/main-status` — log-only
+
+```ts persistence-catalog
+/** Main-lane lifecycle for one admitted round. */
+'waibrain/main-status': {
+  roundId: WaiBrainRoundId
+  status: 'running' | 'completed' | 'failed' | 'host-restarted'
+}
+```
+
+Source: [`packages/host/waibrain/src/events.ts:36`](../packages/host/waibrain/src/events.ts)
+
+<a id="waibrainround-admitted--log-only"></a>
+
+#### `waibrain/round-admitted` — log-only
+
+```ts persistence-catalog
+/** Immutable configuration and message identity admitted for one user round. */
+'waibrain/round-admitted': {
+  conversationId: WaiBrainConversationId
+  roundId: WaiBrainRoundId
+  configRevision: number
+  config: WaiBrainAgentConfig
+  userMessageId: string
+  externalBrains: readonly WaiBrainExternalBrain[]
+}
+```
+
+Source: [`packages/host/waibrain/src/events.ts:27`](../packages/host/waibrain/src/events.ts)
+
+<a id="waibrainwake-delivered--log-only"></a>
+
+#### `waibrain/wake-delivered` — log-only
+
+```ts persistence-catalog
+/** A committed wake was observed in the main Session and will not be delivered again. */
+'waibrain/wake-delivered': {
+  roundId: WaiBrainRoundId
+  externalBrainId: string
+  wakeMessageId: string
+}
+```
+
+Source: [`packages/host/waibrain/src/events.ts:59`](../packages/host/waibrain/src/events.ts)
+
+<a id="waibrainwake-discarded-on-close--log-only"></a>
+
+#### `waibrain/wake-discarded-on-close` — log-only
+
+```ts persistence-catalog
+/** A committed wake was made inert by conversation closure. */
+'waibrain/wake-discarded-on-close': {
+  roundId: WaiBrainRoundId
+  externalBrainId: string
+  wakeMessageId: string
+}
+```
+
+Source: [`packages/host/waibrain/src/events.ts:65`](../packages/host/waibrain/src/events.ts)
+
+<a id="waibrainwake-pending--log-only"></a>
+
+#### `waibrain/wake-pending` — log-only
+
+```ts persistence-catalog
+/** A late external-brain result was committed before delivery to the main inbox. */
+'waibrain/wake-pending': {
+  roundId: WaiBrainRoundId
+  externalBrainId: string
+  wakeMessageId: string
+  childSessionId?: import('@deepseek-ai/dsh-session').SessionId
+  fallback: string
+}
+```
+
+Source: [`packages/host/waibrain/src/events.ts:51`](../packages/host/waibrain/src/events.ts)
+
 ### `web/*`
 
 <a id="webdeepseek-search-llm-request--log-only"></a>

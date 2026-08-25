@@ -87,7 +87,6 @@ import { SessionTitleInvalidError } from '@deepseek-ai/dsh-session-title'
 import type { CallId } from '@deepseek-ai/dsh-llm/brand'
 import type { ScopeKey } from '@deepseek-ai/dsh-scope'
 import type { ApprovalOutcome, ApprovalRequestId } from '@deepseek-ai/dsh-user-approval'
-import { PERSONA_ORDER, PERSONA_SECTION } from '@deepseek-ai/dsh-system-prompt'
 // Side-effect type import: resolves the `approval/request` waterfall and
 // `ctx.get('approval')` without a value dependency on the seam (optional composition).
 import type {} from '@deepseek-ai/dsh-user-approval'
@@ -983,6 +982,16 @@ class AgentPresetConflict extends Error {
   }
 }
 
+/**
+ * The prompt section a session's `systemPrompt` instructions occupy. A
+ * session role card supplements the preset's `deployment:persona` section
+ * instead of replacing it, so a preset persona carrying the dialog's running
+ * rules coexists with a per-session persona.
+ */
+const SESSION_PERSONA_SECTION = 'session:persona'
+/** The session role card reads before the deployment persona (order 0). */
+const SESSION_PERSONA_ORDER = -0.5
+
 /** An explicit-id retry tried to replace immutable session persona instructions. */
 class SessionSystemPromptConflict extends Error {
   constructor(readonly sessionId: SessionId) {
@@ -1201,8 +1210,8 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
           installSelection(agentCtx)
           if (systemPrompt !== undefined) {
             agentCtx.systemPrompt.section({
-              name: PERSONA_SECTION,
-              order: PERSONA_ORDER,
+              name: SESSION_PERSONA_SECTION,
+              order: SESSION_PERSONA_ORDER,
               text: systemPrompt,
             })
           }
@@ -1218,8 +1227,8 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
         await presets.mount(agentCtx, resolvedId)
         if (systemPrompt !== undefined) {
           agentCtx.systemPrompt.section({
-            name: PERSONA_SECTION,
-            order: PERSONA_ORDER,
+            name: SESSION_PERSONA_SECTION,
+            order: SESSION_PERSONA_ORDER,
             text: systemPrompt,
           })
         }

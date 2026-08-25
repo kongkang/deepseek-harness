@@ -174,6 +174,16 @@ interface AgentOptions {
 }
 ```
 
+```ts type-equiv
+/** Mutable model selection plus the value captured for the current step. */
+interface ModelSelectionRef {
+  /** Model selected for the next step that enters prompt assembly. */
+  current: ModelSelection | undefined
+  /** Selection captured when the current step entered prompt assembly. */
+  assembled: ModelSelection | undefined
+}
+```
+
 Dispatch requires `provider` and `model` after `agent/request`. When present, `maxTokens` must be a positive safe integer and caps every conversation-model request; omission allows the exact-model adapter default to materialize before the request header, or otherwise leaves provider behavior unchanged. An explicit `reasoningEffort` seeds the first request ahead of a seeded header's effort, while later requests follow the logged header and installed model selection still has precedence. An agent-scoped `deployment:persona` prompt section may shadow the global default persona.
 
 The inbox is the delivery vocabulary — two ordered pending-message lists the agent owns as a durable projection:
