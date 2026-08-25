@@ -761,6 +761,7 @@ export class WaiBrainHostService extends TypertRemoteService {
     controller: AbortController,
   ): Promise<void> {
     let timeout!: ReturnType<typeof setTimeout>
+    let committedWakeText: string | undefined
     try {
       const outcome = await Promise.race([
         run.result.then(result => ({ kind: 'result' as const, result })),
@@ -772,7 +773,6 @@ export class WaiBrainHostService extends TypertRemoteService {
       if (outcome.kind === 'timeout') controller.abort(new Error('external brain timed out'))
       if (run.localAgent === undefined) throw new Error('fork provider did not expose its local child Agent')
       await this.ctx.sessions.flush(run.localAgent.session)
-      await run.dispose()
 
       const output = outcome.kind === 'result' ? this.contentText(outcome.result.output) : ''
       const clipped = this.clipUtf8(output, this.maxResultBytes)
@@ -786,10 +786,10 @@ export class WaiBrainHostService extends TypertRemoteService {
       const fallback = this.clipUtf8(clipped.text || diagnostic || '外挂外脑没有返回正文', 512).text
       const wakeText = status === 'completed' ? buildWaiBrainWake(brain.label, clipped.text) : undefined
 
-      await this.serial(conversationId, async () => {
+      committedWakeText = await this.serial(conversationId, async () => {
         const row = this.requireConversations().get(conversationId)
         const parent = row === undefined ? undefined : this.ctx.get('agents')?.get(SessionId(row.sessionId))
-        if (row === undefined || parent === undefined) return
+        if (row === undefined || parent === undefined) return undefined
         parent.session.append('waibrain/brain-status', {
           roundId,
           externalBrainId: brain.id,
@@ -811,8 +811,8 @@ export class WaiBrainHostService extends TypertRemoteService {
           })
         }
         await this.ctx.sessions.flush(parent.session)
+        return wakeText
       })
-      if (wakeText !== undefined) void this.deliverPendingWake(conversationId, roundId, brain.id, wakeText)
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
       this.ctx.logger.warn(`WaiBrain external brain '${brain.id}' settlement failed: ${message}`)
@@ -835,7 +835,15 @@ export class WaiBrainHostService extends TypertRemoteService {
       }
     } finally {
       clearTimeout(timeout)
+      try {
+        await run.dispose()
+      } catch (disposeError: unknown) {
+        this.ctx.logger.warn(`WaiBrain external brain '${brain.id}' release failed: ${String(disposeError)}`)
+      }
       this.branchControllers.delete(controller)
+    }
+    if (committedWakeText !== undefined) {
+      void this.deliverPendingWake(conversationId, roundId, brain.id, committedWakeText)
     }
   }
 
