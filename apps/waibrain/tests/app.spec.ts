@@ -51,6 +51,7 @@ class FakeRuntime implements WaiBrainRuntime {
   selectedAgentId: string | null = null
   selectedConversationId: string | null = null
   prompts: Array<{ conversationId: string; text: string }> = []
+  conversationCalls = 0
 
   constructor(seed = false) {
     if (!seed) return
@@ -121,6 +122,7 @@ class FakeRuntime implements WaiBrainRuntime {
   }
 
   conversation(request: { conversationId: string }): Promise<WaiBrainResult<WaiBrainConversationView>> {
+    this.conversationCalls += 1
     const view = this.views.get(request.conversationId)
     if (view === undefined) return Promise.resolve({ ok: false, error: { code: 'conversation-not-found' } })
     return Promise.resolve({ ok: true, value: structuredClone(view) })
@@ -283,6 +285,71 @@ describe('Host-backed WaiBrain application', () => {
     expect(screen.getByText('事实与新知的独立答案')).not.toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '关闭对话' }))
+    await screen.findByRole('button', { name: '对话已关闭' })
+    expect(screen.getByLabelText<HTMLTextAreaElement>('给林川发消息').disabled).toBe(true)
+  })
+
+  it('does not lose focus, an unsaved draft value, or the Agent select across repeated polls when the conversation is unchanged', async () => {
+    dispose()
+    document.body.replaceChildren()
+    runtime = new FakeRuntime(true)
+    const root = document.createElement('div')
+    document.body.append(root)
+    dispose = mountApp(root, { runtime, pollIntervalMs: 120 })
+    await ready()
+
+    const agentSelect = screen.getByLabelText<HTMLSelectElement>('选择 Agent')
+    const roleNameInput = screen.getByLabelText<HTMLInputElement>('角色名称')
+    roleNameInput.focus()
+    fireEvent.input(roleNameInput, { target: { value: '林川（编辑中，未保存）' } })
+
+    await waitFor(() => {
+      expect(runtime.conversationCalls).toBeGreaterThanOrEqual(2)
+    })
+
+    expect(document.activeElement).toBe(roleNameInput)
+    expect(roleNameInput.value).toBe('林川（编辑中，未保存）')
+    expect(screen.getByLabelText<HTMLSelectElement>('选择 Agent')).toBe(agentSelect)
+  })
+
+  it('reflects a real conversation change picked up by the poll without a full re-render', async () => {
+    dispose()
+    document.body.replaceChildren()
+    runtime = new FakeRuntime(true)
+    const root = document.createElement('div')
+    document.body.append(root)
+    dispose = mountApp(root, { runtime, pollIntervalMs: 120 })
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: '主对话' }))
+    await screen.findByRole('heading', { name: '与林川对话' })
+
+    const composer = screen.getByLabelText<HTMLTextAreaElement>('给林川发消息')
+
+    const view = runtime.views.get('conversation-1')
+    expect(view).not.toBeUndefined()
+    view?.messages.push({ id: 'u-ext', role: 'user', text: '外部注入的新消息', seq: 100 })
+
+    await screen.findByText('外部注入的新消息')
+    expect(screen.getByLabelText<HTMLTextAreaElement>('给林川发消息')).toBe(composer)
+  })
+
+  it('falls back to a full render so the header and composer reflect a conversation closed elsewhere', async () => {
+    dispose()
+    document.body.replaceChildren()
+    runtime = new FakeRuntime(true)
+    const root = document.createElement('div')
+    document.body.append(root)
+    dispose = mountApp(root, { runtime, pollIntervalMs: 120 })
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: '主对话' }))
+    await screen.findByRole('button', { name: '关闭对话' })
+
+    const view = runtime.views.get('conversation-1')
+    expect(view).not.toBeUndefined()
+    if (view !== undefined) view.conversation.status = 'closed'
+    const row = runtime.conversations.find(item => item.id === 'conversation-1')
+    if (row !== undefined) row.status = 'closed'
+
     await screen.findByRole('button', { name: '对话已关闭' })
     expect(screen.getByLabelText<HTMLTextAreaElement>('给林川发消息').disabled).toBe(true)
   })
