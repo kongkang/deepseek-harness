@@ -1,12 +1,12 @@
-# WaiBrain interface prototype
+# WaiBrain interface
 
 English | [中文](README.zh.md)
 
-This directory contains a standalone product interface for running one public conversation with multiple persistent brain branches on DeepSeek Harness. It does not import the existing DeepSeek Harness Web UI, but it uses the same Host API and configured model providers.
+This standalone interface manages durable WaiBrain Agents, their external brains, and permanent conversations through the Host-owned `waibrain` Remote API. It uses the configured model directory without importing the existing DeepSeek Harness Web UI.
 
 ## Run
 
-Run these commands from the repository root:
+From the repository root:
 
 ```sh
 pnpm run waibrain:dev
@@ -15,19 +15,26 @@ pnpm run waibrain:typecheck
 pnpm run waibrain:build
 ```
 
-The development command prints the local preview URL.
+`pnpm run waibrain:dev` starts the Host on `127.0.0.1:4174` and this interface on `http://127.0.0.1:5173/`. `WAIBRAIN_UI_PORT` and `WAIBRAIN_DSH_PORT` override those ports.
 
-`WAIBRAIN_UI_PORT` and `WAIBRAIN_DSH_PORT` override the default UI and Host ports (`5173` and `4174`) when another local process already owns them.
+`pnpm run waibrain:test` runs both the unit suite and the keyless browser workflow for Agent persistence, right-rail external-brain editing, result reinjection, and permanent conversations.
 
-## Product interactions
+## Product workflow
 
-- Configure one persona card before creating a conversation. The card separates identity, personality, voice, relationship scenario, greeting, dialogue examples, and the main system prompt.
-- Configure, edit, pause, and resume brain branches. Each branch has one responsibility, its own system prompt, model, reasoning level, and optional permission to start a worker.
-- Attach a new branch from the live conversation rail. The branch immediately joins the current system and receives later user messages.
-- Send one user message to the public conversation first and then to every active branch concurrently. Each lane runs in its own durable DSH Session.
-- Observe the main reply first, then concise branch reports and their delivery status.
-- Align each user message, public reply, and branch report with one shared lane grid on the cognitive timeline. Small screens replace the lanes with stacked, labelled cards.
+1. Create an Agent, complete its persona, select the main model, and save it. Every save creates an immutable configuration revision in the Host.
+2. Add, edit, enable, disable, or remove external brains in the authoring view or directly in the conversation's right rail. A saved change affects the next admitted user message; work already running keeps its frozen revision.
+3. Create a conversation. The selected Agent remains active, prior conversations remain selectable, and only an explicit New Conversation action creates an empty transcript.
+4. Send a message. The main dialog and every enabled external brain start from the same completed history. External brains run independently; a failure or timeout cannot block the main dialog or a sibling.
+5. Inspect the cognitive timeline for the configuration revision, main-lane status, external-brain status, and retained result for every admitted message.
+
+Refreshing the page reloads the selected Agent and conversation from the Host. Restarting the Host lazily resumes a conversation only when an operation needs a live Agent; interrupted lanes are recorded as terminated rather than silently restarted.
+
+## Conversation lifecycle
+
+Closing a conversation rejects later user input and prevents late external-brain results from waking the main dialog. Branches admitted before close may still settle and retain their result on that conversation. Closing a browser tab or navigating away does not close the conversation.
+
+The interface shows public messages and concise external-brain results, never hidden reasoning. Each external brain has its own provider, model, reasoning effort, responsibility, and persona. The deployment sets the enabled-branch cap, timeout, token limit, and retained-result byte limit.
 
 ## Current boundary
 
-The interface reads the deployment's model catalog through `llm.models`; it does not read or expose settings documents. Main and branch choices are applied with session-local `session.selectModel` calls, so the demo cannot replace the shared DSH default. Persona and branch System Prompts are stored in their Session headers and survive persistence, resume, and fork. The interface publishes bindings only after the complete 1+N Session set succeeds, so a retry after partial creation uses the current configuration for every lane. Branch reports use a natural-language plain-text response contract. A structured response receives one rewrite request in the same branch Session; a second violation fails that branch without pushing protocol noise to the main Session. Valid reports are sent as concise injected context. `[[silence]]` remains internal: an ordinary user reply that returns the marker receives one direct-answer retry, and a second marker fails without entering the public transcript. Starting a worker from a branch remains outside this slice: the permission is configurable and visible, but does not invoke a third-layer agent yet. The interface never exposes hidden reasoning transcripts.
+WaiBrain Agents do not yet configure tools, skills, memory, or automatic self-modification. The main dialog and external brains use the tool-free `waibrain-dialog` preset, and dynamic changes are user-authored through the Host API.

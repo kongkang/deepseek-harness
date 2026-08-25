@@ -172,8 +172,11 @@ describe('session.create with an agent preset', () => {
     const agent = ctx.agents.get(SessionId('persona'))
     expect(agent?.session.header.systemPrompt).toBe('You are Lin Chuan. Keep the persona stable.')
     if (agent === undefined) throw new Error('created agent missing')
-    expect(renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent))))
-      .toContain('You are Lin Chuan. Keep the persona stable.')
+    const rendered = renderPrompt(await ctx.systemPrompt.assemble(assembleContextFor(agent)))
+    expect(rendered).toContain('You are Lin Chuan. Keep the persona stable.')
+    // The deployment persona and the session role card coexist: the session
+    // section supplements instead of replacing the deployment section.
+    expect(rendered).toContain('deployment persona')
   })
 
   it('retries the same System Prompt and redacts conflicts', async () => {

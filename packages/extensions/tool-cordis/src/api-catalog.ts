@@ -2220,6 +2220,85 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'waibrainHost',
+    summary: 'Root Host service owning the WaiBrain durable domain and Remote namespace.',
+    description: 'Root Host service owning the WaiBrain durable domain and Remote namespace.',
+    methods: [
+      {
+        signature: '@Remote(\'bootstrap\') bootstrap(): WaiBrainBootstrap',
+        description: 'Read the complete durable application index without resuming Agents.',
+        parameters: [],
+        returns: 'Detached Agent, conversation, selection, and deployment-limit data.',
+      },
+      {
+        signature: '@Remote(\'saveAgent\') async saveAgent(request: WaiBrainSaveAgentRequest): Promise<WaiBrainSaveAgentResult>',
+        description: 'Create or compare-and-set a complete Agent config.',
+        parameters: [{ name: 'request', description: 'Complete configuration and expected revision.' }],
+        returns: 'The saved immutable revision or a typed product rejection.',
+      },
+      {
+        signature: '@Remote(\'selectAgent\') async selectAgent(request: WaiBrainSelectAgentRequest): Promise<WaiBrainSelectAgentResult>',
+        description: 'Persist the selected Agent.',
+        parameters: [{ name: 'request', description: 'Agent identity to select.' }],
+        returns: 'The selected identity or an Agent-not-found rejection.',
+      },
+      {
+        signature: '@Remote(\'createConversation\') async createConversation(request: WaiBrainCreateConversationRequest): Promise<WaiBrainCreateConversationResult>',
+        description: 'Create and bind one standard Session to a durable WaiBrain conversation.',
+        parameters: [{ name: 'request', description: 'Agent identity whose current revision owns the conversation.' }],
+        returns: 'The new conversation summary or a typed runtime rejection.',
+      },
+      {
+        signature: '@Remote(\'selectConversation\') async selectConversation(request: WaiBrainSelectConversationRequest): Promise<WaiBrainSelectConversationResult>',
+        description: 'Persist the selected conversation.',
+        parameters: [{ name: 'request', description: 'Conversation identity to select.' }],
+        returns: 'The selected identity or a conversation-not-found rejection.',
+      },
+      {
+        signature: '@Remote(\'conversation\') async conversation(request: WaiBrainConversationRequest): Promise<WaiBrainConversationResult>',
+        description: 'Read one conversation from its standard Session and coordination events.',
+        parameters: [{ name: 'request', description: 'Conversation identity to project.' }],
+        returns: 'The browser-safe projection or a conversation-not-found rejection.',
+      },
+      {
+        signature: '@Remote(\'prompt\') prompt(request: WaiBrainPromptRequest): Promise<WaiBrainPromptResult>',
+        description: 'Atomically admit one main prompt and publish every configured fork before the main wake.',
+        parameters: [{ name: 'request', description: 'Conversation identity and user text to admit.' }],
+        returns: 'The accepted round identity or a typed admission rejection.',
+      },
+      {
+        signature: '@Remote(\'closeConversation\') closeConversation(request: WaiBrainCloseConversationRequest): Promise<WaiBrainCloseConversationResult>',
+        description: 'Persist a close boundary, discard committed wakes, and cancel only the main Agent.',
+        parameters: [{ name: 'request', description: 'Conversation identity to close.' }],
+        returns: 'An idempotent closed result or a typed runtime rejection.',
+      },
+      {
+        signature: 'isBoundSession(sessionId: SessionId): boolean',
+        description: 'Whether a Session is bound by a committed conversation or the creation transaction.',
+        parameters: [{ name: 'sessionId', description: 'Standard Session identity to inspect.' }],
+        returns: 'True when WaiBrain Host admission owns the Session.',
+      },
+      {
+        signature: 'personaForSession(sessionId: SessionId): string | undefined',
+        description: 'Complete persona selected for one bound Session, or undefined for the neutral preset path.',
+        parameters: [{ name: 'sessionId', description: 'Standard Session identity being assembled.' }],
+        returns: 'The validated complete persona, or undefined outside a valid binding.',
+      },
+      {
+        signature: 'modelSelectionForSession(sessionId: SessionId): ModelSelectionRef',
+        description: 'Stable mutable selection installed by the preset companion for one Session.',
+        parameters: [{ name: 'sessionId', description: 'Standard Session identity being assembled.' }],
+        returns: 'The stable model-selection reference for that Session.',
+      },
+      {
+        signature: 'async authorizeMessages(agent: Agent, messages: readonly UserMessage[]): Promise<boolean>',
+        description: 'Enforce the Host admission whitelist before a bound Agent enters a model step.',
+        parameters: [{ name: 'agent', description: 'Bound main Agent proposing the model step.' }, { name: 'messages', description: 'New user-role messages proposed for the step.' }],
+        returns: 'True only when every message matches a durable Host admission.',
+      },
+    ],
+  },
+  {
     key: 'web',
     summary: 'The web access service.',
     description: 'The web access service. Registered as `ctx.web` (one instance per context).\n\nSelection semantics (resolved at execution time, never order-dependent):\n\n- A configured id that is registered and `available()` → that provider.\n- A configured id not registered → `WEB_PROVIDER_CONFIGURED_MISSING`.\n- A configured id registered but unavailable → `WEB_PROVIDER_CONFIGURED_UNAVAILABLE`.\n- No id configured, exactly one registered usable provider → that provider.\n- No id configured, multiple usable providers → `WEB_PROVIDER_AMBIGUOUS`.\n- No id configured, no usable provider → `WEB_PROVIDER_UNAVAILABLE`.',
@@ -3798,6 +3877,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ModelModalityMap {\n    text: \'text\';\n    image: \'image\';\n}',
   },
   {
+    name: 'ModelSelectionRef',
+    declaration: 'export interface ModelSelectionRef {\n    current: ModelSelection | undefined;\n    assembled: ModelSelection | undefined;\n}',
+  },
+  {
     name: 'ObjectJsonSchema',
     declaration: 'export type ObjectJsonSchema = JsonSchemaNode & {\n    type: \'object\';\n};',
   },
@@ -4936,6 +5019,162 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'UserQuestionProvider',
     declaration: 'export interface UserQuestionProvider {\n    ask(request: AskUserQuestionRequest): Promise<AskUserQuestionAnswer>;\n}',
+  },
+  {
+    name: 'WaiBrainAgentConfig',
+    declaration: 'export interface WaiBrainAgentConfig {\n    readonly label: string;\n    readonly role: WaiBrainRole;\n    readonly mainSelection: WaiBrainModelSelection;\n    readonly externalBrains: readonly WaiBrainExternalBrain[];\n}',
+  },
+  {
+    name: 'WaiBrainAgentId',
+    declaration: 'export type WaiBrainAgentId = Branded<\'WaiBrainAgentId\'>;',
+  },
+  {
+    name: 'WaiBrainAgentNotFound',
+    declaration: 'export interface WaiBrainAgentNotFound {\n    readonly code: \'agent-not-found\';\n    readonly agentId: WaiBrainAgentId;\n}',
+  },
+  {
+    name: 'WaiBrainAgentRevision',
+    declaration: 'export interface WaiBrainAgentRevision {\n    readonly id: WaiBrainAgentId;\n    readonly revision: number;\n    readonly config: WaiBrainAgentConfig;\n    readonly createdAt: number;\n}',
+  },
+  {
+    name: 'WaiBrainBootstrap',
+    declaration: 'export interface WaiBrainBootstrap {\n    readonly limits: WaiBrainLimits;\n    readonly agents: readonly WaiBrainAgentRevision[];\n    readonly selectedAgentId: WaiBrainAgentId | null;\n    readonly conversations: readonly WaiBrainConversationSummary[];\n    readonly selectedConversationId: WaiBrainConversationId | null;\n}',
+  },
+  {
+    name: 'WaiBrainBranchLimitExceeded',
+    declaration: 'export interface WaiBrainBranchLimitExceeded {\n    readonly code: \'branch-limit-exceeded\';\n    readonly maxAdmittedBranches: number;\n    readonly enabledCount: number;\n}',
+  },
+  {
+    name: 'WaiBrainCloseConversationRequest',
+    declaration: 'export interface WaiBrainCloseConversationRequest {\n    readonly conversationId: WaiBrainConversationId;\n}',
+  },
+  {
+    name: 'WaiBrainCloseConversationResult',
+    declaration: 'export type WaiBrainCloseConversationResult = WaiBrainSuccess<{\n    readonly closed: true;\n}> | WaiBrainRejected<WaiBrainConversationNotFound | WaiBrainRuntimeUnavailable>;',
+  },
+  {
+    name: 'WaiBrainConversationBusy',
+    declaration: 'export interface WaiBrainConversationBusy {\n    readonly code: \'conversation-busy\';\n    readonly conversationId: WaiBrainConversationId;\n}',
+  },
+  {
+    name: 'WaiBrainConversationClosed',
+    declaration: 'export interface WaiBrainConversationClosed {\n    readonly code: \'conversation-closed\';\n    readonly conversationId: WaiBrainConversationId;\n}',
+  },
+  {
+    name: 'WaiBrainConversationId',
+    declaration: 'export type WaiBrainConversationId = Branded<\'WaiBrainConversationId\'>;',
+  },
+  {
+    name: 'WaiBrainConversationMessage',
+    declaration: 'export interface WaiBrainConversationMessage {\n    readonly id: string;\n    readonly role: \'user\' | \'assistant\';\n    readonly text: string;\n    readonly seq: number;\n}',
+  },
+  {
+    name: 'WaiBrainConversationNotFound',
+    declaration: 'export interface WaiBrainConversationNotFound {\n    readonly code: \'conversation-not-found\';\n    readonly conversationId: WaiBrainConversationId;\n}',
+  },
+  {
+    name: 'WaiBrainConversationRequest',
+    declaration: 'export interface WaiBrainConversationRequest {\n    readonly conversationId: WaiBrainConversationId;\n}',
+  },
+  {
+    name: 'WaiBrainConversationResult',
+    declaration: 'export type WaiBrainConversationResult = WaiBrainSuccess<WaiBrainConversationView> | WaiBrainRejected<WaiBrainConversationNotFound>;',
+  },
+  {
+    name: 'WaiBrainConversationSummary',
+    declaration: 'export interface WaiBrainConversationSummary {\n    readonly id: WaiBrainConversationId;\n    readonly agentId: WaiBrainAgentId;\n    readonly sessionId: string;\n    readonly createdAt: number;\n    readonly status: \'open\' | \'closed\';\n}',
+  },
+  {
+    name: 'WaiBrainConversationView',
+    declaration: 'export interface WaiBrainConversationView {\n    readonly conversation: WaiBrainConversationSummary;\n    readonly busy: boolean;\n    readonly messages: readonly WaiBrainConversationMessage[];\n    readonly rounds: readonly WaiBrainRoundView[];\n}',
+  },
+  {
+    name: 'WaiBrainCreateConversationRequest',
+    declaration: 'export interface WaiBrainCreateConversationRequest {\n    readonly agentId: WaiBrainAgentId;\n}',
+  },
+  {
+    name: 'WaiBrainCreateConversationResult',
+    declaration: 'export type WaiBrainCreateConversationResult = WaiBrainSuccess<{\n    readonly conversation: WaiBrainConversationSummary;\n}> | WaiBrainRejected<WaiBrainAgentNotFound | WaiBrainRuntimeUnavailable>;',
+  },
+  {
+    name: 'WaiBrainExternalBrain',
+    declaration: 'export interface WaiBrainExternalBrain {\n    readonly id: string;\n    readonly label: string;\n    readonly direction: string;\n    readonly persona: string;\n    readonly selection: WaiBrainModelSelection;\n    readonly enabled: boolean;\n}',
+  },
+  {
+    name: 'WaiBrainExternalBrainRound',
+    declaration: 'export interface WaiBrainExternalBrainRound {\n    readonly externalBrainId: string;\n    readonly label: string;\n    readonly status: \'running\' | \'completed\' | \'empty\' | \'error\' | \'timeout\' | \'host-restarted\';\n    readonly childSessionId?: string;\n    readonly summary?: string;\n    readonly truncated?: boolean;\n    readonly resultUnavailable?: boolean;\n}',
+  },
+  {
+    name: 'WaiBrainInvalidPersonaTemplate',
+    declaration: 'export interface WaiBrainInvalidPersonaTemplate {\n    readonly code: \'invalid-persona-template\';\n    readonly field: string;\n    readonly offset: number;\n}',
+  },
+  {
+    name: 'WaiBrainLimits',
+    declaration: 'export interface WaiBrainLimits {\n    readonly maxAdmittedBranches: number;\n    readonly externalBrainTimeoutMs: number;\n    readonly externalBrainMaxTokens: number;\n    readonly maxResultBytes: number;\n}',
+  },
+  {
+    name: 'WaiBrainModelSelection',
+    declaration: 'export interface WaiBrainModelSelection {\n    readonly provider: string;\n    readonly model: string;\n    readonly reasoningEffort?: string;\n}',
+  },
+  {
+    name: 'WaiBrainPromptRequest',
+    declaration: 'export interface WaiBrainPromptRequest {\n    readonly conversationId: WaiBrainConversationId;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'WaiBrainPromptResult',
+    declaration: 'export type WaiBrainPromptResult = WaiBrainSuccess<{\n    readonly roundId: WaiBrainRoundId;\n}> | WaiBrainRejected<WaiBrainConversationNotFound | WaiBrainConversationClosed | WaiBrainConversationBusy | WaiBrainBranchLimitExceeded | WaiBrainRuntimeUnavailable>;',
+  },
+  {
+    name: 'WaiBrainRejected',
+    declaration: 'export interface WaiBrainRejected<E> {\n    readonly ok: false;\n    readonly error: E;\n}',
+  },
+  {
+    name: 'WaiBrainRevisionConflict',
+    declaration: 'export interface WaiBrainRevisionConflict {\n    readonly code: \'revision-conflict\';\n    readonly current: WaiBrainAgentRevision;\n}',
+  },
+  {
+    name: 'WaiBrainRole',
+    declaration: 'export interface WaiBrainRole {\n    readonly name: string;\n    readonly tagline: string;\n    readonly personality: string;\n    readonly voice: string;\n    readonly scenario: string;\n    readonly greeting: string;\n    readonly examples: string;\n    readonly systemPrompt: string;\n}',
+  },
+  {
+    name: 'WaiBrainRoundId',
+    declaration: 'export type WaiBrainRoundId = Branded<\'WaiBrainRoundId\'>;',
+  },
+  {
+    name: 'WaiBrainRoundView',
+    declaration: 'export interface WaiBrainRoundView {\n    readonly id: WaiBrainRoundId;\n    readonly configRevision: number;\n    readonly userMessageId: string;\n    readonly mainStatus: \'running\' | \'completed\' | \'failed\' | \'host-restarted\';\n    readonly externalBrains: readonly WaiBrainExternalBrainRound[];\n}',
+  },
+  {
+    name: 'WaiBrainRuntimeUnavailable',
+    declaration: 'export interface WaiBrainRuntimeUnavailable {\n    readonly code: \'runtime-unavailable\';\n    readonly message?: string;\n}',
+  },
+  {
+    name: 'WaiBrainSaveAgentRequest',
+    declaration: 'export interface WaiBrainSaveAgentRequest {\n    readonly agentId?: WaiBrainAgentId;\n    readonly expectedRevision: number | null;\n    readonly config: WaiBrainAgentConfig;\n}',
+  },
+  {
+    name: 'WaiBrainSaveAgentResult',
+    declaration: 'export type WaiBrainSaveAgentResult = WaiBrainSuccess<{\n    readonly agent: WaiBrainAgentRevision;\n}> | WaiBrainRejected<WaiBrainInvalidPersonaTemplate | WaiBrainBranchLimitExceeded | WaiBrainRevisionConflict | WaiBrainAgentNotFound>;',
+  },
+  {
+    name: 'WaiBrainSelectAgentRequest',
+    declaration: 'export interface WaiBrainSelectAgentRequest {\n    readonly agentId: WaiBrainAgentId;\n}',
+  },
+  {
+    name: 'WaiBrainSelectAgentResult',
+    declaration: 'export type WaiBrainSelectAgentResult = WaiBrainSuccess<{\n    readonly selectedAgentId: WaiBrainAgentId;\n}> | WaiBrainRejected<WaiBrainAgentNotFound>;',
+  },
+  {
+    name: 'WaiBrainSelectConversationRequest',
+    declaration: 'export interface WaiBrainSelectConversationRequest {\n    readonly conversationId: WaiBrainConversationId;\n}',
+  },
+  {
+    name: 'WaiBrainSelectConversationResult',
+    declaration: 'export type WaiBrainSelectConversationResult = WaiBrainSuccess<{\n    readonly selectedConversationId: WaiBrainConversationId;\n}> | WaiBrainRejected<WaiBrainConversationNotFound>;',
+  },
+  {
+    name: 'WaiBrainSuccess',
+    declaration: 'export interface WaiBrainSuccess<T> {\n    readonly ok: true;\n    readonly value: T;\n}',
   },
   {
     name: 'WebBootEntry',

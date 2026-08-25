@@ -797,7 +797,7 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-host-apiproxy`
 
-需要：`agentDefaultModel` · `agents` · `attachments` · `directoryPicker` · `llm` · `sessions` · `subagents` · `sessionQuery` · `systemPrompt` · `tools` · `userQuestions` · `workspaceRegistry`
+需要：`agentDefaultModel` · `agents` · `attachments` · `directoryPicker` · `llm` · `sessions` · `subagents` · `sessionQuery` · `tools` · `userQuestions` · `workspaceRegistry`
 
 ```ts config-catalog
 /** Gateway plugin configuration. */
@@ -856,6 +856,28 @@ export interface Config {
 ```
 
 来源：[`packages/host/frontend-static/src/index.ts:28`](../packages/host/frontend-static/src/index.ts)
+
+<a id="deepseek-aidsh-host-waibrain"></a>
+
+## `@deepseek-ai/dsh-host-waibrain`
+
+需要：`storageDomain` · `sessions`
+
+```ts config-catalog
+/** Deployment policy for WaiBrain coordination. */
+export interface Config {
+  /** Maximum enabled external brains accepted in one Agent revision and user round. */
+  readonly maxAdmittedBranches: number
+  /** Milliseconds allowed for each external-brain Session to settle independently. */
+  readonly externalBrainTimeoutMs: number
+  /** Maximum output tokens requested from each external-brain model call. */
+  readonly externalBrainMaxTokens: number
+  /** Maximum UTF-8 bytes retained when an external-brain result enters the main Session. */
+  readonly maxResultBytes: number
+}
+```
+
+来源：[`packages/host/waibrain/src/index.ts:61`](../packages/host/waibrain/src/index.ts)
 
 <a id="deepseek-aidsh-host-webserver"></a>
 

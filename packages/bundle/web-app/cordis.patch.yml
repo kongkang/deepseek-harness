@@ -61,6 +61,14 @@
       config:
         backend: json
 
+    - id: waibrain-host
+      name: '@deepseek-ai/dsh-host-waibrain'
+      config:
+        maxAdmittedBranches: 8
+        externalBrainTimeoutMs: 120000
+        externalBrainMaxTokens: 4096
+        maxResultBytes: 16384
+
     - id: message-feedback
       name: '@deepseek-ai/dsh-message-feedback'
       config:

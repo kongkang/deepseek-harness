@@ -1974,6 +1974,206 @@
       "doc": "docs/subsystems/feedback.md",
       "symbol": "MessageFeedbackDeleteResult",
       "source": "packages/feedback/message-feedback/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/core.md",
+      "symbol": "ModelSelectionRef",
+      "source": "packages/core/agent/src/model-selection.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainAgentId",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainModelSelection",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainRole",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainExternalBrain",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainAgentConfig",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainAgentRevision",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainSaveAgentRequest",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainSelectAgentRequest",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainConversationId",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainRoundId",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainSelectConversationRequest",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainCreateConversationRequest",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainConversationRequest",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainPromptRequest",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainCloseConversationRequest",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainLimits",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainBootstrap",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainConversationSummary",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainConversationMessage",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainExternalBrainRound",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainRoundView",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainConversationView",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainInvalidPersonaTemplate",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainBranchLimitExceeded",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainRevisionConflict",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainAgentNotFound",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainConversationNotFound",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainRuntimeUnavailable",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainConversationBusy",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainConversationClosed",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainSuccess",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainRejected",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainSaveAgentResult",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainSelectAgentResult",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainCreateConversationResult",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainSelectConversationResult",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainConversationResult",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainPromptResult",
+      "source": "packages/host/waibrain/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/waibrain.md",
+      "symbol": "WaiBrainCloseConversationResult",
+      "source": "packages/host/waibrain/src/types.ts"
     }
   ]
 }
