@@ -878,6 +878,28 @@ export interface Config {
 
 Source: [`packages/host/frontend-static/src/index.ts:30`](../packages/host/frontend-static/src/index.ts)
 
+<a id="deepseek-aidsh-host-waibrain"></a>
+
+## `@deepseek-ai/dsh-host-waibrain`
+
+Requires: `storageDomain` · `sessions`
+
+```ts config-catalog
+/** Deployment policy for WaiBrain coordination. */
+export interface Config {
+  /** Maximum enabled external brains accepted in one Agent revision and user round. */
+  readonly maxAdmittedBranches: number
+  /** Milliseconds allowed for each external-brain Session to settle independently. */
+  readonly externalBrainTimeoutMs: number
+  /** Maximum output tokens requested from each external-brain model call. */
+  readonly externalBrainMaxTokens: number
+  /** Maximum UTF-8 bytes retained when an external-brain result enters the main Session. */
+  readonly maxResultBytes: number
+}
+```
+
+Source: [`packages/host/waibrain/src/index.ts:61`](../packages/host/waibrain/src/index.ts)
+
 <a id="deepseek-aidsh-host-webserver"></a>
 
 ## `@deepseek-ai/dsh-host-webserver`

@@ -146,7 +146,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'session',
     title: 'In-memory session store',
     mode: 'core',
-    consumers: ['agent-loop', 'agent', 'session-persistence', 'session-query', 'session-query-sqlite', 'subagent-in-process-driver', 'invariants', 'message-feedback'],
+    consumers: ['agent-loop', 'agent', 'session-persistence', 'session-query', 'session-query-sqlite', 'subagent-in-process-driver', 'invariants', 'message-feedback', 'waibrain'],
     note: 'Owns append-only Session instances and emits the durable session event feed.',
   },
   {
@@ -226,9 +226,9 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'session-persistence',
     title: 'Durable session persistence seam',
     mode: 'seam',
-    implementations: ['session-persistence-jsonl'],
-    consumers: ['agent-loop', 'tool-bash', 'hooks-claude-code', 'hooks-codex', 'session-query', 'session-query-sqlite', 'message-feedback'],
-    note: 'The JSONL backend persists the SessionEvent vocabulary as one artifact per Session.',
+    implementations: ['session-persistence-jsonl', 'session-persistence-sqlite'],
+    consumers: ['agent-loop', 'tool-bash', 'hooks-claude-code', 'hooks-codex', 'session-query', 'session-query-sqlite', 'message-feedback', 'waibrain'],
+    note: 'Backends persist the same SessionEvent vocabulary; apps choose a backend at composition time.',
   },
   {
     key: 'settings',
@@ -288,7 +288,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'storage-domain',
     title: 'Domain data facility',
     mode: 'core',
-    consumers: ['workspace', 'message-feedback'],
+    consumers: ['workspace', 'message-feedback', 'waibrain'],
     note: 'Waits for every configured backend, then publishes the domain form as one lifecycle-bound service for typed durable state.',
   },
   {
@@ -297,6 +297,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Lifecycle-bound message feedback',
     mode: 'core',
     note: 'Owns local per-assistant-message feedback, lifecycle and target validation, per-item compare-and-set, and the Host unary Remote contract without entering Session history or telemetry.',
+  },
+  {
+    key: 'waibrainHost',
+    pkg: 'waibrain',
+    title: 'Durable WaiNao Agent workspace',
+    mode: 'core',
+    note: 'Owns editable Agent revisions, permanent conversation identity, Host admission, independent external-brain lanes, late wake delivery, and recovery through standard Sessions.',
   },
   {
     key: 'workspaceRegistry',

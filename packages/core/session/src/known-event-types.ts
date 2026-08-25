@@ -70,5 +70,12 @@ export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
   'turn/end',
   'turn/start',
   'user/message',
+  'waibrain/brain-status',
+  'waibrain/foreign-turn-rejected',
+  'waibrain/main-status',
+  'waibrain/round-admitted',
+  'waibrain/wake-delivered',
+  'waibrain/wake-discarded-on-close',
+  'waibrain/wake-pending',
   'web/deepseek-search-llm-request',
 ])

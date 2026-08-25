@@ -1,136 +1,96 @@
-/** DSH wire acceptance for the standalone WaiBrain runtime. */
+/** Browser wire acceptance for the Host-backed WaiBrain client. */
 
 import { describe, expect, it } from 'vitest'
-import {
-  DshRuntimeClient,
-  type ModelSelection,
-  type RpcFetch,
-} from '../src/dsh-runtime.ts'
+import { DshRuntimeClient, type RpcFetch, type WaiBrainAgentConfig } from '../src/dsh-runtime.ts'
 
 function successful(value: unknown): Response {
-  return new Response(JSON.stringify({
-    rpcId: 'test',
-    result: { ok: true, value },
-  }), { status: 200, headers: { 'content-type': 'application/json' } })
+  return new Response(JSON.stringify({ rpcId: 'test', result: { ok: true, value } }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  })
 }
 
-function serializedBody(init: RequestInit | undefined): string {
-  if (typeof init?.body !== 'string') throw new Error('test request body must be a string')
-  return init.body
+function body(init: RequestInit | undefined): { method: string; payload: Record<string, unknown> } {
+  if (typeof init?.body !== 'string') throw new Error('request body must be JSON text')
+  return JSON.parse(init.body) as { method: string; payload: Record<string, unknown> }
 }
 
-describe('WaiBrain DSH runtime client', () => {
-  it('loads the configured model catalog without reading settings documents', async () => {
-    const calls: Array<{ method: string; payload: unknown }> = []
-    const fetch: RpcFetch = async (_input, init) => {
-      const body = JSON.parse(serializedBody(init)) as { method: string; payload: unknown }
-      calls.push({ method: body.method, payload: body.payload })
-      return successful({
-        groups: [{
-          id: 'deepseek-official',
-          name: 'DeepSeek',
-          models: [{
-            id: 'deepseek-v4-flash',
-            name: 'DeepSeek V4 Flash',
-            reasoning: {
-              efforts: [{ id: 'off', name: 'Off' }, { id: 'high', name: 'High' }],
-              defaultEffort: 'high',
-            },
-          }],
-        }],
-        failures: [],
-      })
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input
+  if (input instanceof URL) return input.href
+  return input.url
+}
+
+const config: WaiBrainAgentConfig = {
+  label: '林川',
+  role: {
+    name: '林川', tagline: '思考伙伴', personality: '温和', voice: '简洁', scenario: '长期陪伴',
+    greeting: '我在。', examples: '用户：你好。', systemPrompt: '你是林川。',
+  },
+  mainSelection: { provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'off' },
+  externalBrains: [{
+    id: 'facts', label: '事实', direction: '查证', persona: '先查证。', enabled: true,
+    selection: { provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'high' },
+  }],
+}
+
+describe('WaiBrain Host runtime client', () => {
+  it('keeps the existing model catalog carrier', async () => {
+    const calls: Array<{ url: string; method: string; payload: Record<string, unknown> }> = []
+    const fetch: RpcFetch = async (input, init) => {
+      const request = body(init)
+      calls.push({ url: requestUrl(input), method: request.method, payload: request.payload })
+      return successful({ groups: [], failures: [] })
     }
     const client = new DshRuntimeClient(fetch)
-
-    const catalog = await client.models()
-
-    expect(catalog.groups[0]?.models[0]?.reasoning?.efforts.map(effort => effort.id))
-      .toEqual(['off', 'high'])
-    expect(calls).toEqual([{ method: 'llm.models', payload: {} }])
+    await expect(client.models()).resolves.toEqual({ groups: [], failures: [] })
+    expect(calls).toEqual([{ url: '/api/llm.models', method: 'llm.models', payload: {} }])
   })
 
-  it('creates a prompted Session and applies its model without changing the global default', async () => {
-    const calls: Array<{ method: string; payload: Record<string, unknown> }> = []
-    const selection: ModelSelection = {
-      provider: 'deepseek-official',
-      model: 'deepseek-v4-flash',
-      reasoningEffort: 'off',
-    }
-    const fetch: RpcFetch = async (_input, init) => {
-      const body = JSON.parse(serializedBody(init)) as {
-        method: string
-        payload: Record<string, unknown>
+  it('uses strict Typert request args for every WaiBrain Remote', async () => {
+    const calls: Array<{ url: string; method: string; payload: Record<string, unknown> }> = []
+    const fetch: RpcFetch = async (input, init) => {
+      const request = body(init)
+      calls.push({ url: requestUrl(input), method: request.method, payload: request.payload })
+      if (request.method === 'waibrain/bootstrap') {
+        return successful({ limits: {}, agents: [], conversations: [], selectedAgentId: null, selectedConversationId: null })
       }
-      calls.push({ method: body.method, payload: body.payload })
-      if (body.method === 'session.create') return successful({ sessionId: 'session-main' })
-      if (body.method === 'session.selectModel') return successful({ selected: selection })
-      throw new Error(`unexpected method ${body.method}`)
+      return successful({ ok: true, value: request.method === 'waibrain/saveAgent' ? { agent: { id: 'a1' } } : {} })
     }
     const client = new DshRuntimeClient(fetch)
+    await client.bootstrap()
+    await client.saveAgent({ expectedRevision: null, config })
+    await client.selectAgent({ agentId: 'a1' })
+    await client.createConversation({ agentId: 'a1' })
+    await client.selectConversation({ conversationId: 'c1' })
+    await client.conversation({ conversationId: 'c1' })
+    await client.prompt({ conversationId: 'c1', text: '你好' })
+    await client.closeConversation({ conversationId: 'c1' })
 
-    const sessionId = await client.createAgent({
-      systemPrompt: 'You are Lin Chuan.',
-      selection,
-      agentPreset: 'waibrain',
-    })
-
-    expect(sessionId).toBe('session-main')
-    expect(calls).toEqual([
-      {
-        method: 'session.create',
-        payload: { systemPrompt: 'You are Lin Chuan.', agentPreset: 'waibrain' },
-      },
-      {
-        method: 'session.selectModel',
-        payload: {
-          sessionId: 'session-main',
-          provider: 'deepseek-official',
-          model: 'deepseek-v4-flash',
-          reasoningEffort: 'off',
-          saveAsDefault: false,
-        },
-      },
+    expect(calls.map(call => [call.url, call.method])).toEqual([
+      ['/api/waibrain/bootstrap', 'waibrain/bootstrap'],
+      ['/api/waibrain/saveAgent', 'waibrain/saveAgent'],
+      ['/api/waibrain/selectAgent', 'waibrain/selectAgent'],
+      ['/api/waibrain/createConversation', 'waibrain/createConversation'],
+      ['/api/waibrain/selectConversation', 'waibrain/selectConversation'],
+      ['/api/waibrain/conversation', 'waibrain/conversation'],
+      ['/api/waibrain/prompt', 'waibrain/prompt'],
+      ['/api/waibrain/closeConversation', 'waibrain/closeConversation'],
     ])
+    expect(calls[0]?.payload).toEqual({ args: {} })
+    expect(calls[1]?.payload).toEqual({ args: { request: { expectedRevision: null, config } } })
+    expect(calls[6]?.payload).toEqual({ args: { request: { conversationId: 'c1', text: '你好' } } })
   })
 
-  it('submits prompts and returns the new durable assistant text after the turn settles', async () => {
-    let historyReads = 0
-    const fetch: RpcFetch = async (_input, init) => {
-      const body = JSON.parse(serializedBody(init)) as { method: string }
-      if (body.method === 'session.prompt') return successful({ accepted: true })
-      if (body.method !== 'session.history') throw new Error(`unexpected method ${body.method}`)
-      historyReads += 1
-      return successful({
-        events: historyReads === 1 ? [] : [
-          {
-            event: {
-              type: 'assistant/message', seq: 0, time: 1,
-              data: {
-                turn: 1,
-                step: 1,
-                message: {
-                  role: 'assistant', id: 'a1', source: { kind: 'model', provider: 'p', model: 'm' },
-                  content: [{ type: 'text', text: 'Branch report ready.' }],
-                },
-              },
-            },
-          },
-          {
-            event: {
-              type: 'turn/end', seq: 1, time: 2,
-              data: { turn: 1, reason: { kind: 'completed' } },
-            },
-          },
-        ],
-        hasMore: false,
-      })
-    }
-    const client = new DshRuntimeClient(fetch, { pollIntervalMs: 0 })
-
-    const reply = await client.promptAndWait('branch-1', 'Inspect this.', -1)
-
-    expect(reply).toEqual({ text: 'Branch report ready.', endSeq: 1 })
-    expect(historyReads).toBe(2)
+  it('preserves Host business rejections inside a successful transport', async () => {
+    const fetch: RpcFetch = async () => successful({
+      ok: false,
+      error: { code: 'conversation-busy', conversationId: 'c1' },
+    })
+    const client = new DshRuntimeClient(fetch)
+    await expect(client.prompt({ conversationId: 'c1', text: '第二条' })).resolves.toEqual({
+      ok: false,
+      error: { code: 'conversation-busy', conversationId: 'c1' },
+    })
   })
 })

@@ -12,10 +12,14 @@ import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { Session, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionInspection } from '@deepseek-ai/dsh-session-persistence'
 import { SessionQueryError, type SessionObservation } from '@deepseek-ai/dsh-session-query'
-import { PERSONA_SECTION } from '@deepseek-ai/dsh-system-prompt'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from '@deepseek-ai/dsh-typert-registry'
 import type { ModelSelection } from './types.ts'
+
+/** The prompt section a session's `systemPrompt` instructions occupy. */
+const SESSION_PERSONA_SECTION = 'session:persona'
+/** The session role card reads before the deployment persona (order 0). */
+const SESSION_PERSONA_ORDER = -0.5
 
 /** Cold Session identity absent from persistence. */
 export class ApiSessionNotFound extends Error {}
@@ -408,12 +412,17 @@ export class ApiSessionAgentController {
     }
   }
 
-  /** Install a session persona after preset mounting so it owns the persona slot. */
+  /**
+   * Install the session persona after preset mounting. A session role card
+   * supplements the preset's `deployment:persona` section instead of replacing
+   * it, so a preset persona carrying the dialog's running rules coexists with
+   * a per-session persona; it reads before the deployment persona (order 0).
+   */
   private installPersona(agentCtx: Context, systemPrompt: string | undefined): void {
     if (systemPrompt === undefined) return
     agentCtx.systemPrompt.section({
-      name: PERSONA_SECTION,
-      order: agentCtx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA'),
+      name: SESSION_PERSONA_SECTION,
+      order: SESSION_PERSONA_ORDER,
       text: systemPrompt,
     })
   }
