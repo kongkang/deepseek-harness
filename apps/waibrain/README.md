@@ -17,6 +17,8 @@ pnpm run waibrain:build
 
 `pnpm run waibrain:dev` starts the Host on `127.0.0.1:4174` and this interface on `http://127.0.0.1:5173/`. `WAIBRAIN_UI_PORT` and `WAIBRAIN_DSH_PORT` override those ports.
 
+`pnpm run waibrain:test` runs both the unit suite and the keyless browser workflow for Agent persistence, right-rail external-brain editing, result reinjection, and permanent conversations.
+
 ## Product workflow
 
 1. Create an Agent, complete its persona, select the main model, and save it. Every save creates an immutable configuration revision in the Host.
