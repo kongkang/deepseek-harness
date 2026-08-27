@@ -110,6 +110,8 @@ describe('WaiBrain browser E2E', () => {
   })
 
   it('renders the main reply, external-brain result, and durable timeline', async () => {
+    await page.addStyleTag({ content: '.chat-scroll { max-height: 120px !important; }' })
+    await page.locator('.chat-scroll').evaluate((element) => { element.scrollTop = element.scrollHeight })
     await page.getByLabel('给浏览器验收 Agent发消息').fill('请评估这个方案。')
     await page.getByRole('button', { name: '发送' }).click()
 
@@ -117,6 +119,11 @@ describe('WaiBrain browser E2E', () => {
     await page.getByText('我吸收了外挂外脑的提醒。').waitFor({ timeout: 30_000 })
     await page.getByRole('complementary').getByText('这是外挂外脑的独立答案。').waitFor({ timeout: 30_000 })
     await page.getByRole('complementary').getByText('已完成并回灌').waitFor({ timeout: 30_000 })
+    const chatPosition = await page.locator('.chat-scroll').evaluate(element => ({
+      bottom: element.scrollTop + element.clientHeight,
+      height: element.scrollHeight,
+    }))
+    expect(chatPosition.bottom).toBeGreaterThanOrEqual(chatPosition.height - 1)
 
     await page.getByRole('button', { name: '认知时间轴' }).click()
     const round = page.locator('.wb-round').filter({ hasText: '消息 01' })

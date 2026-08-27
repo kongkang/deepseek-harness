@@ -242,6 +242,26 @@ function renderApp(state: AppState): string {
   return `<div class="app-shell">${renderTopbar(state)}${renderManager(state)}${page}</div>`
 }
 
+const CHAT_BOTTOM_THRESHOLD_PX = 48
+
+interface ChatScrollPosition {
+  atBottom: boolean
+  scrollTop: number
+}
+
+function captureChatScroll(scroll: HTMLElement | null): ChatScrollPosition | null {
+  if (scroll === null) return null
+  return {
+    atBottom: scroll.scrollHeight - scroll.clientHeight - scroll.scrollTop <= CHAT_BOTTOM_THRESHOLD_PX,
+    scrollTop: scroll.scrollTop,
+  }
+}
+
+function restoreChatScroll(scroll: HTMLElement | null, position: ChatScrollPosition | null): void {
+  if (scroll === null) return
+  scroll.scrollTop = position === null || position.atBottom ? scroll.scrollHeight : position.scrollTop
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
@@ -275,7 +295,12 @@ export function mountApp(target: Element | null, options: MountAppOptions = {}):
   let refreshing = false
 
   const render = (): void => {
-    if (!disposed) target.innerHTML = renderApp(state)
+    if (disposed) return
+    const chatPosition = captureChatScroll(target.querySelector<HTMLElement>('.chat-scroll'))
+    target.innerHTML = renderApp(state)
+    if (state.view === 'conversation') {
+      restoreChatScroll(target.querySelector<HTMLElement>('.chat-scroll'), chatPosition)
+    }
   }
 
   const applyAgent = (agent: WaiBrainAgentRevision | undefined): void => {
@@ -302,9 +327,20 @@ export function mountApp(target: Element | null, options: MountAppOptions = {}):
     if (disposed) return
     if (state.view === 'conversation') {
       const scroll = target.querySelector<HTMLElement>('.chat-scroll')
-      if (scroll !== null) scroll.innerHTML = renderChatScrollContent(state)
+      const chatPosition = captureChatScroll(scroll)
+      if (scroll !== null) {
+        scroll.innerHTML = renderChatScrollContent(state)
+        restoreChatScroll(scroll, chatPosition)
+      }
       const list = target.querySelector<HTMLElement>('.runtime-branch-list')
       if (list !== null) list.innerHTML = renderRuntimeBrainList(state)
+      const composer = target.querySelector<HTMLTextAreaElement>('[name="message"]')
+      const sendButton = target.querySelector<HTMLButtonElement>('[data-action="send"]')
+      const closed = state.conversation?.conversation.status === 'closed'
+      if (composer !== null) composer.disabled = closed
+      if (sendButton !== null) {
+        sendButton.disabled = closed || state.conversation?.busy === true || state.sending || (composer?.value ?? state.composer).trim() === ''
+      }
     } else if (state.view === 'timeline') {
       const list = target.querySelector<HTMLElement>('.wb-round-list')
       if (list !== null) list.innerHTML = renderRoundListContent(state)
@@ -324,7 +360,6 @@ export function mountApp(target: Element | null, options: MountAppOptions = {}):
         if (row !== undefined) Object.assign(row, result.value.conversation)
         const headerStateChanged = previous === null
           || previous.conversation.status !== result.value.conversation.status
-          || previous.busy !== result.value.busy
         if (state.view === 'conversation' && headerStateChanged) render()
         else patchConversationView()
       }

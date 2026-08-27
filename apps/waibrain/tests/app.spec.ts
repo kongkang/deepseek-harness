@@ -333,6 +333,68 @@ describe('Host-backed WaiBrain application', () => {
     expect(screen.getByLabelText<HTMLTextAreaElement>('给林川发消息')).toBe(composer)
   })
 
+  it('keeps the chat scroller mounted and follows new poll content while the reader is at the bottom', async () => {
+    dispose()
+    document.body.replaceChildren()
+    runtime = new FakeRuntime(true)
+    const root = document.createElement('div')
+    document.body.append(root)
+    dispose = mountApp(root, { runtime, pollIntervalMs: 120 })
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: '主对话' }))
+    await screen.findByRole('heading', { name: '与林川对话' })
+
+    const scroll = document.querySelector<HTMLElement>('.chat-scroll')
+    expect(scroll).not.toBeNull()
+    if (scroll === null) return
+    Object.defineProperty(scroll, 'clientHeight', { configurable: true, value: 100 })
+    Object.defineProperty(scroll, 'scrollHeight', { configurable: true, get: () => scroll.childElementCount * 200 })
+    scroll.scrollTop = scroll.scrollHeight - scroll.clientHeight
+
+    const view = runtime.views.get('conversation-1')
+    expect(view).not.toBeUndefined()
+    if (view !== undefined) {
+      view.busy = true
+      view.messages.push({ id: 'u-ext', role: 'user', text: '底部收到的新消息', seq: 100 })
+    }
+
+    await screen.findByText('底部收到的新消息')
+    expect(document.querySelector('.chat-scroll')).toBe(scroll)
+    expect(scroll.scrollTop).toBe(scroll.scrollHeight)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: '发送' }).disabled).toBe(true)
+  })
+
+  it('preserves the chat position when the reader has scrolled up before new poll content', async () => {
+    dispose()
+    document.body.replaceChildren()
+    runtime = new FakeRuntime(true)
+    const view = runtime.views.get('conversation-1')
+    expect(view).not.toBeUndefined()
+    view?.messages.push(
+      { id: 'u1', role: 'user', text: '第一条历史消息', seq: 10 },
+      { id: 'a1', role: 'assistant', text: '第一条历史回复', seq: 11 },
+      { id: 'u2', role: 'user', text: '第二条历史消息', seq: 20 },
+    )
+    const root = document.createElement('div')
+    document.body.append(root)
+    dispose = mountApp(root, { runtime, pollIntervalMs: 120 })
+    await ready()
+    fireEvent.click(screen.getByRole('button', { name: '主对话' }))
+    await screen.findByText('第二条历史消息')
+
+    const scroll = document.querySelector<HTMLElement>('.chat-scroll')
+    expect(scroll).not.toBeNull()
+    if (scroll === null) return
+    Object.defineProperty(scroll, 'clientHeight', { configurable: true, value: 100 })
+    Object.defineProperty(scroll, 'scrollHeight', { configurable: true, get: () => scroll.childElementCount * 200 })
+    scroll.scrollTop = 40
+    view?.messages.push({ id: 'a2', role: 'assistant', text: '稍后到达的新回复', seq: 21 })
+
+    await screen.findByText('稍后到达的新回复')
+    expect(document.querySelector('.chat-scroll')).toBe(scroll)
+    expect(scroll.scrollTop).toBe(40)
+  })
+
   it('falls back to a full render so the header and composer reflect a conversation closed elsewhere', async () => {
     dispose()
     document.body.replaceChildren()
