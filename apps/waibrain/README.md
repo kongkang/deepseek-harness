@@ -17,7 +17,7 @@ pnpm run waibrain:build
 
 `pnpm run waibrain:dev` starts the Host on `127.0.0.1:4174` and this interface on `http://127.0.0.1:5173/`. `WAIBRAIN_UI_PORT` and `WAIBRAIN_DSH_PORT` override those ports.
 
-`pnpm run waibrain:test` runs both the unit suite and the keyless browser workflow for Agent persistence, right-rail external-brain editing, result reinjection, and permanent conversations.
+`pnpm run waibrain:test` runs both the unit suite and the keyless browser workflow for Agent persistence, right-rail external-brain editing, result reinjection, bottom-following conversation scroll, and permanent conversations.
 
 ## Product workflow
 
@@ -28,6 +28,8 @@ pnpm run waibrain:build
 5. Inspect the cognitive timeline for the configuration revision, main-lane status, external-brain status, and retained result for every admitted message.
 
 Refreshing the page reloads the selected Agent and conversation from the Host. Restarting the Host lazily resumes a conversation only when an operation needs a live Agent; interrupted lanes are recorded as terminated rather than silently restarted.
+
+The conversation opens at the newest message. New content continues to follow the bottom while the reader remains there; scrolling upward preserves the current reading position instead of forcing a jump to the latest message.
 
 ## Conversation lifecycle
 

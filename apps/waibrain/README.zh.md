@@ -17,7 +17,7 @@ pnpm run waibrain:build
 
 `pnpm run waibrain:dev` 会在 `127.0.0.1:4174` 启动 Host，并在 `http://127.0.0.1:5173/` 启动本界面。`WAIBRAIN_UI_PORT` 与 `WAIBRAIN_DSH_PORT` 可覆盖这两个端口。
 
-`pnpm run waibrain:test` 同时运行单元测试和无需密钥的浏览器流程，覆盖 Agent 持久化、右侧栏编辑外挂外脑、结果回灌和永久对话。
+`pnpm run waibrain:test` 同时运行单元测试和无需密钥的浏览器流程，覆盖 Agent 持久化、右侧栏编辑外挂外脑、结果回灌、对话贴底滚动和永久对话。
 
 ## 产品流程
 
@@ -28,6 +28,8 @@ pnpm run waibrain:build
 5. 在认知时间轴中查看每条已接纳消息使用的配置 revision、主路状态、外挂外脑状态和保留结果。
 
 刷新页面会从 Host 重新载入选中的 Agent 和对话。Host 重启后，只有需要实时 Agent 的操作才会按需恢复对话；被中断的分路会记录为已终止，不会静默重跑。
+
+进入对话时默认显示最新消息。用户停留在底部时，新内容会继续自动贴底；向上滚动阅读较早消息后，页面会保持当前阅读位置，不会强制跳到最新消息。
 
 ## 对话生命周期
 

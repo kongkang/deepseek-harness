@@ -1199,8 +1199,8 @@ h2,
   gap: 16px;
   padding: 32px clamp(24px, 6vw, 92px) 40px;
   overflow-y: auto;
+  overflow-anchor: none;
   overscroll-behavior: contain;
-  scroll-behavior: smooth;
 }
 
 .chat-scroll::before {
