@@ -9,9 +9,26 @@ const uiPort = process.env.WAIBRAIN_UI_PORT ?? '5173'
 const host = spawn(process.execPath, [
   '--import', 'tsx/esm', join(root, 'apps/cli/src/bin.ts'),
   'web', '--no-open', '--port', hostPort,
-], { cwd: root, env: process.env, stdio: 'inherit' })
+], { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'inherit'] })
 const children: ChildProcess[] = [host]
 let stopping = false
+
+/**
+ * The Host's /api carrier authenticates a browser session minted from the
+ * launch token printed as `dsh web: <url>?token=…`. The Vite surface runs on
+ * its own origin, so its proxy must carry that session cookie to the Host.
+ * @param chunk - one stdout piece of the Host process.
+ * @returns the launch-token URL when this chunk printed it.
+ */
+function launchUrlOf(chunk: string): string | undefined {
+  return /^dsh web: (\S+)$/m.exec(chunk)?.[1]
+}
+
+let launchUrl: string | undefined
+host.stdout.on('data', (chunk: Buffer) => {
+  process.stdout.write(chunk)
+  launchUrl ??= launchUrlOf(chunk.toString('utf8'))
+})
 
 function exited(child: ChildProcess): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve()
@@ -62,13 +79,25 @@ async function waitForHost(): Promise<void> {
 }
 
 async function start(): Promise<void> {
-  await waitForHost()
+  const deadline = Date.now() + 30_000
+  while (launchUrl === undefined && !stopping && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
   if (stopping) return
+  if (launchUrl === undefined) {
+    throw new Error('DSH Host printed no launch-token URL; the UI cannot establish its browser session')
+  }
+  await waitForHost()
+  const token = new URL(launchUrl).searchParams.get('token') ?? ''
   const ui = spawn(join(root, 'apps/web/node_modules/.bin/vite'), [
     join(root, 'apps/waibrain'), '--host', '127.0.0.1', '--port', uiPort, '--strictPort',
   ], {
     cwd: root,
-    env: { ...process.env, WAIBRAIN_DSH_URL: `http://127.0.0.1:${hostPort}` },
+    env: {
+      ...process.env,
+      WAIBRAIN_DSH_URL: `http://127.0.0.1:${hostPort}`,
+      WAIBRAIN_DSH_TOKEN: token,
+    },
     stdio: 'inherit',
   })
   children.push(ui)

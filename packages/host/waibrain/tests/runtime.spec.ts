@@ -22,6 +22,8 @@ import LlmRuntime, {
 } from '@deepseek-ai/dsh-llm'
 import SessionStore, { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import JsonlSessionPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
+import SessionQueryEngine from '@deepseek-ai/dsh-session-query'
+import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
 import Storage from '@deepseek-ai/dsh-storage'
 import * as StorageJson from '@deepseek-ai/dsh-storage-json'
@@ -41,6 +43,17 @@ import * as WaiBrainSessionPlugin from '../src/session.ts'
 import type { WaiBrainAgentRow, WaiBrainConversationRow, WaiBrainDomainState } from '../src/spec.ts'
 
 const fixtureRoot = join(process.cwd(), 'packages/host/waibrain/tests/fixture')
+
+/** Concrete point-read query: WaiBrain reads headers and events, never search. */
+class TestSessionQuery extends SessionQueryEngine {
+  override searchSessions(): Promise<never> {
+    return Promise.reject(new Error('session search is not configured in this test'))
+  }
+
+  override searchEvents(): Promise<never> {
+    return Promise.reject(new Error('event search is not configured in this test'))
+  }
+}
 const transcriptExpected = join(process.cwd(), 'packages/host/waibrain/tests/snapshots/one-plus-n.expected.json')
 const roots: string[] = []
 const contexts: Context[] = []
@@ -169,9 +182,11 @@ async function harness(
   ctx.loader.builtins.include = Include
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(SessionStore)
+  await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(JsonlSessionPersistence, {
-    root: join(storageRoot, 'sessions'), compression: 'none', writeBatchMaxDelayMs: 1,
+    root: join(storageRoot, 'sessions'), compression: 'none',
   })
+  new TestSessionQuery(ctx)
   await ctx.plugin(SystemPrompt, { persona: 'deployment persona' })
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(AgentRegistry)
@@ -179,7 +194,8 @@ async function harness(
   await ctx.plugin(SubagentRuntime)
   await ctx.plugin(ForkInProcess, { providerName: 'fork' })
   await ctx.plugin(AgentPresets, {
-    default: 'waibrain-dialog', roots: [{ path: fixtureRoot, trust: 'system' }], includeUserRoot: false,
+    default: 'waibrain-dialog', roots: [{ path: fixtureRoot, trust: 'system' }],
+    includeShippedRoot: false, includeUserRoot: false,
   })
   await ctx.plugin(Storage)
   await ctx.plugin(StorageJson, { root: join(storageRoot, 'domain') })
@@ -280,7 +296,7 @@ describe('WaiBrain Host standard Session runtime', () => {
     }))
     await bound.agent.whenIdle()
     expect(instance.adapter.requests).toHaveLength(before)
-    expect(bound.agent.session.events.some(event => event.type === 'waibrain/foreign-turn-rejected')).toBe(true)
+    expect(bound.agent.session.snapshotEvents().some(event => event.type === 'waibrain/foreign-turn-rejected')).toBe(true)
 
     await internals.conversations.put(conversationId, {
       id: conversationId,
@@ -316,6 +332,7 @@ describe('WaiBrain Host standard Session runtime', () => {
     contexts.push(ctx)
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(SessionStore)
+    await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SystemPrompt, { persona: 'deployment persona' })
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(AgentRegistry)
@@ -362,7 +379,7 @@ describe('WaiBrain Host standard Session runtime', () => {
           .filter((id): id is string => id !== undefined)
           .map(id => first.ctx.agents.get(SessionId(id)))
           .filter(agent => agent !== undefined)
-          .map(agent => ({ id: agent.session.header.id, events: agent.session.events }))
+          .map(agent => ({ id: agent.session.header.id, events: agent.session.snapshotEvents() }))
         : []
       throw new Error(JSON.stringify({ error: String(error), view, requests: first.adapter.requests, liveAgents }, null, 2))
     }
@@ -382,7 +399,7 @@ describe('WaiBrain Host standard Session runtime', () => {
     await main?.whenIdle()
     const afterBypass = await first.service.conversation({ conversationId: created.value.conversation.id })
     expect(afterBypass.ok && afterBypass.value.messages).toHaveLength(beforeMessageCount)
-    expect(main?.session.events.some(event => event.type === 'waibrain/foreign-turn-rejected')).toBe(true)
+    expect(main?.session.snapshotEvents().some(event => event.type === 'waibrain/foreign-turn-rejected')).toBe(true)
 
     await first.ctx.sessions.flush(main!.session)
     await first.ctx.fiber.dispose()
@@ -682,11 +699,15 @@ describe('WaiBrain Host standard Session runtime', () => {
       .resolves.toMatchObject({ ok: false, error: { code: 'conversation-not-found' } })
 
     const clearedInternals = runtimeInternals(cleared.service)
-    const inspected = await cleared.ctx.sessionPersistence.inspect(SessionId(row.sessionId))
+    const observed = await cleared.ctx.sessionQuery.observeSession(SessionId(row.sessionId))
     const wrongPresetId = '00000000-0000-4000-8000-00000000002c' as never
-    const inspect = vi.spyOn(cleared.ctx.sessionPersistence, 'inspect').mockResolvedValueOnce({
-      ...inspected,
-      meta: { ...inspected.meta, agentPreset: 'other-preset' },
+    const observe = vi.spyOn(cleared.ctx.sessionQuery, 'observeSession').mockResolvedValueOnce({
+      ...observed,
+      header: { ...observed.header, agentPreset: 'other-preset' },
+      retain: () => observed.retain(),
+      [Symbol.dispose]: () => {
+        observed[Symbol.dispose]()
+      },
     })
     await clearedInternals.domain.global.set({
       ...clearedInternals.domain.global.get(),
@@ -699,7 +720,8 @@ describe('WaiBrain Host standard Session runtime', () => {
     })
     await clearedInternals.recoverPendingOperation()
     expect(clearedInternals.conversations.get(wrongPresetId)).toBeUndefined()
-    inspect.mockRestore()
+    observe.mockRestore()
+    observed[Symbol.dispose]()
 
     await clearedInternals.domain.global.set({
       ...clearedInternals.domain.global.get(),
@@ -762,7 +784,7 @@ describe('WaiBrain Host standard Session runtime', () => {
     }, 'recovered late wake')
     expect(restarted.adapter.requests.filter(request => request.model === 'main')).toHaveLength(1)
     const live = restarted.ctx.agents.get(SessionId(created.value.conversation.sessionId))
-    expect(live?.session.events.filter(event => event.type === 'waibrain/wake-delivered')).toHaveLength(1)
+    expect(live?.session.snapshotEvents().filter(event => event.type === 'waibrain/wake-delivered')).toHaveLength(1)
     await restarted.ctx.fiber.dispose()
     contexts.splice(contexts.indexOf(restarted.ctx), 1)
 
@@ -841,8 +863,10 @@ describe('WaiBrain Host standard Session runtime', () => {
       const view = await restarted.service.conversation({ conversationId: created.value.conversation.id })
       expect(view.ok && view.value.busy).toBe(false)
     }
-    const enteredEvents = (await restarted.ctx.sessionPersistence.inspect(SessionId(entered.value.conversation.sessionId))).events
-    const closedEvents = (await restarted.ctx.sessionPersistence.inspect(SessionId(closed.value.conversation.sessionId))).events
+    using enteredObserved = await restarted.ctx.sessionQuery.observeSession(SessionId(entered.value.conversation.sessionId))
+    using closedObserved = await restarted.ctx.sessionQuery.observeSession(SessionId(closed.value.conversation.sessionId))
+    const enteredEvents = enteredObserved.events
+    const closedEvents = closedObserved.events
     expect(enteredEvents.some(event => event.type === 'waibrain/wake-delivered')).toBe(true)
     expect(closedEvents.some(event => event.type === 'waibrain/wake-discarded-on-close')).toBe(true)
   }, 20_000)
@@ -1140,7 +1164,8 @@ describe('WaiBrain Host standard Session runtime', () => {
     }, new AbortController())
     flush.mockRestore()
     expect(order).toEqual(['child', 'parent', 'dispose'])
-    const persisted = await instance.ctx.sessionPersistence.inspect(parent.id)
+    using persistedObserved = await instance.ctx.sessionQuery.observeSession(parent.id)
+    const persisted = persistedObserved
     expect(persisted.events.some(event => event.type === 'waibrain/brain-status'
       && event.data.roundId === orderedRoundId
       && event.data.childSessionId === child.agent.id)).toBe(true)
@@ -1315,7 +1340,8 @@ describe('WaiBrain Host standard Session runtime', () => {
     const view = await instance.service.conversation({ conversationId: row.id })
     expect(view.ok && view.value.conversation.status).toBe('closed')
     expect(view.ok && view.value.busy).toBe(false)
-    const events = (await instance.ctx.sessionPersistence.inspect(SessionId(row.sessionId))).events
+    using observedEvents = await instance.ctx.sessionQuery.observeSession(SessionId(row.sessionId))
+    const events = observedEvents.events
     expect(events.some(event => event.type === 'waibrain/wake-discarded-on-close')).toBe(true)
   }, 20_000)
 
@@ -1441,7 +1467,7 @@ describe('WaiBrain Host standard Session runtime', () => {
     ])
 
     const internals = runtimeInternals(instance.service)
-    expect(internals.unresolvedLanes(agent.session.events)).toEqual([])
+    expect(internals.unresolvedLanes(agent.session.snapshotEvents())).toEqual([])
     await expect(internals.childResult(agent.id)).resolves.toEqual({ text: '', truncated: false })
     const empty = await instance.service.createConversation({ agentId: saved.value.agent.id })
     if (!empty.ok) throw new Error(empty.error.code)
@@ -1537,10 +1563,10 @@ describe('WaiBrain Host standard Session runtime', () => {
     await internals.conversations.put(row.id, { ...row, hasPendingWake: true })
 
     await internals.deliverPendingWake(row.id, roundId, brain.id, '不会重复进入')
-    expect(agent.session.events.filter(event => event.type === 'waibrain/wake-delivered')).toHaveLength(1)
+    expect(agent.session.snapshotEvents().filter(event => event.type === 'waibrain/wake-delivered')).toHaveLength(1)
     expect(instance.adapter.requests).toHaveLength(0)
     await internals.deliverPendingWake(row.id, roundId, brain.id, '已经送达')
-    expect(agent.session.events.filter(event => event.type === 'waibrain/wake-delivered')).toHaveLength(1)
+    expect(agent.session.snapshotEvents().filter(event => event.type === 'waibrain/wake-delivered')).toHaveLength(1)
 
     await internals.deliverPendingWake(
       '00000000-0000-4000-8000-000000000132' as never,
@@ -1624,7 +1650,7 @@ describe('WaiBrain Host standard Session runtime', () => {
     const followup = vi.spyOn(dropped.agent, 'followup').mockImplementation(() => {})
     await internals.deliverPendingWake(dropped.row.id, dropped.roundId, brain.id, '未进入竞态')
     followup.mockRestore()
-    expect(dropped.agent.session.events.some(event => event.type === 'waibrain/wake-delivered')).toBe(false)
+    expect(dropped.agent.session.snapshotEvents().some(event => event.type === 'waibrain/wake-delivered')).toBe(false)
   }, 20_000)
 
   it('rebuilds wake text from child output and falls back when the configured lane is absent', async () => {
@@ -1641,10 +1667,10 @@ describe('WaiBrain Host standard Session runtime', () => {
     const agent = instance.ctx.agents.get(SessionId(created.value.conversation.sessionId))
     if (agent === undefined) throw new Error('missing wake source Agent')
     const internals = runtimeInternals(instance.service)
-    const round = agent.session.events.find(event => event.type === 'waibrain/round-admitted')
+    const round = agent.session.snapshotEvents().find(event => event.type === 'waibrain/round-admitted')
     if (round?.type !== 'waibrain/round-admitted') throw new Error('missing admitted round')
 
-    await expect(internals.recoverWakeText(agent.session.events, {
+    await expect(internals.recoverWakeText(agent.session.snapshotEvents(), {
       roundId: round.data.roundId,
       externalBrainId: 'removed-lane',
       fallback: '持久化兜底',

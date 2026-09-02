@@ -2,6 +2,7 @@
 
 import {
   DshRuntimeClient,
+  randomUUID,
   type ModelCatalog,
   type ModelCatalogEntry,
   type ModelSelection,
@@ -463,7 +464,7 @@ export function mountApp(target: Element | null, options: MountAppOptions = {}):
     }
     const effort = text('brainReasoning')
     const replacement: WaiBrainExternalBrain = {
-      id: state.editor.id ?? (typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `brain-${Date.now().toString(36)}`),
+      id: state.editor.id ?? randomUUID(),
       label,
       direction,
       persona: text('brainPersona'),

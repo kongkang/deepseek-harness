@@ -207,6 +207,8 @@ export interface WebScaffold {
   baseUrl: string
   /** Process-token URL that establishes this scaffold's browser session. */
   authenticatedUrl: string
+  /** Session cookie the token exchange minted (`name=value`, no attributes). */
+  sessionCookie: string
   /** Settled root context (the in-process readiness barrier; headless event subscription is its sanctioned use). */
   ctx: Context
   /** Temp project directory sessions run in (shell/fs tool cwd). */
@@ -730,6 +732,7 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
     mode,
     baseUrl,
     authenticatedUrl,
+    sessionCookie: cookieHeader,
     ctx,
     workspaceCwd,
     persistenceRoot,

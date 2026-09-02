@@ -167,8 +167,14 @@ interface SessionHeader {
    * deployment composes per session. Durable because the preset decides the
    * session's tools and prompt: a resume that restored a different composition
    * would replay history the model can no longer act on.
-   */
+  */
   readonly agentPreset?: string
+  /**
+   * Session-specific persona instructions installed in the deployment persona
+   * slot. Durable because every resumed turn must reconstruct the same model
+   * input that the session was created with.
+   */
+  readonly systemPrompt?: string
 }
 ```
 
@@ -206,6 +212,7 @@ interface CreateSessionOptions {
     readonly origin?: 'subagent'
     readonly delegationDepth?: number
     readonly agentPreset?: string
+    readonly systemPrompt?: string
   }
 }
 ```

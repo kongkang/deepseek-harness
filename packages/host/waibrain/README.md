@@ -1,8 +1,24 @@
+---
+description: "Host-owned WaiBrain Agent configuration, permanent conversation identity, and 1+N external-brain execution."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-host-waibrain
 
 English | [中文](README.zh.md)
 
-Host-owned WaiBrain Agent configuration, permanent conversation identity, and 1+N execution. The service provides `ctx.waibrainHost`, persists the `waibrain` storage domain, and exposes the Typert Remote namespace `waibrain`.
+## Summary
+
+The service provides `ctx.waibrainHost`, persists the `waibrain` storage domain, and exposes the Typert Remote namespace `waibrain`: durable Agent role revisions, permanent conversation identities bound to standard main Sessions, and 1+N execution that runs every enabled external brain from the same completed prefix and delivers settled results back as capped wake messages.
+
+## Table of Contents
+
+- [Configuration](#configuration)
+- [Durable records and Remote methods](#durable-records-and-remote-methods)
+- [Delivery and recovery](#delivery-and-recovery)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
 
 ## Configuration
 
@@ -27,9 +43,13 @@ The standard Session log owns all model-visible and lifecycle facts. The [persis
 
 An external-brain result first commits `waibrain/wake-pending`; only then may it enter the main inbox as `【闪念】「<label>」<result>`. `waibrain/wake-delivered` makes that delivery exactly once. Closing the conversation commits a close sequence, rejects later prompts, and converts pending wakes into `waibrain/wake-discarded-on-close` without removing already-settled lane results.
 
-Host startup marks live lanes interrupted by the previous process as `host-restarted`, reconciles committed wakes, and does not eagerly publish every stored Session. Operations that require a live main Agent resume it on demand. A cold read inspects persistence without resuming the Agent.
+Host startup marks live lanes interrupted by the previous process as `host-restarted`, reconciles committed wakes, and does not eagerly publish every stored Session. Operations that require a live main Agent resume it on demand. A cold read observes the Session through `sessionQuery` without resuming the Agent.
 
 The `waibrain-dialog` preset mounts the separately exported `./session` plugin. It supplies the frozen persona and model selection, restricts tools to an empty set, and rejects user turns that did not pass through Host admission. Selecting the preset outside a bound WaiBrain Session produces a neutral tool-free dialog.
+
+## Dev Note
+
+Design history and the phase-one plan live in [the durable-agent-conversations note](../../../.agents/notes/implemented/feature/2026-08-24-durable-waibrain-agent-conversations.md); the product-level narrative is [docs/subsystems/waibrain.md](../../../docs/subsystems/waibrain.md). Cold reads go through `sessionQuery.observeSession` leases; live reads use `Session.snapshotEvents()`.
 
 ## Model Experience
 
