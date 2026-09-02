@@ -38,6 +38,7 @@ flowchart LR
   pkg_subagent_in_process_driver["subagent-in-process-driver"]
   pkg_invariants["invariants"]
   pkg_message_feedback["message-feedback"]
+  pkg_waibrain["waibrain"]
   svc_sessionController["ctx.sessionController<br/>Host Session Remote controller"]
   svc_sessionFileReferences["ctx.sessionFileReferences<br/>Session-addressed file-reference Remote adapter"]
   svc_sessionSkillCatalog["ctx.sessionSkillCatalog<br/>Session-addressed skill Remote adapter"]
@@ -58,6 +59,7 @@ flowchart LR
   svc_typertGateway["ctx.typertGateway<br/>Typert Host invocation gateway"]
   svc_sessionPersistence["ctx.sessionPersistence<br/>Durable session persistence seam"]
   pkg_session_persistence_jsonl["session-persistence-jsonl"]
+  pkg_session_persistence_sqlite["session-persistence-sqlite"]
   pkg_tool_bash["tool-bash"]
   pkg_hooks_claude_code["hooks-claude-code"]
   pkg_hooks_codex["hooks-codex"]
@@ -84,6 +86,7 @@ flowchart LR
   svc_messageFeedback["ctx.messageFeedback<br/>Lifecycle-bound message feedback"]
   pkg_command_feedback["command-feedback"]
   svc_sessionFeedback["ctx.sessionFeedback<br/>Session-level feedback recorder"]
+  svc_waibrainHost["ctx.waibrainHost<br/>Durable WaiNao Agent workspace"]
   svc_workspaceRegistry["ctx.workspaceRegistry<br/>Workspace entity registry"]
   svc_sessionQuery["ctx.sessionQuery<br/>Session reads, traces, filters, and search"]
   pkg_session_reference["session-reference"]
@@ -292,6 +295,7 @@ flowchart LR
   pkg_session_log_deepseek --> svc_deepseekLlmApiExtensions
   pkg_session_persistence --> svc_sessionPersistence
   pkg_session_persistence_jsonl --> svc_sessionPersistence
+  pkg_session_persistence_sqlite --> svc_sessionPersistence
   pkg_session_projection --> svc_sessionProjections
   pkg_session_projection_cache --> svc_sessionProjectionCache
   pkg_session_query --> svc_sessionQuery
@@ -334,6 +338,7 @@ flowchart LR
   pkg_typert_registry --> svc_typert
   pkg_user_approval --> svc_approval
   pkg_user_questions --> svc_userQuestions
+  pkg_waibrain --> svc_waibrainHost
   pkg_web --> svc_web
   pkg_web_fetch_http --> svc_web
   pkg_web_search_deepseek --> svc_web
@@ -398,6 +403,7 @@ flowchart LR
   svc_sessionPersistence --> pkg_session_query
   svc_sessionPersistence --> pkg_session_query_sqlite
   svc_sessionPersistence --> pkg_tool_bash
+  svc_sessionPersistence --> pkg_waibrain
   svc_sessionProjectionCache --> pkg_api_session_controller
   svc_sessionProjectionCache --> pkg_session_query
   svc_sessionProjectionCache --> pkg_session_reference
@@ -415,6 +421,7 @@ flowchart LR
   svc_sessions --> pkg_session_query
   svc_sessions --> pkg_session_query_sqlite
   svc_sessions --> pkg_subagent_in_process_driver
+  svc_sessions --> pkg_waibrain
   svc_settings --> pkg_api_settings_controller
   svc_settings --> pkg_llm_deepseek
   svc_settings --> pkg_llm_pi_ai
@@ -427,6 +434,7 @@ flowchart LR
   svc_skills --> pkg_tool_skill
   svc_spillStore --> pkg_spill_policy
   svc_storage --> pkg_storage_domain
+  svc_storageDomain --> pkg_waibrain
   svc_storageDomain --> pkg_workspace
   svc_subagentModelSelection --> pkg_tool_subagent
   svc_subagents --> pkg_tool_ralph
@@ -480,7 +488,7 @@ flowchart LR
 | `ctx.deepseekLlmApiExtensions` | `seam` | [`deepseek-llm-api-extensions`](../packages/llm/deepseek-llm-api-extensions) | [`session-log-deepseek`](../packages/session/session-log-deepseek), [`plugin-package-inventory-deepseek`](../packages/llm/plugin-package-inventory-deepseek) | [`llm-deepseek`](../packages/llm/llm-deepseek) | - | Plugins prepare independent top-level fields; the official adapter merges them and commits their delivery state after HTTP acceptance. |
 | `ctx.tokenMeter` | `core` | [`token-meter`](../packages/llm/token-meter) | - | [`compaction-basic`](../packages/compaction/compaction-basic) | - | Owns isolated per-session replay folds; pressure consumers share immutable revisioned measurements. |
 | `ctx.toolResultPruner` | `core` | [`compaction-tool-result-pruner`](../packages/compaction/compaction-tool-result-pruner) | - | [`compaction-basic`](../packages/compaction/compaction-basic) | - | Rewrites oversized current tool results through replayable single-node surface replacements before summary compaction. |
-| `ctx.sessions` | `core` | [`session`](../packages/core/session) | - | [`agent-loop`](../packages/core/agent-loop), [`agent`](../packages/core/agent), [`session-persistence`](../packages/session/session-persistence), [`session-query`](../packages/session-query/session-query), [`session-query-sqlite`](../packages/session-query/session-query-sqlite), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver), [`invariants`](../packages/runtime-diagnostics/invariants), [`message-feedback`](../packages/feedback/message-feedback) | - | Owns append-only Session instances and emits the durable session event feed. |
+| `ctx.sessions` | `core` | [`session`](../packages/core/session) | - | [`agent-loop`](../packages/core/agent-loop), [`agent`](../packages/core/agent), [`session-persistence`](../packages/session/session-persistence), [`session-query`](../packages/session-query/session-query), [`session-query-sqlite`](../packages/session-query/session-query-sqlite), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver), [`invariants`](../packages/runtime-diagnostics/invariants), [`message-feedback`](../packages/feedback/message-feedback), `waibrain` | - | Owns append-only Session instances and emits the durable session event feed. |
 | `ctx.sessionController` | `core` | [`api-session-controller`](../packages/api/session-controller) | - | - | - | Owns Session commands, cold reads, durable-event following, live control state, model catalogs, workspace opening, and Agent activation policy. |
 | `ctx.sessionFileReferences` | `core` | [`api-session-controller`](../packages/api/session-controller) | - | - | - | Delegates file-reference discovery through the Session Controller's established Agent lookup policy. |
 | `ctx.sessionSkillCatalog` | `core` | [`api-session-controller`](../packages/api/session-controller) | - | - | - | Lists the Session composition's user-invocable skills without activating a cold Agent. |
@@ -492,7 +500,7 @@ flowchart LR
 | `ctx.invariants` | `core` | [`invariants`](../packages/runtime-diagnostics/invariants) | - | [`session`](../packages/core/session), [`agent`](../packages/core/agent), [`scope`](../packages/core/scope), [`agent-loop`](../packages/core/agent-loop) | - | Companion subpaths register owner-local checks; the service owns selection, uniqueness, child fibers, and package-attributed failures. |
 | `ctx.typert` | `core` | [`typert-registry`](../packages/typert/registry) | - | [`typert-loader`](../packages/typert/loader), [`api-gateway`](../packages/api/gateway) | - | Plugins register live zod contributions directly or through dsh-typert-loader; the API gateway consumes invocation descriptors and providers, while other runtime consumers query schemas and reflection metadata at their own edges. |
 | `ctx.typertGateway` | `core` | [`api-gateway`](../packages/api/gateway) | - | - | - | Associates generated Remote descriptors with live Cordis services, resolves registered identities, and exposes unary calls through the shared Connection RPC carrier. |
-| `ctx.sessionPersistence` | `seam` | [`session-persistence`](../packages/session/session-persistence) | [`session-persistence-jsonl`](../packages/session/session-persistence-jsonl) | [`agent-loop`](../packages/core/agent-loop), [`tool-bash`](../packages/shell/tool-bash), [`hooks-claude-code`](../packages/hooks/hooks-claude-code), [`hooks-codex`](../packages/hooks/hooks-codex), [`session-query`](../packages/session-query/session-query), [`session-query-sqlite`](../packages/session-query/session-query-sqlite), [`message-feedback`](../packages/feedback/message-feedback) | - | The JSONL backend persists the SessionEvent vocabulary as one artifact per Session. |
+| `ctx.sessionPersistence` | `seam` | [`session-persistence`](../packages/session/session-persistence) | [`session-persistence-jsonl`](../packages/session/session-persistence-jsonl), `session-persistence-sqlite` | [`agent-loop`](../packages/core/agent-loop), [`tool-bash`](../packages/shell/tool-bash), [`hooks-claude-code`](../packages/hooks/hooks-claude-code), [`hooks-codex`](../packages/hooks/hooks-codex), [`session-query`](../packages/session-query/session-query), [`session-query-sqlite`](../packages/session-query/session-query-sqlite), [`message-feedback`](../packages/feedback/message-feedback), `waibrain` | - | Backends persist the same SessionEvent vocabulary; apps choose a backend at composition time. |
 | `ctx.settings` | `seam` | [`settings`](../packages/settings/settings) | [`settings-file`](../packages/settings/settings-file) | [`api-settings-controller`](../packages/api/settings-controller), [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai) | - | Plugins register namespace schemas and resolve layered values; providers store the raw document. The LLM adapters register their entry config as the composition base under the user section; the settings controller serves redacted layered descriptors and writes the user layer. |
 | `ctx.subagentModelSelection` | `core` | [`tool-subagent`](../packages/subagent/tool-subagent) | - | [`tool-subagent`](../packages/subagent/tool-subagent) | - | Owns the default-off settings namespace that Agent-scoped delegation tools sample when composing a new top-level Session. |
 | `ctx.credentials` | `seam` | [`credentials`](../packages/credentials/credentials) | [`credentials-local`](../packages/credentials/credentials-local) | [`api-settings-controller`](../packages/api/settings-controller), [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai) | - | Configuration carries references to secrets; providers own the values. Consumers resolve per operation, so a rotated credential reaches the very next request; the settings controller exposes value-free views and write-only storage. |
@@ -502,6 +510,7 @@ flowchart LR
 | `ctx.storageDomain` | `core` | [`storage-domain`](../packages/storage/storage-domain) | - | [`workspace`](../packages/workspace/workspace) | - | Waits for every configured backend, then publishes the domain form as one lifecycle-bound service for typed durable state. |
 | `ctx.messageFeedback` | `core` | [`message-feedback`](../packages/feedback/message-feedback) | - | - | - | Owns per-assistant-message feedback in the canonical Session log, target validation, per-item compare-and-set, and the Host unary Remote contract. Feedback stays outside model history; log export follows the consumer policy. |
 | `ctx.sessionFeedback` | `core` | [`command-feedback`](../packages/feedback/command-feedback) | - | - | - | Records one Session-level remark with its category as a log-only feedback/record event on a live Session through the Host unary Remote contract; the /feedback command shares the same producer. |
+| `ctx.waibrainHost` | `core` | `waibrain` | - | - | - | Owns editable Agent revisions, permanent conversation identity, Host admission, independent external-brain lanes, late wake delivery, and recovery through standard Sessions. |
 | `ctx.workspaceRegistry` | `core` | [`workspace`](../packages/workspace/workspace) | - | [`api-workspace-controller`](../packages/api/workspace-controller), [`api-session-controller`](../packages/api/session-controller) | - | Owns WorkspaceId-branded records over the domain facility; stable sessionIds accounts drive Host RPC and GUI projections. |
 | `ctx.sessionQuery` | `seam` | [`session-query`](../packages/session-query/session-query) | [`session-query-sqlite`](../packages/session-query/session-query-sqlite) | [`session-reference`](../packages/context/session-reference), [`tool-session-query`](../packages/session-query/tool-session-query) | - | The interface supplies exact reads, filters, and traces; its concrete backend adds full-text reconciliation, ranking, snippets, and cursor generations, while the model consumer owns workspace authority and cursor-free rendering. |
 | `ctx.fileReferences` | `seam` | [`file-reference`](../packages/context/file-reference) | [`file-reference-local`](../packages/context/file-reference-local) | [`api-session-controller`](../packages/api/session-controller) | - | The interface returns path-only completion candidates within an Agent cwd; providers own namespace access and ranking without reading file contents. |

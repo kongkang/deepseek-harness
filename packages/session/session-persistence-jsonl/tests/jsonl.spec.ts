@@ -2153,6 +2153,7 @@ describe('JsonlSessionPersistence: scanLog unit', () => {
       id: SessionId('persona'),
       createdAt: 1,
       delegationDepth: 0,
+      isSeeded: false,
       systemPrompt: 'You are the fact-checking brain branch.',
     })
 

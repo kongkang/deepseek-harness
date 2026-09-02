@@ -2,6 +2,21 @@
 
 export type RpcFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
+/**
+ * Random v4 UUID minted from `crypto.getRandomValues`, which — unlike
+ * `crypto.randomUUID` — is available on plain-HTTP pages outside secure
+ * contexts. Same RFC 9562 §5.4 bit layout as `@deepseek-ai/dsh-util-crypto`.
+ * @returns the UUID string.
+ */
+export function randomUUID(): string {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16))
+  const hex = Array.from(bytes, (byte, index) => {
+    const pinned = index === 6 ? (byte & 0x0f) | 0x40 : index === 8 ? (byte & 0x3f) | 0x80 : byte
+    return pinned.toString(16).padStart(2, '0')
+  }).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
 /** One provider/model/reasoning route selected for a main or external brain. */
 export interface ModelSelection {
   provider: string
@@ -176,7 +191,7 @@ export class DshRuntimeClient implements WaiBrainRuntime {
 
   /** @returns configured provider/model routes. */
   models(signal?: AbortSignal): Promise<ModelCatalog> {
-    return this.call<ModelCatalog>('llm.models', {}, signal)
+    return this.call<ModelCatalog>('session/modelCatalog', { args: {} }, signal)
   }
 
   bootstrap(signal?: AbortSignal): Promise<WaiBrainBootstrap> {

@@ -14,7 +14,7 @@ import {
   type UserMessage,
 } from '@deepseek-ai/dsh-llm'
 import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
-import type {} from '@deepseek-ai/dsh-session-persistence'
+import type {} from '@deepseek-ai/dsh-session-query'
 import type { Domain, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import type { SubagentRun, SubagentRuntime } from '@deepseek-ai/dsh-subagent'
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
@@ -161,16 +161,16 @@ export class WaiBrainHostService extends TypertRemoteService {
     const pending = state.pendingOperation
     if (pending === null) return
     let recovered: WaiBrainConversationRow | undefined = this.requireConversations().get(pending.conversationId)
-    const persistence = this.ctx.get('sessionPersistence')
-    if (recovered === undefined && persistence !== undefined && this.requireAgents().get(pending.agentId) !== undefined) {
+    const query = this.ctx.get('sessionQuery')
+    if (recovered === undefined && query !== undefined && this.requireAgents().get(pending.agentId) !== undefined) {
       try {
-        const inspected = await persistence.inspect(SessionId(pending.sessionId))
-        if (inspected.meta.agentPreset === 'waibrain-dialog') {
+        using inspected = await query.observeSession(SessionId(pending.sessionId))
+        if (inspected.header.agentPreset === 'waibrain-dialog') {
           recovered = {
             id: pending.conversationId,
             agentId: pending.agentId,
             sessionId: pending.sessionId,
-            createdAt: inspected.meta.createdAt,
+            createdAt: inspected.header.createdAt,
             status: 'open',
             hasPendingWake: false,
           }
@@ -193,7 +193,7 @@ export class WaiBrainHostService extends TypertRemoteService {
 
   /** Reconcile interrupted lanes and exactly-once wake delivery from durable Session facts. */
   private async recoverDurableSessions(): Promise<void> {
-    if (this.ctx.get('sessionPersistence') === undefined
+    if (this.ctx.get('sessionQuery') === undefined
       || this.ctx.get('sessions') === undefined
       || this.ctx.get('agents') === undefined
       || this.ctx.get('agentPresets') === undefined) return
@@ -226,7 +226,7 @@ export class WaiBrainHostService extends TypertRemoteService {
           }
         }
         for (const wake of pending) {
-          const entered = agent.session.events.some(event => (
+          const entered = agent.session.snapshotEvents().some(event => (
             event.type === 'user/message' && event.data.id === wake.wakeMessageId
           ))
           if (initial.status === 'closed') {
@@ -236,7 +236,7 @@ export class WaiBrainHostService extends TypertRemoteService {
           }
         }
         await this.ctx.sessions.flush(agent.session)
-        const remaining = initial.status === 'open' ? this.pendingWakes(agent.session.events) : []
+        const remaining = initial.status === 'open' ? this.pendingWakes(agent.session.snapshotEvents()) : []
         await this.requireConversations().put(initial.id, snapshot({
           ...initial,
           hasPendingWake: remaining.length > 0,
@@ -246,7 +246,7 @@ export class WaiBrainHostService extends TypertRemoteService {
           continue
         }
         for (const wake of remaining) {
-          const wakeText = await this.recoverWakeText(agent.session.events, wake)
+          const wakeText = await this.recoverWakeText(agent.session.snapshotEvents(), wake)
           void this.deliverPendingWake(initial.id, wake.roundId, wake.externalBrainId, wakeText)
         }
       } catch (error: unknown) {
@@ -533,7 +533,7 @@ export class WaiBrainHostService extends TypertRemoteService {
       if (row === undefined) return rejected({ code: 'conversation-not-found', conversationId: request.conversationId })
       if (row.status === 'closed') return success({ closed: true as const })
       let agent = this.ctx.get('agents')?.get(SessionId(row.sessionId))
-      const events = agent?.session.events ?? await this.eventsFor(row)
+      const events = agent?.session.snapshotEvents() ?? await this.eventsFor(row)
       const closedAtSeq = events.at(-1)?.seq ?? 0
       const pending = this.pendingWakes(events)
       if (agent === undefined && pending.length > 0) {
@@ -619,13 +619,13 @@ export class WaiBrainHostService extends TypertRemoteService {
   async authorizeMessages(agent: Agent, messages: readonly UserMessage[]): Promise<boolean> {
     if (messages.length === 0) return true
     const row = this.rowForSession(agent.id)
-    const admitted = new Set(agent.session.events.flatMap(event => event.type === 'waibrain/round-admitted'
+    const admitted = new Set(agent.session.snapshotEvents().flatMap(event => event.type === 'waibrain/round-admitted'
       ? [event.data.userMessageId]
       : []))
-    const alreadyEntered = new Set(agent.session.events.flatMap(event => event.type === 'user/message'
+    const alreadyEntered = new Set(agent.session.snapshotEvents().flatMap(event => event.type === 'user/message'
       ? [event.data.id]
       : []))
-    const pending = new Map(this.pendingWakes(agent.session.events).map(wake => [wake.wakeMessageId, wake]))
+    const pending = new Map(this.pendingWakes(agent.session.snapshotEvents()).map(wake => [wake.wakeMessageId, wake]))
     const allowed = row?.status === 'open' && messages.every((message) => {
       if (message.source.kind === 'user') return admitted.has(message.id) && !alreadyEntered.has(message.id)
       if (message.source.kind !== 'waibrain-result') return false
@@ -670,8 +670,8 @@ export class WaiBrainHostService extends TypertRemoteService {
     if (live !== undefined) return live
     const agents = this.ctx.get('agents')
     const presets = this.ctx.get('agentPresets')
-    const persistence = this.ctx.get('sessionPersistence')
-    if (agents === undefined || presets === undefined || persistence === undefined) {
+    const query = this.ctx.get('sessionQuery')
+    if (agents === undefined || presets === undefined || query === undefined) {
       throw new Error('WaiBrain Agent runtime is unavailable')
     }
     this.setActiveRevision(sessionId, revision)
@@ -728,7 +728,7 @@ export class WaiBrainHostService extends TypertRemoteService {
     try {
       await agent.whenIdle()
       await this.serial(conversationId, async () => {
-        const lastTurn = agent.session.events.findLast(event => event.type === 'turn/end')
+        const lastTurn = agent.session.snapshotEvents().findLast(event => event.type === 'turn/end')
         const status = lastTurn?.type === 'turn/end'
           && (lastTurn.data.reason.kind === 'completed' || lastTurn.data.reason.kind === 'max-tokens')
           ? 'completed'
@@ -864,11 +864,11 @@ export class WaiBrainHostService extends TypertRemoteService {
       const sent = await this.serial(conversationId, async () => {
         const row = this.requireConversations().get(conversationId)
         if (row === undefined || row.status === 'closed') return false
-        const pending = this.pendingWakes(agent.session.events).find(wake => (
+        const pending = this.pendingWakes(agent.session.snapshotEvents()).find(wake => (
           wake.roundId === roundId && wake.externalBrainId === externalBrainId
         ))
         if (pending === undefined) return false
-        const entered = agent.session.events.some(event => (
+        const entered = agent.session.snapshotEvents().some(event => (
           event.type === 'user/message' && event.data.id === pending.wakeMessageId
         ))
         if (entered) {
@@ -880,11 +880,11 @@ export class WaiBrainHostService extends TypertRemoteService {
           await this.ctx.sessions.flush(agent.session)
           await this.requireConversations().put(conversationId, snapshot({
             ...row,
-            hasPendingWake: this.pendingWakes(agent.session.events).length > 0,
+            hasPendingWake: this.pendingWakes(agent.session.snapshotEvents()).length > 0,
           }))
           return false
         }
-        const round = agent.session.events.find(event => (
+        const round = agent.session.snapshotEvents().find(event => (
           event.type === 'waibrain/round-admitted' && event.data.roundId === roundId
         ))
         if (round?.type === 'waibrain/round-admitted') {
@@ -910,11 +910,11 @@ export class WaiBrainHostService extends TypertRemoteService {
       await this.serial(conversationId, async () => {
         const row = this.requireConversations().get(conversationId)
         if (row === undefined || row.status === 'closed') return
-        const pending = this.pendingWakes(agent.session.events).find(wake => (
+        const pending = this.pendingWakes(agent.session.snapshotEvents()).find(wake => (
           wake.roundId === roundId && wake.externalBrainId === externalBrainId
         ))
         if (pending === undefined) return
-        const entered = agent.session.events.some(event => (
+        const entered = agent.session.snapshotEvents().some(event => (
           event.type === 'user/message' && event.data.id === pending.wakeMessageId
         ))
         if (!entered) return
@@ -926,7 +926,7 @@ export class WaiBrainHostService extends TypertRemoteService {
         await this.ctx.sessions.flush(agent.session)
         await this.requireConversations().put(conversationId, snapshot({
           ...row,
-          hasPendingWake: this.pendingWakes(agent.session.events).length > 0,
+          hasPendingWake: this.pendingWakes(agent.session.snapshotEvents()).length > 0,
         }))
       })
     } catch (error: unknown) {
@@ -1014,10 +1014,11 @@ export class WaiBrainHostService extends TypertRemoteService {
   private async eventsFor(row: WaiBrainConversationRow): Promise<readonly SessionEvent[]> {
     const sessionId = SessionId(row.sessionId)
     const live = this.ctx.get('sessions')?.get(sessionId)
-    if (live !== undefined) return live.events
-    const persistence = this.ctx.get('sessionPersistence')
-    if (persistence === undefined) return []
-    return (await persistence.inspect(sessionId)).events
+    if (live !== undefined) return live.snapshotEvents()
+    const query = this.ctx.get('sessionQuery')
+    if (query === undefined) return []
+    using observation = await query.observeSession(sessionId)
+    return observation.events
   }
 
   /** Fold one stable browser projection from main Session events. */
@@ -1113,14 +1114,24 @@ export class WaiBrainHostService extends TypertRemoteService {
   /** Read the authoritative result text from a child Session without resuming it. */
   private async childResult(sessionId: SessionId): Promise<{ text: string; truncated: boolean } | undefined> {
     try {
-      const events = this.ctx.get('sessions')?.get(sessionId)?.events
-        ?? (await this.ctx.get('sessionPersistence')?.inspect(sessionId))?.events
-      const message = events?.findLast(event => event.type === 'assistant/message')
+      const live = this.ctx.get('sessions')?.get(sessionId)
+      const events = live !== undefined
+        ? live.snapshotEvents()
+        : await this.observedEvents(sessionId)
+      const message = events.findLast(event => event.type === 'assistant/message')
       if (message?.type !== 'assistant/message') return undefined
       return this.clipUtf8(this.contentText(message.data.message.content), this.maxResultBytes)
     } catch {
       return undefined
     }
+  }
+
+  /** Read one persisted Session's events through the live-preferred query seam. */
+  private async observedEvents(sessionId: SessionId): Promise<readonly SessionEvent[]> {
+    const query = this.ctx.get('sessionQuery')
+    if (query === undefined) return []
+    using observation = await query.observeSession(sessionId)
+    return observation.events
   }
 
   /** Update the persona and installed model route for the next main step. */

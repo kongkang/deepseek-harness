@@ -598,7 +598,7 @@ describe('Web session model selection', () => {
   it('keeps a session-only selection out of the saved Agent default', async () => {
     const { ctx, sessionId } = await harness()
     const saved: unknown[] = []
-    const api = createApiProxy(ctx, {
+    const remote = createSessionTestRemote(ctx, {
       defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }),
       saveDefaultModelSelection: (selection) => {
         saved.push(selection)
@@ -607,7 +607,7 @@ describe('Web session model selection', () => {
       cwd: '/tmp',
     })
 
-    const selected = expectValue(await api.sessions.selectModel(request({
+    const selected = expectValue(await remote.selectModel(request({
       sessionId,
       provider: 'deepseek-official',
       model: 'deepseek-reasoner',

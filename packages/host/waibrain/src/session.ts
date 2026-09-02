@@ -2,7 +2,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { installModelSelection, type ModelSelectionRef } from '@deepseek-ai/dsh-agent'
-import { PERSONA_ORDER, PERSONA_SECTION } from '@deepseek-ai/dsh-system-prompt'
+import { PERSONA_SECTION } from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import { NEUTRAL_WAIBRAIN_PERSONA } from './composition.ts'
 
@@ -15,7 +15,7 @@ export const inject = ['systemPrompt', 'tools']
 export function apply(ctx: Context): void {
   ctx.effect(() => ctx.systemPrompt.section({
     name: PERSONA_SECTION,
-    order: PERSONA_ORDER,
+    order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA'),
     complete: true,
     text: (context) => {
       const host = ctx.get('waibrainHost')

@@ -44,7 +44,7 @@ describe('WaiBrain Host runtime client', () => {
     }
     const client = new DshRuntimeClient(fetch)
     await expect(client.models()).resolves.toEqual({ groups: [], failures: [] })
-    expect(calls).toEqual([{ url: '/api/llm.models', method: 'llm.models', payload: {} }])
+    expect(calls).toEqual([{ url: '/api/session/modelCatalog', method: 'session/modelCatalog', payload: { args: {} } }])
   })
 
   it('uses strict Typert request args for every WaiBrain Remote', async () => {

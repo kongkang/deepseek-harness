@@ -40,6 +40,7 @@ flowchart LR
   pkg_subagent_in_process_driver["subagent-in-process-driver"]
   pkg_invariants["invariants"]
   pkg_message_feedback["message-feedback"]
+  pkg_waibrain["waibrain"]
   svc_sessionController["ctx.sessionController<br/>Host Session Remote controller"]
   svc_sessionFileReferences["ctx.sessionFileReferences<br/>Session-addressed file-reference Remote adapter"]
   svc_sessionSkillCatalog["ctx.sessionSkillCatalog<br/>Session-addressed skill Remote adapter"]
@@ -60,6 +61,7 @@ flowchart LR
   svc_typertGateway["ctx.typertGateway<br/>Typert Host invocation gateway"]
   svc_sessionPersistence["ctx.sessionPersistence<br/>Durable session persistence seam"]
   pkg_session_persistence_jsonl["session-persistence-jsonl"]
+  pkg_session_persistence_sqlite["session-persistence-sqlite"]
   pkg_tool_bash["tool-bash"]
   pkg_hooks_claude_code["hooks-claude-code"]
   pkg_hooks_codex["hooks-codex"]
@@ -86,6 +88,7 @@ flowchart LR
   svc_messageFeedback["ctx.messageFeedback<br/>Lifecycle-bound message feedback"]
   pkg_command_feedback["command-feedback"]
   svc_sessionFeedback["ctx.sessionFeedback<br/>Session-level feedback recorder"]
+  svc_waibrainHost["ctx.waibrainHost<br/>Durable WaiNao Agent workspace"]
   svc_workspaceRegistry["ctx.workspaceRegistry<br/>Workspace entity registry"]
   svc_sessionQuery["ctx.sessionQuery<br/>Session reads, traces, filters, and search"]
   pkg_session_reference["session-reference"]
@@ -294,6 +297,7 @@ flowchart LR
   pkg_session_log_deepseek --> svc_deepseekLlmApiExtensions
   pkg_session_persistence --> svc_sessionPersistence
   pkg_session_persistence_jsonl --> svc_sessionPersistence
+  pkg_session_persistence_sqlite --> svc_sessionPersistence
   pkg_session_projection --> svc_sessionProjections
   pkg_session_projection_cache --> svc_sessionProjectionCache
   pkg_session_query --> svc_sessionQuery
@@ -336,6 +340,7 @@ flowchart LR
   pkg_typert_registry --> svc_typert
   pkg_user_approval --> svc_approval
   pkg_user_questions --> svc_userQuestions
+  pkg_waibrain --> svc_waibrainHost
   pkg_web --> svc_web
   pkg_web_fetch_http --> svc_web
   pkg_web_search_deepseek --> svc_web
@@ -400,6 +405,7 @@ flowchart LR
   svc_sessionPersistence --> pkg_session_query
   svc_sessionPersistence --> pkg_session_query_sqlite
   svc_sessionPersistence --> pkg_tool_bash
+  svc_sessionPersistence --> pkg_waibrain
   svc_sessionProjectionCache --> pkg_api_session_controller
   svc_sessionProjectionCache --> pkg_session_query
   svc_sessionProjectionCache --> pkg_session_reference
@@ -417,6 +423,7 @@ flowchart LR
   svc_sessions --> pkg_session_query
   svc_sessions --> pkg_session_query_sqlite
   svc_sessions --> pkg_subagent_in_process_driver
+  svc_sessions --> pkg_waibrain
   svc_settings --> pkg_api_settings_controller
   svc_settings --> pkg_llm_deepseek
   svc_settings --> pkg_llm_pi_ai
@@ -429,6 +436,7 @@ flowchart LR
   svc_skills --> pkg_tool_skill
   svc_spillStore --> pkg_spill_policy
   svc_storage --> pkg_storage_domain
+  svc_storageDomain --> pkg_waibrain
   svc_storageDomain --> pkg_workspace
   svc_subagentModelSelection --> pkg_tool_subagent
   svc_subagents --> pkg_tool_ralph
@@ -474,7 +482,7 @@ flowchart LR
   svc_fs -. event gate .-> pkg_fs_observation_policy
 ```
 
-| ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
+| ctx 键 | 角色 | 声明方 | 实现 | 直接消费方 | 伴随插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ctx.attachments` | `seam` | [`attachment`](../packages/attachment/attachment) | [`attachment-local`](../packages/attachment/attachment-local) | [`api-session-controller`](../packages/api/session-controller), [`tool-fs`](../packages/fs/tool-fs), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-deepseek`](../packages/llm/llm-deepseek) | - | 宿主会在会话事件之前提交已接受的图片；提供方适配器将已授权的持久引用解析为提供方原生内容。 |
 | `ctx.fileUploads` | `core` | [`client-file-upload`](../packages/client/file-upload) | - | [`api-session-controller`](../packages/api/session-controller) | - | 负责流式接收、持久存储和暂存回执生命周期；Session Controller 将回执绑定到已接受的提交。 |
@@ -504,6 +512,7 @@ flowchart LR
 | `ctx.storageDomain` | `core` | [`storage-domain`](../packages/storage/storage-domain) | - | [`workspace`](../packages/workspace/workspace) | - | 等待所有已配置后端就绪，然后将领域形态发布为一个受生命周期约束的服务，用于类型化持久状态。 |
 | `ctx.messageFeedback` | `core` | [`message-feedback`](../packages/feedback/message-feedback) | - | - | - | 拥有权威 Session 日志中的逐 assistant 消息反馈、目标校验、逐条目 compare-and-set 及 Host 一元 Remote 契约。反馈不进入模型历史；日志导出遵循消费方策略。 |
 | `ctx.sessionFeedback` | `core` | [`command-feedback`](../packages/feedback/command-feedback) | - | - | - | 通过 Host 一元 Remote 契约在 live Session 上把一条带分类的 Session 级评价记录为仅写日志的 feedback/record 事件；/feedback 命令共用同一个生产方。 |
+| `ctx.waibrainHost` | `core` | `waibrain` | - | - | - | Owns editable Agent revisions, permanent conversation identity, Host admission, independent external-brain lanes, late wake delivery, and recovery through standard Sessions. |
 | `ctx.workspaceRegistry` | `core` | [`workspace`](../packages/workspace/workspace) | - | [`api-workspace-controller`](../packages/api/workspace-controller), [`api-session-controller`](../packages/api/session-controller) | - | 通过领域设施拥有带 WorkspaceId 品牌类型的记录；稳定的 sessionIds 账户驱动 Host RPC 与 GUI 投影。 |
 | `ctx.sessionQuery` | `seam` | [`session-query`](../packages/session-query/session-query) | [`session-query-sqlite`](../packages/session-query/session-query-sqlite) | [`session-reference`](../packages/context/session-reference), [`tool-session-query`](../packages/session-query/tool-session-query) | - | 该接口提供精确读取、过滤和追踪；具体后端还提供全文协调、排序、摘要片段和游标世代，而模型消费方负责工作区权限与不含游标的渲染。 |
 | `ctx.fileReferences` | `seam` | [`file-reference`](../packages/context/file-reference) | [`file-reference-local`](../packages/context/file-reference-local) | [`api-session-controller`](../packages/api/session-controller) | - | 该接口返回 Agent cwd 内仅含路径的补全候选；提供方负责命名空间访问与排序，但不读取文件内容。 |

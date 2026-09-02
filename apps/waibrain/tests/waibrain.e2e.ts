@@ -72,6 +72,14 @@ describe('WaiBrain browser E2E', () => {
     browser = await playwright.chromium.launch()
     page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, locale: 'zh-CN' })
     page.on('pageerror', error => pageErrors.push(error.message))
+    // The Host's /api carrier authenticates the browser session; the vite
+    // proxy forwards this cookie to the Host with a rewritten origin.
+    const separator = scaffold.sessionCookie.indexOf('=')
+    await page.context().addCookies([{
+      name: scaffold.sessionCookie.slice(0, separator),
+      value: scaffold.sessionCookie.slice(separator + 1),
+      url: `http://127.0.0.1:${String(address.port)}/`,
+    }])
     await page.goto(`http://127.0.0.1:${String(address.port)}/`, { waitUntil: 'load' })
     await page.getByLabel('主对话模型').waitFor({ timeout: 30_000 })
   }, 120_000)
