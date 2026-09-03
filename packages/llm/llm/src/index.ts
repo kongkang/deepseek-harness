@@ -40,6 +40,9 @@ import type { FileAttachmentRef } from '@deepseek-ai/dsh-attachment'
 
 export * from './attribution.ts'
 export * from './brand.ts'
+// Fork compat: re-export `assertNever` (moved to dsh-util-values upstream in
+// 6c53fe6e2a) so extensions compiled against the older export surface load.
+export { assertNever } from '@deepseek-ai/dsh-util-values'
 export * from './error.ts'
 export * from './api-key.ts'
 export * from './types.ts'
