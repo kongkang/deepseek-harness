@@ -74,6 +74,21 @@
   .verdict p + p{margin-top:10px}
   .verdict strong{color:var(--vermilion-deep)}
 
+  .revision{
+    margin:30px 0 10px;background:var(--paper-2);border-left:5px solid var(--green);
+    padding:24px 28px 24px 24px;position:relative;
+  }
+  .revision::after{
+    content:"订";position:absolute;top:-14px;right:18px;width:34px;height:34px;
+    background:var(--green);color:var(--paper);font-family:var(--serif);font-weight:900;
+    display:flex;align-items:center;justify-content:center;font-size:17px;
+    box-shadow:2px 2px 0 rgba(34,29,22,.25);
+  }
+  .revision .date{font-family:var(--sans);font-size:12px;letter-spacing:.18em;color:var(--ink-faint);margin-bottom:10px;font-weight:700}
+  .revision p{font-size:16.5px}
+  .revision p + p{margin-top:10px}
+  .revision strong{color:var(--green)}
+
   /* ============ 章节 ============ */
   section{margin-top:84px}
   .sec-head{display:flex;align-items:baseline;gap:18px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:8px}
@@ -146,7 +161,7 @@
   }
   .chip.ok{background:#e3efe7;color:var(--green);border:1px solid #b7d3c2}
   .chip.fix{background:#f7e3dc;color:var(--vermilion-deep);border:1px solid #e4bcae}
-  .chip.hold{background:#ece7db;color:var(--ink-faint);border:1px solid var(--line)}
+  .chip.hold{background:#ece7db;color:var(--ink-faint);border:1px solid var(--line);padding:3px 10px;margin:0}
 
   /* ============ 修正卡 ============ */
   .fix-card{
@@ -250,7 +265,7 @@
 <header>
   <div class="masthead">
     <div class="brand">WAI&nbsp;BRAIN&nbsp;·&nbsp;<b>外脑</b>&nbsp;内部评审</div>
-    <div class="meta">2026-08-30 · 分支 wianao-voice · 依据：录音梳理 + 执行计划 + 代码核对</div>
+    <div class="meta">2026-08-30 · 分支 wianao-voice · 依据：录音梳理 + 执行计划 + 代码核对<br>2026-09-05 修订 · 第三阶段选型落定（LiveKit + 字级时间戳）</div>
   </div>
   <h1>核心闭环评审：<br>先让 AI 学会<span class="accent">闭嘴</span>，再谈说话</h1>
   <p class="standfirst">这份评审回应两份输入：你上午一小时的产品口述（录音梳理），和另一份对话产出的执行计划。我对计划里的每一条现状描述都回到代码里核对过，下面是结论——七成照单执行，三成按仓库的现实约束修正。</p>
@@ -263,6 +278,12 @@
 <div class="verdict">
   <p><strong>总评：这份计划方向正确，现状描述准确，可以作为 WaiBrain 下一阶段的执行蓝本。</strong>「先做完核心闭环、不一下子做完所有语音功能」的判断，比你录音里“先全做完再单变量调优”更收敛、更可执行——它把调优对象缩小到了一个可以被测试证明的闭环上。</p>
   <p>需要修正的集中在四处：事件别一次定义七个、连续表达要先改轮次模型（今天的情况比计划描述的更糟）、表达期间干脆不调用主模型而不是调了再让它闭嘴、主脑零工具这一步先别破（计划自己前后矛盾）。详见第 04 节。</p>
+</div>
+
+<div class="revision">
+  <div class="date">2026-09-05 修订</div>
+  <p><strong>第三阶段的技术路线落定了，原来「先走非实时链路」不再是最省的走法。</strong>补充调研确认两件事：LiveKit Agents 已经把打断、轮次检测、整条语音管道做完，还带一个不连服务器、直接用本机麦克风和扬声器的本地模式；而带字级时间戳的 TTS 让「用户听到哪儿了」变成一次算术，不必自研播放器。</p>
+  <p>受影响的只有<b>修正一</b>（playback 事件该定什么）和<b>第三阶段</b>（起步方式与打断实现）。前面四节的判定全部不变——核心闭环仍然要先做完，语音仍然排在第三阶段，<b>「一轮表达，最多一次开口」这条主张不但没被推翻，反而多了一件能兑现它的工具</b>（详见第三阶段）。</p>
 </div>
 
 <!-- ================= 01 ================= -->
@@ -384,6 +405,7 @@
     <div class="fix-head"><span class="fno">一</span><h4>事件分两批定义，不要一次定七个</h4></div>
     <p>计划把 <code>utterance-started / updated / ended</code> 和 <code>playback-started / progress / interrupted</code> 一起列为第一批。建议拆开：<b>utterance 三个现在就定</b>，核心闭环离不开它们（判断「用户在说」和「说完了」）；<b>playback 三个等第三阶段真有 TTS 再定</b>。</p>
     <p class="soft">文本阶段「用户听没听见」就是「渲染没渲染」，用会话视图层的状态就够了，不必进持久日志。</p>
+    <p class="soft"><b>2026-09-05 补充：</b>拆开这条不变，但第三阶段真要定的时候，会比原计划少定一个。播放进度可以用 TTS 返回的字级时间戳加上开播时刻推算出来，不需要 <code>playback-progress</code> 这种高频事件往持久日志里灌；真正值得落事件的只有<b>开播、播完、被打断</b>三个点。原计划里最贵的那个事件，现在不用定了。</p>
     <div class="why"><b>为什么：</b>这个仓库的 session 事件是强契约——<code>SessionEventMap</code> 默认 required-on-read，不认识该事件的构建会拒绝读取日志，而且新增事件要联动 TypeScript 和 Python 两套 SDK 的快照。在没有音频之前定义「播放进度」，大概率是将来要改版的投机性 schema，成本先付、收益后验。</div>
   </div>
 
@@ -451,13 +473,16 @@
   <div class="phase">
     <div class="ph-no">叁<small>PHASE&nbsp;3</small></div>
     <div class="ph-body">
-      <h4>语音接入</h4>
+      <h4>语音接入 <span class="chip fix">2026-09-05 改写</span></h4>
       <ul>
-        <li>先走非实时链路：语音 → STT → WaiBrain → 文本 → TTS，语音 I/O 留在 DSH 外部（既有边界不变）</li>
-        <li>此时才定义 playback 事件族与打断回退（从未播报点 fork）</li>
-        <li>交互策略验证跑通后，最后才换实时双工模型——同一个 seam 后面换 provider，不动 Host</li>
+        <li>基于 <b>LiveKit Agents</b> 搭链路，不自研——打断、轮次检测、整条语音管道它都做完了；Apache-2.0，自托管无授权费</li>
+        <li>起步用它的本地模式：不连服务器、直接用本机麦克风和扬声器，先验证整条链路和中文识别质量</li>
+        <li>TTS 选带<b>字级时间戳</b>的供应商，「用户听到第几个字、这段还剩多少秒」由时间戳加开播时刻算出，不自研播放器</li>
+        <li>打断回退不用自己做：LiveKit 按音频采样把对话历史截断到用户<b>实际听到</b>的那部分</li>
+        <li>语音 I/O 仍在 DSH 外部（LiveKit worker 是独立进程），既有边界不变；用 Node 还是 Python 不构成约束</li>
       </ul>
-      <p>顺序和录音 00:59 的选型一致：非实时链路成本更低、适配更强，先把对话逻辑调好，再碰音频延迟和设备问题。</p>
+      <p>原计划「先做非实时链路、最后才换实时」的理由是成本低、适配强。LiveKit 把这两条都补上了：本地模式的起步成本比自己拼 STT/TTS 更低，而换供应商本来就是它的插件位。<b>所以这一步直接上实时链路，跳过非实时那一版。</b></p>
+      <p>这一阶段还多出一件原计划里没有的能力：有了「还剩多少没播」，后台结论就有了两种命运——<b>赶得上就接进正在说的这一段，赶不上就沉淀到下次</b>。它并不违背「一轮表达，最多一次开口」：接进未播部分仍然是同一次开口，只是这次开口在播的过程中还能继续长。原来只有「现在说」和「存起来」两档，现在多了一档「悄悄接上」。</p>
     </div>
   </div>
 
@@ -480,7 +505,8 @@
     <tr><td>「声音足够小、内容足够尖」，有增量才说</td><td><span class="chip ok">第一阶段覆盖</span>（收件箱筛选 + 沉默闸门）</td></tr>
     <tr><td>非实时工具「先回应、结果回来再沟通」</td><td><span class="chip ok">已有机制</span>（wake），第一阶段收敛为「汇总后一次」</td></tr>
     <tr><td>异步任务 + 回执式开场白</td><td><span class="chip fix">第二阶段</span></td></tr>
-    <tr><td>打断回退（没说出口的不算说过）</td><td><span class="chip fix">第三阶段</span></td></tr>
+    <tr><td>打断回退（没说出口的不算说过）</td><td><span class="chip fix">第三阶段</span>LiveKit 内建，不用自研</td></tr>
+    <tr><td>先做非实时链路，之后再换实时（录音 00:59 的选型）</td><td><span class="chip fix">已改</span>LiveKit 把实时链路的起步成本降到更低，直接上实时</td></tr>
     <tr><td>无感知模式切换</td><td><span class="chip hold">埋了种子</span>路由器的 mode 字段是入口，策略后续加</td></tr>
     <tr><td>算力预算 / 用户分层 / 多端适配</td><td><span class="chip hold">暂缓</span>（正确）</td></tr>
   </table>
@@ -547,9 +573,11 @@
     <span class="ref">docs/handoff/handoff-2026-08-22-2235-waibrain-dialog.md</span>
     <span class="ref">plans/2026-08-24-waibrain-confirmed-requirements.md</span>
     <span class="ref">AGENTS.md（plugins not loop changes / 模型可见⟺日志 / 快照要求）</span>
+    <span class="ref">plans/2026-09-04-waibrain-voice-development-plan.md（2026-09-05 修订依据）</span>
   </div>
   <h5>评审立场</h5>
   <p>本页为个人评审意见，非仓库正式文档；所有「照做 / 修正 / 缓行」判定以代码核对为准，录音转写来自得到大脑，2026-08-30。</p>
+  <p>2026-09-05 修订：仅改动<b>修正一</b>的补充说明与<b>第三阶段</b>，依据是对 LiveKit Agents 与带字级时间戳 TTS 的调研；核心闭环部分的判定与第一个 PR 的验收五条<b>未作改动</b>。</p>
 </div>
 
 </div>
