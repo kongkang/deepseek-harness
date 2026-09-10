@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>以量取胜 · 小模型重复采样：研究溯源与复现报告</title>
+<style>
+  :root{
+    --paper:#F5F0E6; --paper2:#ECE4D2; --card:#FBF8F0;
+    --ink:#211C15; --ink2:#6B6152; --line:#D9CFBA; --line2:#C4B79C;
+    --seal:#B23A1D; --seal-soft:#F1DCCE; --teal:#31605B; --teal-soft:#DCE6E0; --gold:#8C6D1F;
+    --code-bg:#251F18; --code-fg:#EAE2D0;
+    --serif:"Songti SC","STSongti-SC","Noto Serif CJK SC","Noto Serif SC","Source Han Serif SC",Georgia,"Times New Roman",serif;
+    --sans:"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei",-apple-system,"Helvetica Neue",sans-serif;
+    --mono:"SF Mono","SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper); color:var(--ink); font-family:var(--sans);
+    font-size:16px; line-height:1.85; -webkit-font-smoothing:antialiased;
+  }
+  /* ---- 纸张颗粒 ---- */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:99; opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.5 0 0 0 0 0.42 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .wrap{max-width:940px; margin:0 auto; padding:0 28px}
+
+  /* ---- 首页 ---- */
+  .hero{border-bottom:4px double var(--line2); padding:64px 0 40px; position:relative}
+  .hero-kicker{font-family:var(--mono); font-size:12px; letter-spacing:.32em; color:var(--seal); text-transform:uppercase}
+  .hero-flex{display:flex; gap:36px; align-items:flex-start; justify-content:space-between; margin-top:18px}
+  h1{font-family:var(--serif); font-weight:700; font-size:clamp(38px,6vw,60px); line-height:1.28; letter-spacing:.02em}
+  h1 .accent{color:var(--seal)}
+  .hero-sub{font-family:var(--serif); font-size:19px; color:var(--ink2); margin-top:14px; max-width:40em}
+  .stamp{
+    flex:0 0 auto; width:96px; height:96px; background:var(--seal); color:#F8F2E4;
+    font-family:var(--serif); font-weight:700; font-size:30px; line-height:1.15;
+    display:grid; place-items:center; text-align:center; transform:rotate(-4deg);
+    border:3px solid #93301633; box-shadow:0 0 0 2px var(--paper), 0 0 0 3.5px var(--seal);
+    border-radius:6px; user-select:none;
+  }
+  .hero-meta{
+    display:flex; flex-wrap:wrap; gap:10px 28px; margin-top:30px; padding-top:14px;
+    border-top:1px solid var(--line); font-family:var(--mono); font-size:12.5px; color:var(--ink2)
+  }
+  .hero-meta b{color:var(--ink); font-weight:600}
+  .stat-strip{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border:1px solid var(--line); margin-top:34px}
+  .stat{background:var(--card); padding:16px 18px 13px}
+  .stat .v{font-family:var(--mono); font-weight:700; font-size:23px; color:var(--seal)}
+  .stat .v em{font-style:normal; font-size:14px; color:var(--ink2)}
+  .stat .k{font-size:12.5px; color:var(--ink2); margin-top:3px; line-height:1.5}
+
+  /* ---- 目录 ---- */
+  .toc{padding:26px 0 8px; display:flex; flex-wrap:wrap; gap:8px 22px; font-size:14.5px}
+  .toc a{color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line2)}
+  .toc a:hover{color:var(--seal); border-color:var(--seal)}
+  .toc .no{font-family:var(--mono); font-size:12px; color:var(--seal); margin-right:5px}
+
+  /* ---- 章节 ---- */
+  section{padding:54px 0 8px}
+  .sec-head{border-top:3px double var(--line2); padding-top:14px; margin-bottom:26px}
+  .sec-no{font-family:var(--mono); font-size:13px; letter-spacing:.22em; color:var(--seal)}
+  h2{font-family:var(--serif); font-size:31px; font-weight:700; margin-top:4px; letter-spacing:.02em}
+  .sec-en{font-family:var(--mono); font-size:11.5px; letter-spacing:.26em; color:var(--ink2); text-transform:uppercase; margin-top:2px}
+  h3{font-family:var(--serif); font-size:20.5px; font-weight:700; margin:34px 0 12px; display:flex; align-items:baseline; gap:10px}
+  h3 .tag{font-family:var(--mono); font-size:11px; color:var(--seal); letter-spacing:.14em; font-weight:400}
+  p{margin:0 0 14px}
+  p+p{margin-top:-4px}
+  .lead{font-size:17.5px; font-family:var(--serif)}
+  strong{font-weight:650}
+  a{color:var(--teal)}
+  sup a{color:var(--seal); text-decoration:none; font-family:var(--mono); font-size:.72em}
+
+  /* ---- 提示框 ---- */
+  .note,.warn{margin:22px 0; padding:14px 18px 12px; border-left:3px solid var(--seal); background:var(--card); font-size:15px}
+  .note .lab,.warn .lab{display:block; font-family:var(--mono); font-size:11px; letter-spacing:.22em; color:var(--seal); margin-bottom:5px}
+  .warn{border-left-color:var(--gold)}
+  .warn .lab{color:var(--gold)}
+
+  /* ---- 表格 ---- */
+  .tw{overflow-x:auto; margin:20px 0}
+  table{width:100%; border-collapse:collapse; font-size:14.5px; background:var(--card)}
+  caption{caption-side:top; text-align:left; font-family:var(--mono); font-size:12px; color:var(--ink2); padding-bottom:8px; letter-spacing:.06em}
+  th{font-family:var(--mono); font-size:11.5px; letter-spacing:.1em; text-align:left; color:var(--ink2); border-top:2px solid var(--ink); border-bottom:1px solid var(--ink); padding:9px 12px; white-space:nowrap}
+  td{border-bottom:1px solid var(--line); padding:9px 12px; vertical-align:top}
+  tr:last-child td{border-bottom:2px solid var(--ink)}
+  td.num,th.num{text-align:right; font-family:var(--mono); white-space:nowrap}
+  td .hi{color:var(--seal); font-weight:700}
+  td .dim{color:var(--ink2)}
+
+  /* ---- 论文卡片 ---- */
+  .paper{border:1.5px solid var(--ink); background:var(--card); margin:26px 0; box-shadow:4px 4px 0 var(--paper2)}
+  .paper-head{padding:16px 22px 14px; border-bottom:1px solid var(--line)}
+  .paper-head .no{font-family:var(--mono); font-size:11px; letter-spacing:.24em; color:var(--seal)}
+  .paper-head h4{font-family:var(--serif); font-size:22px; margin-top:3px}
+  .paper-head .en{font-family:var(--mono); font-size:12.5px; color:var(--ink2); margin-top:3px}
+  .paper-body{padding:6px 22px 20px}
+  .kv{display:grid; grid-template-columns:96px 1fr; gap:4px 14px; font-size:14px; margin:12px 0 6px}
+  .kv dt{font-family:var(--mono); font-size:11.5px; color:var(--ink2); padding-top:3px; letter-spacing:.08em}
+  .kv dd{border-bottom:1px dashed var(--line); padding-bottom:4px}
+
+  /* ---- 图 ---- */
+  figure{margin:26px 0; border:1px solid var(--line); background:var(--card); padding:18px 18px 10px}
+  figcaption{font-size:13px; color:var(--ink2); padding:10px 4px 4px; border-top:1px dashed var(--line); margin-top:8px}
+  figcaption b{color:var(--ink)}
+  .legend{display:flex; gap:20px; font-family:var(--mono); font-size:12px; color:var(--ink2); padding:2px 4px 8px}
+  .legend i{display:inline-block; width:22px; height:3px; margin-right:6px; vertical-align:middle}
+
+  /* ---- 成本条形 ---- */
+  .bars{margin:8px 0 4px}
+  .bar-row{display:grid; grid-template-columns:190px 1fr 118px; gap:12px; align-items:center; padding:7px 0; border-bottom:1px dashed var(--line); font-size:14px}
+  .bar-row:last-child{border-bottom:none}
+  .bar-track{height:16px; background:var(--paper2); position:relative}
+  .bar-fill{position:absolute; inset:0 auto 0 0; background:var(--teal)}
+  .bar-fill.hot{background:var(--seal)}
+  .bar-val{font-family:var(--mono); font-size:13px; text-align:right; color:var(--ink2)}
+
+  /* ---- 流水线 ---- */
+  .pipe{display:flex; flex-wrap:wrap; align-items:stretch; gap:10px; margin:24px 0 8px}
+  .pipe .node{flex:1 1 130px; border:1.5px solid var(--ink); background:var(--card); padding:12px 13px 10px; box-shadow:3px 3px 0 var(--paper2); min-width:130px; position:relative}
+  .pipe .node .t{font-family:var(--serif); font-weight:700; font-size:15.5px}
+  .pipe .node .d{font-size:12.5px; color:var(--ink2); line-height:1.6; margin-top:4px}
+  .pipe .arr{align-self:center; font-family:var(--mono); color:var(--seal); font-size:18px; flex:0 0 auto}
+
+  /* ---- 决策树 ---- */
+  .tree-q{border:1.5px solid var(--ink); background:var(--card); padding:13px 18px; font-family:var(--serif); font-weight:700; font-size:17px; box-shadow:3px 3px 0 var(--paper2); text-align:center}
+  .tree-fork{text-align:center; color:var(--seal); font-family:var(--mono); font-size:16px; margin:6px 0}
+  .tree-branches{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  .branch{border:1px solid var(--line2); border-top:3px solid var(--teal); background:var(--card); padding:14px 16px}
+  .branch.b2{border-top-color:var(--gold)}
+  .branch.b3{border-top-color:var(--seal)}
+  .branch .bt{font-family:var(--serif); font-weight:700; font-size:16px}
+  .branch .bc{font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:var(--ink2); margin-bottom:6px}
+  .branch ul{margin:8px 0 0 18px; font-size:13.5px; color:var(--ink2)}
+  .branch li{margin-bottom:4px}
+
+  /* ---- 公式 ---- */
+  .formula{font-family:var(--mono); font-size:15px; background:var(--card); border:1px solid var(--line); padding:14px 18px; margin:18px 0; overflow-x:auto}
+  .formula .fn{color:var(--seal)}
+
+  /* ---- 代码 ---- */
+  pre{background:var(--code-bg); color:var(--code-fg); padding:20px 22px; overflow-x:auto; font-family:var(--mono); font-size:13.2px; line-height:1.75; margin:20px 0; border-left:4px solid var(--seal)}
+  pre .c{color:#8B9A6D; font-style:italic}
+  pre .s{color:#D9A86C}
+  pre .k{color:#E4795C}
+  pre .f{color:#8FBFB8}
+  .code-cap{font-family:var(--mono); font-size:12px; color:var(--ink2); margin-top:-12px; margin-bottom:20px}
+
+  ul.plain{margin:0 0 14px 22px}
+  ul.plain li{margin-bottom:7px}
+
+  /* ---- 参考 ---- */
+  .refs{counter-reset:ref}
+  .refs li{list-style:none; padding:9px 0 8px; border-bottom:1px dashed var(--line); font-size:14.5px; display:flex; gap:14px}
+  .refs .rn{font-family:var(--mono); color:var(--seal); flex:0 0 30px}
+  .refs .url{font-family:var(--mono); font-size:12px; color:var(--teal); word-break:break-all}
+
+  footer{margin-top:70px; border-top:4px double var(--line2); padding:26px 0 60px; font-size:13px; color:var(--ink2)}
+
+  /* ---- 动效 ---- */
+  @media (prefers-reduced-motion:no-preference){
+    .rv{opacity:0; transform:translateY(14px); animation:rise .7s cubic-bezier(.2,.7,.3,1) forwards}
+    .rv.d1{animation-delay:.08s}.rv.d2{animation-delay:.16s}.rv.d3{animation-delay:.24s}.rv.d4{animation-delay:.32s}
+    @keyframes rise{to{opacity:1; transform:none}}
+  }
+
+  @media (max-width:720px){
+    .hero-flex{flex-direction:column-reverse}
+    .stat-strip{grid-template-columns:repeat(2,1fr)}
+    .tree-branches{grid-template-columns:1fr}
+    .bar-row{grid-template-columns:110px 1fr 90px}
+    .kv{grid-template-columns:80px 1fr}
+  }
+  @media print{
+    body::before{display:none}
+    .hero,.stat-strip,figure,pre,table,.paper{break-inside:avoid}
+    a{color:inherit}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ 封面 ============ -->
+<header class="hero wrap">
+  <div class="hero-kicker rv">RESEARCH DOSSIER · TEST-TIME COMPUTE · 2026-09-10 核对</div>
+  <div class="hero-flex">
+    <div>
+      <h1 class="rv d1">以量取胜<span class="accent">：</span>小模型重复采样，<br>为什么能打赢旗舰大模型</h1>
+      <p class="hero-sub rv d2">研究溯源、实验还原与工程复现报告 —— 关于「同一个模型采样 k 次，效果超过更贵的顶级模型，而总成本只有几分之一」这一结论的出处、原理与落地方案。</p>
+    </div>
+    <div class="stamp rv d2">以量<br>取胜</div>
+  </div>
+  <div class="hero-meta rv d3">
+    <span>报告编号 <b>DS-RS-2026-001</b></span>
+    <span>数据核对 <b>2026-09-10 · 全部取自论文原文与官方页面</b></span>
+    <span>适用 <b>deepseek-harness 项目落地评估</b></span>
+  </div>
+  <div class="stat-strip rv d4">
+    <div class="stat"><div class="v">56% <em>← 15.9%</em></div><div class="k">SWE-bench Lite 解决率：DeepSeek-Coder-V2 采样 250 次，超过当时单次最强的 43%<sup><a href="#ref1">[1]</a></sup></div></div>
+    <div class="stat"><div class="v">59% <em>vs 54%</em></div><div class="k">GSM8K：40 × Llama2-13B 投票超过 1 × Llama2-70B<sup><a href="#ref2">[2]</a></sup></div></div>
+    <div class="stat"><div class="v">+17.9pt</div><div class="k">GSM8K：自洽性多数投票带来的绝对增益（PaLM-540B）<sup><a href="#ref3">[3]</a></sup></div></div>
+    <div class="stat"><div class="v">≈1/3.6</div><div class="k">成本：5 × DeepSeek-Coder-V2（$0.04）优于 1 × GPT-4o（$0.13）<sup><a href="#ref1">[1]</a></sup></div></div>
+  </div>
+
+  <nav class="toc rv d4">
+    <a href="#s1"><span class="no">§01</span>结论速览</a>
+    <a href="#s2"><span class="no">§02</span>实验是怎么做的</a>
+    <a href="#s3"><span class="no">§03</span>原理：为什么有效</a>
+    <a href="#s4"><span class="no">§04</span>复现指南</a>
+    <a href="#s5"><span class="no">§05</span>落地到本项目</a>
+    <a href="#s6"><span class="no">§06</span>参考资料</a>
+  </nav>
+</header>
+
+<main class="wrap">
+
+<!-- ============ §01 ============ -->
+<section id="s1">
+  <div class="sec-head">
+    <div class="sec-no">§01</div>
+    <h2>结论速览</h2>
+    <div class="sec-en">EXECUTIVE SUMMARY</div>
+  </div>
+
+  <p class="lead">你的记忆<strong>方向完全正确</strong>：确实存在这样一组研究，核心方法是把同一道题丢给同一个（更便宜的）模型<strong>反复采样 k 次</strong>，再从 k 个候选里挑出正确答案。只要任务存在可靠的「验证 / 选择」手段，重复采样就能在总成本低于旗舰模型单次调用的前提下，取得更高的解决率。你记的「10 次、成本 1/5」是对多篇论文结果的记忆压缩——原文数字最接近的是下面三项。</p>
+
+  <div class="paper">
+    <div class="paper-head">
+      <div class="no">核心论文 · A</div>
+      <h4>Large Language Monkeys：用重复采样扩展推理计算</h4>
+      <div class="en">Brown et al., Stanford Scaling Intelligence · arXiv:2407.21787 · 2024-07 · 被引 1000+</div>
+    </div>
+    <div class="paper-body">
+      <p>对同一问题从一个模型采样 1 → 10,000 次，度量「覆盖率」（coverage：k 次里<strong>至少一次</strong>答对的问题比例）。发现覆盖率随采样数呈幂律式单调上升，跨四个数量级成立。在 SWE-bench Lite 上，DeepSeek-Coder-V2-Instruct 从单次 15.9% 提升到 250 次采样的 56%，超过当时用 GPT-4o + Claude 3.5 Sonnet 的单次最强方案（43%）；成本核算显示<strong>便宜模型的 5 次采样同时在解决率和总成本上优于旗舰单次</strong>（详见表 2）。这正是「小模型多次 &gt; 大模型一次、成本只有几分之一」的最直接出处<sup><a href="#ref1">[1]</a></sup>。</p>
+    </div>
+  </div>
+
+  <div class="paper">
+    <div class="paper-head">
+      <div class="no">核心论文 · B</div>
+      <h4>More Agents Is All You Need（Agent Forest）</h4>
+      <div class="en">Li et al., Tencent · arXiv:2402.05120 · TMLR 2024 · 被引 324+ · 代码：AgentForest</div>
+    </div>
+    <div class="paper-body">
+      <p>「采样 + 投票」：对同一提示温度采样 N 个回答，按相似度累加投票选出最终答案（封闭答案按出现频次，代码按 BLEU 相似度聚合）。性能随 agent 数量（1 → 40）单调上升：GSM8K 上 <strong>40 个 Llama2-13B 投票达到 59%，超过单个 Llama2-70B 的 54%</strong>——「小模型集群击败大模型单体」的标志性结果；GPT-3.5-Turbo 从中获得的绝对增益比 GPT-4 高约 8 个百分点，在多个基准上逼近 GPT-4<sup><a href="#ref2">[2]</a></sup>。</p>
+    </div>
+  </div>
+
+  <div class="paper">
+    <div class="paper-head">
+      <div class="no">奠基论文 · C</div>
+      <h4>Self-Consistency：自洽性解码（这一思路的源头）</h4>
+      <div class="en">Wang et al., Google · arXiv:2203.11171 · ICLR 2023</div>
+    </div>
+    <div class="paper-body">
+      <p>对同一道思维链（CoT）题采样多条推理路径，对<strong>最终答案做多数投票</strong>。PaLM-540B 上：GSM8K +17.9、AQuA +12.2、SVAMP +11.0 个百分点。直觉：正确答案往往「殊途同归」，错误答案则五花八门——投票放大了真值信号<sup><a href="#ref3">[3]</a></sup>。这是后面两篇论文「采样 → 聚合」框架的共同源头。</p>
+    </div>
+  </div>
+
+  <h3><span class="tag">TABLE 1</span>你的记忆 vs 论文原文</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th style="width:26%">你的记忆</th><th>论文原文（已核对）</th><th style="width:16%">出处</th></tr></thead>
+    <tbody>
+      <tr><td>「同时跑 10 次」</td><td>采样次数 k 是可调参数：论文 A 中 <span class="hi">5 次采样已超过旗舰单次</span>，曲线在 k = 10 附近最陡（性价比拐点），上限做到 10,000 次；论文 B 测到 40 个 agent</td><td>[1][2]</td></tr>
+      <tr><td>「效果比顶级大模型好」</td><td>SWE-bench Lite：5 × DeepSeek-Coder-V2 解决 29.6% &gt; 1 × GPT-4o（24.0%）与 1 × Claude 3.5 Sonnet（26.7%）；GSM8K：40 × Llama2-13B（59%）&gt; 1 × Llama2-70B（54%）</td><td>[1][2]</td></tr>
+      <tr><td>「成本只有 1/5」</td><td>每次尝试便宜 <span class="hi">16–21 倍</span>（$0.008 vs $0.13 / $0.17）；5 次总成本约为旗舰单次的 <span class="hi">1/3.6 – 1/4.7</span>，且解决率更高</td><td>[1]</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note"><span class="lab">核对说明</span>本报告所有数字于 2026-09-10 直接核对自 arXiv 全文 HTML（论文 A 的 v1 与 v3 两版）与 DeepSeek 官方价格页，未采用二手转述。两点澄清：① 论文 A 网络上流传的「Gemini Pro × HumanEval」表述在 v1–v3 任何版本中都不存在，其任务集为 GSM8K / MATH / MiniF2F / CodeContests / SWE-bench Lite，模型为 Llama-3、Gemma、Pythia 与 DeepSeek-Coder-V2；② 论文 A 的对比基线是 2024 年中的旗舰模型，如今旗舰单次能力已更强，但「采样扩展规律」本身不随时间失效——复现时应以当前模型重测基线。</div>
+</section>
+
+<!-- ============ §02 ============ -->
+<section id="s2">
+  <div class="sec-head">
+    <div class="sec-no">§02</div>
+    <h2>实验是怎么做的</h2>
+    <div class="sec-en">HOW THE EXPERIMENTS WERE RUN</div>
+  </div>
+
+  <h3><span class="tag">PAPER A</span>Large Language Monkeys：覆盖率先行，成本殿后</h3>
+  <p><strong>实验设计。</strong>固定问题集与模型，只改一个变量：采样次数 k（1 → 10,000）。每个样本独立、同提示、温度采样生成完整解答；对每个 k 计算覆盖率 coverage@k——k 个样本中至少一个正确的题目比例。任务横跨五类：GSM8K 与 MATH 各抽 128 题（数学应用题）、MiniF2F-MATH 130 题（Lean4 形式化证明）、CodeContests 140 题（竞赛代码）、SWE-bench Lite（真实 GitHub issue 修复，DeepSeek-Coder-V2-Instruct 配 Moatless Tools 工具链）。模型梯队从 Pythia-70M 一路排到 Llama-3-70B-Instruct，外加 Gemma-2B/7B<sup><a href="#ref1">[1]</a></sup>。</p>
+  <p><strong>核心发现一：覆盖率服从「指数化幂律」。</strong>对每个任务拟合 log(c) ≈ a·k<sup>b</sup>（即 c ≈ exp(a·k<sup>b</sup>)），拟合曲线跨越四个数量级的 k 都成立。实用推论：<strong>低 k 区间收益最陡</strong>——单次正确率 10–20% 的难题，采到 10 次就有 65–89% 的概率命中至少一次正确解。</p>
+
+  <figure>
+    <div class="legend"><span><i style="background:var(--seal)"></i>单次正确率 p = 0.4</span><span><i style="background:var(--teal)"></i>p = 0.2</span><span><i style="background:#A08C5B"></i>p = 0.1</span></div>
+    <svg viewBox="0 0 700 360" role="img" aria-label="覆盖率随采样次数增长曲线" style="width:100%;height:auto">
+      <!-- 网格 -->
+      <g stroke="#D9CFBA" stroke-dasharray="3 4">
+        <line x1="60" y1="30" x2="660" y2="30"/><line x1="60" y1="100" x2="660" y2="100"/>
+        <line x1="60" y1="170" x2="660" y2="170"/><line x1="60" y1="240" x2="660" y2="240"/>
+      </g>
+      <line x1="344.7" y1="30" x2="344.7" y2="310" stroke="#B23A1D" stroke-dasharray="5 4" opacity=".55"/>
+      <text x="352" y="46" font-family="SF Mono,Menlo,monospace" font-size="12" fill="#B23A1D">k = 10</text>
+      <!-- 轴 -->
+      <line x1="60" y1="310" x2="660" y2="310" stroke="#211C15" stroke-width="1.5"/>
+      <line x1="60" y1="30" x2="60" y2="310" stroke="#211C15" stroke-width="1.5"/>
+      <!-- x 刻度 -->
+      <g font-family="SF Mono,Menlo,monospace" font-size="11.5" fill="#6B6152" text-anchor="middle">
+        <text x="60" y="328">1</text><text x="145.7" y="328">2</text><text x="258.9" y="328">5</text>
+        <text x="344.7" y="328">10</text><text x="430.5" y="328">20</text><text x="543.8" y="328">50</text><text x="629.5" y="328">100</text>
+      </g>
+      <g stroke="#211C15"><line x1="60" y1="310" x2="60" y2="315"/><line x1="145.7" y1="310" x2="145.7" y2="315"/><line x1="258.9" y1="310" x2="258.9" y2="315"/><line x1="344.7" y1="310" x2="344.7" y2="315"/><line x1="430.5" y1="310" x2="430.5" y2="315"/><line x1="543.8" y1="310" x2="543.8" y2="315"/><line x1="629.5" y1="310" x2="629.5" y2="315"/></g>
+      <!-- y 刻度 -->
+      <g font-family="SF Mono,Menlo,monospace" font-size="11.5" fill="#6B6152" text-anchor="end">
+        <text x="52" y="314">0%</text><text x="52" y="244">25%</text><text x="52" y="174">50%</text><text x="52" y="104">75%</text><text x="52" y="34">100%</text>
+      </g>
+      <text x="360" y="352" font-family="PingFang SC,sans-serif" font-size="12.5" fill="#6B6152" text-anchor="middle">采样次数 k（对数轴）</text>
+      <text x="24" y="170" font-family="PingFang SC,sans-serif" font-size="12.5" fill="#6B6152" transform="rotate(-90 24 170)" text-anchor="middle">覆盖率 c(k) = 1 − (1−p)^k</text>
+      <!-- 曲线: p=0.1 -->
+      <polyline fill="none" stroke="#A08C5B" stroke-width="2.5" points="60,282 145.7,256.8 258.9,195.3 344.7,127.6 430.5,64.0 543.8,31.4 629.5,30"/>
+      <!-- 曲线: p=0.2 -->
+      <polyline fill="none" stroke="#31605B" stroke-width="2.5" points="60,254 145.7,209.2 258.9,121.7 344.7,60.1 430.5,33.2 543.8,30 629.5,30"/>
+      <!-- 曲线: p=0.4 -->
+      <polyline fill="none" stroke="#B23A1D" stroke-width="2.5" points="60,198 145.7,130.8 258.9,51.8 344.7,31.7 430.5,30 543.8,30 629.5,30"/>
+      <!-- 标注 -->
+      <g font-family="SF Mono,Menlo,monospace" font-size="11.5" fill="#211C15">
+        <circle cx="344.7" cy="127.6" r="3.5" fill="#A08C5B"/><text x="352" y="124">65%</text>
+        <circle cx="344.7" cy="60.1" r="3.5" fill="#31605B"/><text x="352" y="72">89%</text>
+        <circle cx="344.7" cy="31.7" r="3.5" fill="#B23A1D"/><text x="352" y="92" fill="#B23A1D">99.4%</text>
+      </g>
+    </svg>
+    <figcaption><b>图 1 · 独立采样下的覆盖率曲线</b>（c(k) = 1−(1−p)<sup>k</sup>，示意；论文实测为跨四数量级的指数化幂律拟合）。k = 10 是性价比拐点：多数「模型会做但常错」的任务，10 次采样命中概率已过 65%——这大概就是「跑 10 次」这一说法广泛流传的原因。</figcaption>
+  </figure>
+
+  <p><strong>核心发现二：便宜模型 × 少量采样，双赢。</strong>论文在 SWE-bench Lite 上做了完整的成本核算（表 2）。DeepSeek-Coder-V2 每次尝试 $0.008，是 GPT-4o（$0.13）的 1/16、Claude 3.5 Sonnet（$0.17）的 1/21；采 5 次的总解决率反而更高，总成本只有旗舰单次的约 1/4 到 1/5——注意这里计入的成本只含采样，验证用的是仓库现成的测试套件<sup><a href="#ref1">[1]</a></sup>。</p>
+
+  <h3 id="t2"><span class="tag">TABLE 2</span>论文 A 的成本核算（SWE-bench Lite，2024）</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>方案</th><th class="num">每次尝试成本</th><th class="num">尝试次数</th><th class="num">总解决率</th><th class="num">解决率对比</th><th class="num">总成本对比</th></tr></thead>
+    <tbody>
+      <tr><td><strong>DeepSeek-Coder-V2 × 5</strong>（重复采样）</td><td class="num">$0.008</td><td class="num">5</td><td class="num"><span class="hi">29.6%</span></td><td class="num">基准 1×</td><td class="num">基准 1×</td></tr>
+      <tr><td>GPT-4o × 1（当时旗舰）</td><td class="num">$0.13</td><td class="num">1</td><td class="num">24.0%</td><td class="num dim">−5.6pt</td><td class="num"><span class="hi">3.6× 更贵</span></td></tr>
+      <tr><td>Claude 3.5 Sonnet × 1（当时旗舰）</td><td class="num">$0.17</td><td class="num">1</td><td class="num">26.7%</td><td class="num dim">−2.9pt</td><td class="num"><span class="hi">4.7× 更贵</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure>
+    <div class="bars">
+      <div class="bar-row"><span>DeepSeek-Coder-V2（×5 次总成本）</span><div class="bar-track"><div class="bar-fill hot" style="width:6%"></div></div><span class="bar-val">$0.040</span></div>
+      <div class="bar-row"><span>GPT-4o（×1）</span><div class="bar-track"><div class="bar-fill" style="width:76%"></div></div><span class="bar-val">$0.130</span></div>
+      <div class="bar-row"><span>Claude 3.5 Sonnet（×1）</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-val">$0.170</span></div>
+    </div>
+    <figcaption><b>图 2 · 单题成本对比</b>（按论文 A Table 1 数据绘制）。条越长越贵；最便宜的红条同时是解决率最高的一项。</figcaption>
+  </figure>
+
+  <p><strong>核心发现三：固定总算力下，小模型 × 多样本经常更优。</strong>论文做了 FLOPs 对齐分析——让 8B 与 70B 花同样的总算力（8B 采 ~9 次对 70B 采 1 次）：在 MiniF2F、GSM8K、MATH 上 8B 反超，只有 CodeContests 上 70B 占优。「把推理算力花在广度（更多样本）还是深度（更强模型）上」因此成为一个可优化的决策变量<sup><a href="#ref1">[1]</a></sup>。</p>
+  <p><strong>验证与选择是另一半实验。</strong>采样只解决「有没有正确答案」，还要把它挑出来。论文 A 分两档：有精确验证器的任务直接机器判定——Lean4 证明检查器（MiniF2F）、隐藏测试（CodeContests）、仓库单测（SWE-bench Lite）；无精确验证器的 GSM8K / MATH 测了三种选择器：多数投票、奖励模型（ArmoRM-Llama3-8B）Best-of-N、奖励模型加权投票。<strong>关键负面结果</strong>：覆盖率 10,000 次能到 98%+，但三种选择器都在 ~100 次采样附近封顶——「选得出」跟「采得到」脱节，精确选择器成为整个方法的瓶颈。</p>
+  <div class="warn"><span class="lab">论文自曝的三个坑（复现必读）</span>① SWE-bench Lite 有 11.3% 的题目测试本身不稳定（flaky），论文对这类题目重跑 11 次再投票定真假；② CodeContests 122 题中 35 题的官方「正确」解通不过自己的测试——验证器存在假阴性，会错杀正确样本；③ 无精确验证器时选择器 ~100 样本封顶，盲目加大 k 只烧钱不涨分。</div>
+
+  <h3><span class="tag">PAPER B</span>More Agents：把投票做成可缩放的「森林」</h3>
+  <p><strong>实验设计。</strong>算法只有两步：<em>采样阶段</em>利用温度采样的随机性，对同一提示生成 N 个候选；<em>投票阶段</em>给每个候选累加它与所有候选的相似度得分 V(s<sub>i</sub>) = Σ<sub>j</sub> sim(s<sub>i</sub>, s<sub>j</sub>)，取得分最高者为最终答案——封闭式任务（选择题、算术）用出现频次即可，开放式任务（代码）用 BLEU 相似度聚合。k 从 1 扫到 40，模型覆盖 Llama2-13B/70B、GPT-3.5-Turbo、GPT-4，任务覆盖 GSM8K、MATH、MMLU、Chess、HumanEval<sup><a href="#ref2">[2]</a></sup>。</p>
+  <p><strong>结果与理论。</strong>准确率随 agent 数对数线性单调上升，没有出现震荡；GSM8K 上 40 × Llama2-13B（59%）超过 1 × Llama2-70B（54%）。论文用潜变量解释：模型对每道题有内在的「答对倾向」，单次采样只是带噪声观测，采样越多越接近真值。进一步分析发现<strong>增益与题目难度正相关</strong>（难度由固有难度、推理步数、答案先验概率三因素决定），并由此推出两个变体：按推理步逐级投票的 Step-wise Forest、把低先验题拆解成高先验子任务的 Hierarchical Forest。该方法与 CoT、自我辩论、Reflexion 等正交可叠加；唯一例外是 Llama2 在代码任务上叠加「辩论」会退化——agent 互相引用了对方的错误代码<sup><a href="#ref2">[2]</a></sup>。</p>
+</section>
+
+<!-- ============ §03 ============ -->
+<section id="s3">
+  <div class="sec-head">
+    <div class="sec-no">§03</div>
+    <h2>原理：为什么有效，什么时候失效</h2>
+    <div class="sec-en">MECHANISM & BOUNDARIES</div>
+  </div>
+
+  <p class="lead">三篇论文共享同一条流水线。理解它只需要一句话：<strong>采样抬高的只是「天花板」，选择器决定你能兑现多少。</strong></p>
+
+  <div class="pipe">
+    <div class="node"><div class="t">① 采样 ×k</div><div class="d">同一提示，温度 &gt; 0，独立并行 k 次。抬高「至少一次正确」的概率</div></div>
+    <div class="arr">→</div>
+    <div class="node"><div class="t">② 答案提取</div><div class="d">从每个样本抽出可比对的答案并规范化（去空格 / 单位 / 大小写）</div></div>
+    <div class="arr">→</div>
+    <div class="node"><div class="t">③ 验证 / 选择</div><div class="d">执行测试 ／ 多数投票 ／ 评审模型，三选一（见 §04 决策树）</div></div>
+    <div class="arr">→</div>
+    <div class="node"><div class="t">④ 交付最优</div><div class="d">输出第一个通过验证的候选，或得分最高者</div></div>
+  </div>
+
+  <h3><span class="tag">MECH 1</span>采样端：幂律增益，k=10 是拐点</h3>
+  <p>设单次正确率为 p，k 次独立采样「至少一次正确」的概率是 <strong>c(k) = 1 − (1−p)<sup>k</sup></strong>。这个简单的式子解释了图 1 的全部形状：收益在低 k 区间最陡、随 k 递减、最终逼近 100%。论文 A 用跨越四个数量级的实测把它升级为经验定律（指数化幂律，各任务单独拟合系数）<sup><a href="#ref1">[1]</a></sup>。</p>
+
+  <h3 id="t3"><span class="tag">TABLE 3</span>覆盖率速查：单次正确率 p × 采样次数 k</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>p ＼ k</th><th class="num">1</th><th class="num">5</th><th class="num">10</th><th class="num">50</th><th class="num">100</th></tr></thead>
+    <tbody>
+      <tr><td>0.1（很难）</td><td class="num">10%</td><td class="num">41.0%</td><td class="num"><span class="hi">65.1%</span></td><td class="num">99.5%</td><td class="num">≈100%</td></tr>
+      <tr><td>0.2（偏难）</td><td class="num">20%</td><td class="num">67.2%</td><td class="num"><span class="hi">89.3%</span></td><td class="num">≈100%</td><td class="num">≈100%</td></tr>
+      <tr><td>0.3（中等）</td><td class="num">30%</td><td class="num">83.2%</td><td class="num"><span class="hi">97.2%</span></td><td class="num">≈100%</td><td class="num">≈100%</td></tr>
+      <tr><td>0.5（五五开）</td><td class="num">50%</td><td class="num">96.9%</td><td class="num">99.9%</td><td class="num">≈100%</td><td class="num">≈100%</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3><span class="tag">MECH 2</span>选择端：投票为什么能放大真值</h3>
+  <p>自洽性论文给出了最直观的解释：一道推理题通常存在<strong>多条通向同一正确答案的路径</strong>（正确解收敛），而错误答案各错各的（错误解发散）。把 k 条路径的最终答案做频次统计，真值自然浮到顶部；当 p &gt; 0.5 时，多数投票的错误率随 k 指数级下降<sup><a href="#ref3">[3]</a></sup>。注意反方向也成立：<strong>p &lt; 0.5 时投票会稳定地选出错误答案</strong>——这时必须改用执行验证或评审模型，而不是投票。</p>
+
+  <h3><span class="tag">MECH 3</span>成本端：为什么「k 次」没有 k 倍那么贵</h3>
+  <p>四重摊销让总成本远低于直觉：① <strong>并发摊薄</strong>——k 个请求并行发出，端到端延迟约等于单次延迟（前提是没撞限流）；自托管时批处理把 GPU 利用率拉满，单样本边际成本远低于 k 倍；② <strong>前缀缓存</strong>——k 次采样用同一提示，输入 token 几乎全部命中服务端缓存（DeepSeek 缓存命中价约为未命中的 1/50）；③ <strong>价差</strong>——廉价模型与旗舰的单价差 1–2 个数量级（论文 A 实测 16–21 倍）；④ <strong>离峰折扣</strong>——DeepSeek 离峰时段全部半价。四项叠加，才出现「5 次采样反而比 1 次旗舰便宜」的交叉点<sup><a href="#ref1">[1]</a></sup><sup><a href="#ref4">[4]</a></sup>。</p>
+
+  <h3><span class="tag">LIMITS</span>边界：这套方法什么时候不该用</h3>
+  <ul class="plain">
+    <li><strong>p ≈ 0 的任务。</strong>模型完全不会的题，采样一万次也是零——重复采样放大的是「会做但常错」的长尾，不是无中生有。先测单次正确率再决定上不上。</li>
+    <li><strong>没有可靠选择器的开放式任务。</strong>文案、创意写作这类「对错不可判定」的任务，投票没有意义，评审模型本身就是误差来源；硬上的收益上限就是评审器的水平。</li>
+    <li><strong>验证器缺陷。</strong>假阳性（错误答案通过测试）让坏样本上位，假阴性（正确答案被误杀）浪费覆盖率——论文实测假阴性率可以高达 35/122<sup><a href="#ref1">[1]</a></sup>。测试套件的质量直接决定这套方法的上限。</li>
+    <li><strong>选择器平台期。</strong>投票 / 奖励模型类选择器在 ~100 样本附近封顶（论文 A），k 继续加大只增加成本；有精确验证器时才值得上千次采样。</li>
+    <li><strong>延迟与交互场景。</strong>采样可并发，但串行链路（评审、逐步验证）会叠加延迟；强交互的实时对话要掂量。</li>
+  </ul>
+</section>
+
+<!-- ============ §04 ============ -->
+<section id="s4">
+  <div class="sec-head">
+    <div class="sec-no">§04</div>
+    <h2>复现指南</h2>
+    <div class="sec-en">REPRODUCTION PLAYBOOK</div>
+  </div>
+
+  <p class="lead">复现只需要三样东西：一个<strong>温度可调的模型端点</strong>、一段<strong>并发采样代码</strong>（下方 ~90 行）、以及为你的任务选对<strong>聚合策略</strong>。第一步是判断你的任务落在决策树哪个分支。</p>
+
+  <div class="tree-q">你的任务如何判定「答案是对的」？</div>
+  <div class="tree-fork">▼ &nbsp;&nbsp;▼ &nbsp;&nbsp;▼</div>
+  <div class="tree-branches">
+    <div class="branch">
+      <div class="bc">路线 ① · 最强</div>
+      <div class="bt">可执行验证 → 采样 + 执行过滤</div>
+      <ul>
+        <li>适用：代码（跑测试）、数学（对答案）、形式化证明（证明检查器）</li>
+        <li>做法：k 个候选逐个丢进沙箱执行，取第一个通过验证的</li>
+        <li>k 建议值：5–20；预算充足可上百（论文 A 做到 250）</li>
+      </ul>
+    </div>
+    <div class="branch b2">
+      <div class="bc">路线 ② · 次之</div>
+      <div class="bt">答案可规范化 → 采样 + 多数投票</div>
+      <ul>
+        <li>适用：选择题、数值计算、信息抽取（答案能归一化比对）</li>
+        <li>做法：抽答案 → 规范化 → 频次投票；平票用评审模型破局</li>
+        <li>k 建议值：10–40；仅当 p &gt; 0.5 时投票才安全</li>
+      </ul>
+    </div>
+    <div class="branch b3">
+      <div class="bc">路线 ③ · 保底</div>
+      <div class="bt">都无法判定 → 采样 + 评审模型</div>
+      <ul>
+        <li>适用：开放式问答、摘要、方案比选</li>
+        <li>做法：k 个候选拼进一个 prompt，让更强模型评分 / 排序；或用奖励模型 Best-of-N</li>
+        <li>k 建议值：3–10；收益上限 = 评审器的水平，先校准评审器</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3><span class="tag">CODE 1</span>最小参考实现（Python · OpenAI 兼容端点）</h3>
+  <p>下面是完整可运行的骨架，对应论文 A 的「采样 → 验证」与论文 B 的「采样 → 投票」。用 DeepSeek API 直接可跑；换成任何 OpenAI 兼容端点（vLLM 本地服务、硅基流动等）只需改 <code>base_url</code>。</p>
+
+<pre><span class="k">import</span> asyncio, os, re, sys
+<span class="k">from</span> collections <span class="k">import</span> Counter
+<span class="k">from</span> openai <span class="k">import</span> AsyncOpenAI   <span class="c"># pip install openai>=1.0</span>
+
+client = AsyncOpenAI(
+    api_key=os.environ[<span class="s">"DEEPSEEK_API_KEY"</span>],
+    base_url=os.environ.get(<span class="s">"DEEPSEEK_BASE_URL"</span>, <span class="s">"https://api.deepseek.com"</span>),
+)
+MODEL = <span class="s">"deepseek-flash"</span>   <span class="c"># 廉价档模型做采样</span>
+K     = 10                  <span class="c"># 采样次数：执行过滤 5–20，投票 10–40</span>
+TEMP  = 0.9                 <span class="c"># 多样性与质量的折中；低于 0.7 样本趋同，等效 k 锐减</span>
+
+<span class="k">async def</span> <span class="f">sample</span>(question: str, i: int) -> str:
+    resp = <span class="k">await</span> client.chat.completions.create(
+        model=MODEL,
+        messages=[{<span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>: question}],
+        temperature=TEMP, top_p=0.95,
+    )
+    print(<span class="s">f"[</span>{i+1}<span class="s">/</span>{K}<span class="s">] </span>{resp.usage.total_tokens}<span class="s"> tokens"</span>)
+    <span class="k">return</span> resp.choices[0].message.content
+
+<span class="k">def</span> <span class="f">extract</span>(text: str) -> str:        <span class="c"># 按任务替换：boxed / JSON 字段 / 代码块</span>
+    m = re.findall(<span class="s">r"\\boxed\{([^}]+)\}"</span>, text)
+    <span class="k">return</span> (m[-1] <span class="k">if</span> m <span class="k">else</span> text.strip().splitlines()[-1]).strip()
+
+<span class="k">def</span> <span class="f">normalize</span>(ans: str) -> str:       <span class="c"># 规范化后再比对，避免空格/符号误判</span>
+    <span class="k">return</span> re.sub(<span class="s">r"[\s,，$¥%]"</span>, <span class="s">""</span>, ans).lower()
+
+<span class="c"># ---- 聚合策略三选一（对应 §04 决策树） ----</span>
+<span class="k">def</span> <span class="f">aggregate_vote</span>(samples: list[str]) -> str:          <span class="c"># ② 多数投票</span>
+    counts = Counter(normalize(extract(s)) <span class="k">for</span> s <span class="k">in</span> samples)
+    best, _ = counts.most_common(1)[0]
+    <span class="k">return next</span>(s <span class="k">for</span> s <span class="k">in</span> samples <span class="k">if</span> normalize(extract(s)) == best)
+
+<span class="k">def</span> <span class="f">aggregate_execute</span>(samples, run_tests) -> str | None:  <span class="c"># ① 执行过滤</span>
+    <span class="c"># run_tests(候选) -> bool：把候选代码/补丁丢进沙箱跑测试，返回是否通过</span>
+    <span class="k">for</span> s <span class="k">in</span> samples:
+        <span class="k">if</span> run_tests(s):
+            <span class="k">return</span> s
+    <span class="k">return</span> None                          <span class="c"># 全军覆没：降级到更强模型或加 k 重试</span>
+
+<span class="k">async def</span> <span class="f">aggregate_judge</span>(samples: list[str], question: str) -> str:  <span class="c"># ③ 评审模型</span>
+    ballot = <span class="s">"\n\n"</span>.join(<span class="s">f"--- 候选 </span>{i+1}<span class="s"> ---\n</span>{s}<span class="s">"</span> <span class="k">for</span> i, s <span class="k">in</span> enumerate(samples))
+    resp = <span class="k">await</span> client.chat.completions.create(
+        model=MODEL,                      <span class="c"># 评审建议用比采样端更强的模型</span>
+        messages=[{<span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>:
+                   <span class="s">f"问题：</span>{question}<span class="s">\n\n以下是候选答案，选出最正确的一个，只回复序号：\n\n</span>{ballot}<span class="s">"</span>}],
+        temperature=0,
+    )
+    idx = int(re.search(<span class="s">r"\d+"</span>, resp.choices[0].message.content).group()) - 1
+    <span class="k">return</span> samples[idx]
+
+<span class="k">async def</span> <span class="f">main</span>():
+    question = sys.argv[1]
+    samples = <span class="k">await</span> asyncio.gather(*(sample(question, i) <span class="k">for</span> i <span class="k">in</span> range(K)))
+    print(aggregate_vote(samples))       <span class="c"># 按任务换成 aggregate_execute / aggregate_judge</span>
+
+asyncio.run(main())</pre>
+  <div class="code-cap">sample_ensemble.py — 三条聚合路线都给全了；执行过滤的 run_tests 由你的沙箱 / 测试套件提供。</div>
+
+  <h3><span class="tag">PARAMS</span>采样参数怎么定</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>参数</th><th>建议值</th><th>依据</th></tr></thead>
+    <tbody>
+      <tr><td>temperature</td><td class="num">0.7 – 1.0</td><td>多样性是覆盖率的燃料：温度过低样本趋同，等效 k 锐减；过高则格式崩坏率上升。自洽性论文用 0.7，论文 A 类做法普遍 0.8–1.0<sup><a href="#ref3">[3]</a></sup></td></tr>
+      <tr><td>top_p</td><td class="num">0.95</td><td>与温度配合截断长尾；一般不动</td></tr>
+      <tr><td>k（执行过滤）</td><td class="num">5 – 20</td><td>p≈0.2 时 k=10 命中率 89%（表 3）；有精确验证器时值得加大</td></tr>
+      <tr><td>k（多数投票）</td><td class="num">10 – 40</td><td>论文 B 的扫描区间（1–40），增益对数线性<sup><a href="#ref2">[2]</a></sup></td></tr>
+      <tr><td>k（评审模型）</td><td class="num">3 – 10</td><td>评审 prompt 随 k 线性变长变贵；论文 A 显示无精确验证器时选择器 ~100 封顶，实用性上 3–10 足够</td></tr>
+      <tr><td>并发方式</td><td>asyncio 并发</td><td>比 API 的 n 参数更通用：每路独立计费/重试/超时，且便于记录每个样本</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3><span class="tag">COST</span>成本测算（DeepSeek 官方价 · 2026-09 核对）</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>模型档位</th><th class="num">输入·缓存未命中（峰/离峰）</th><th class="num">输入·缓存命中</th><th class="num">输出（峰/离峰）</th></tr></thead>
+    <tbody>
+      <tr><td>deepseek-flash（V4.1-Flash）</td><td class="num">$0.30 / $0.15 每百万</td><td class="num">$0.006 / $0.003</td><td class="num">$1.20 / $0.60</td></tr>
+      <tr><td>deepseek-v4-pro（2026-09-14 起并入 Flash 计费）</td><td class="num">$1.32 / $0.66</td><td class="num">$0.044 / $0.022</td><td class="num">$3.96 / $1.98</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="code-cap">峰值时段为 UTC 周一至周五 01:00–04:00 与 06:00–10:00（即北京时间 09:00–12:00、14:00–18:00），其余为离峰半价。来源：DeepSeek 官方定价页<sup><a href="#ref4">[4]</a></sup>。</p>
+
+  <div class="formula">
+    总成本(k) ≈ T<sub>in</sub>·P<sub>miss</sub> + (k−1)·T<sub>in</sub>·P<sub>hit</sub> + k·T<sub>out</sub>·P<sub>out</sub> + C<sub>选择器</sub><br>
+    <span class="fn">// 同一提示重复采样 → 输入几乎全命中缓存；投票 C≈0，执行 C=沙箱算力，评审 ≈ 一次长 prompt 调用</span>
+  </div>
+
+  <p><strong>算例。</strong>设单题输入 5k token、输出 2k token，k = 10，全部峰值时段：10 × deepseek-flash ≈ $0.026（输入首查 $0.0015 + 缓存命中 9 次 ≈ $0.0003 + 输出 $0.024）；1 × deepseek-v4-pro ≈ $0.015。同门之内，flash × 10 约为 pro × 1 的 1.8 倍——<strong>只有切到离峰时段（≈ $0.013）才反超</strong>。真正论文级的「几分之一」价差，来自廉价模型与旗舰闭源模型之间的 1–2 个数量级单价差（论文 A：$0.008 vs $0.13–0.17），或自托管小模型（边际成本≈电费与 GPU 折旧）。所以复现时的正确姿势是：<strong>用公式代入你实际的两档模型价格，先算交叉点，再决定切分策略</strong>。</p>
+
+  <h3><span class="tag">EVAL</span>如何验证你复现成功了</h3>
+  <p>论文 A 的度量是 <strong>coverage@k</strong>（k 个样本至少一个对的题目比例）；代码任务惯用 Codex 论文的无偏 <strong>pass@k</strong> 估计量——每题采 n 个样本、其中 c 个通过验证，则：</p>
+  <div class="formula">pass@k = 1 − C(n−c, k) / C(n, k) &nbsp;&nbsp;<span class="fn">// 数值稳定算法：1 − ∏<sub>i=0..k−1</sub> (n−c−i)/(n−i)</span></div>
+  <ul class="plain">
+    <li><strong>先画曲线再谈收益</strong>：对同一题集扫 k ∈ {1, 3, 5, 10, 20, 50}，画出 coverage@k 曲线。曲线在低 k 区越陡，说明该任务越适合此方法；曲线平直（p≈0）就死心。</li>
+    <li><strong>端到端才算数</strong>：最终指标是「验证后交付答案的正确率」，不是覆盖率。选择器兑现率 = 交付正确率 ÷ 覆盖率，它就是你的选择器短板。</li>
+    <li><strong>成本入账</strong>：记录每组实验的 token 与调用数（含验证器、评审器的开销），复现论文表 2 那张双维度对比才算完整。</li>
+  </ul>
+
+  <h3><span class="tag">PITFALLS</span>工程上的坑与对策</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>坑</th><th>症状</th><th>对策</th></tr></thead>
+    <tbody>
+      <tr><td>测试不稳定（flaky）</td><td>同一候选时过时不过</td><td>论文 A 的做法：可疑题重跑 11 次投票定真假<sup><a href="#ref1">[1]</a></sup>；事先隔离 flaky 用例</td></tr>
+      <tr><td>验证器假阴性</td><td>正确候选被错杀，覆盖率兑现率低</td><td>抽检被拒候选；论文实测官方测试都可能错杀（35/122）<sup><a href="#ref1">[1]</a></sup></td></tr>
+      <tr><td>验证器假阳性</td><td>错误候选上位，交付正确率虚高后翻车</td><td>提升测试覆盖；关键场景加第二道评审</td></tr>
+      <tr><td>投票平峰</td><td>两个答案同票数</td><td>评审模型或奖励模型破平局；投票前强化答案规范化</td></tr>
+      <tr><td>样本趋同</td><td>k 个样本几乎一样，覆盖率不动</td><td>升高温度；或对提示做轻度扰动（换措辞 / 换角色），论文 B 显示与 CoT 等手段正交可叠加<sup><a href="#ref2">[2]</a></sup></td></tr>
+      <tr><td>限流与重试</td><td>并发打满 429</td><td>指数退避重试 + 并发闸门；离峰时段跑批还享受半价</td></tr>
+      <tr><td>样本不落盘</td><td>无法复盘、无法二次利用</td><td>全部 k 个样本 + 验证结果持久化——它们就是天然的奖励模型训练数据</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============ §05 ============ -->
+<section id="s5">
+  <div class="sec-head">
+    <div class="sec-no">§05</div>
+    <h2>落地到本项目</h2>
+    <div class="sec-en">APPLYING IT TO DEEPSEEK-HARNESS</div>
+  </div>
+
+  <p class="lead">结合本仓库「一切皆插件、能力缝（Service Definition / Provider / Consumer）三角色完整、行为进扩展点而非改 agent-loop」的约束，建议按下面三层递进，从零侵入到深集成。</p>
+
+  <h3><span class="tag">LEVEL 1</span>评估层：先量化，零侵入（建议本周就做）</h3>
+  <p>不动 harness，在评测脚本层用 §04 的参考实现对现有任务集（如 dsh 快照任务、内部基准）跑 k ∈ {1, 5, 10, 20} 的 coverage@k 曲线，分别测 deepseek-flash 与旗舰档模型。产出一张「本仓库任务的单次正确率 × 采样收益」对照表——它直接告诉你哪些任务值得上采样、哪两档模型之间存在成本交叉点。所有后续决策都以这张表为准。</p>
+
+  <h3><span class="tag">LEVEL 2</span>能力层：子代理森林（推荐的正式落点）</h3>
+  <p>本仓库的 <code>packages/subagent/</code> 家族已经具备全部零件：多个 provider（in-process spawn / fork、ACP、dsh-sdk 等）注册在 <code>ctx.subagents</code>，<code>tool-subagent</code> 把委派暴露给模型<sup><a href="#ref5">[5]</a></sup>。把「Agent Forest」装进来就是新增一个 <strong>Consumer 角色</strong>的编排插件（或先做成 example bundle 验证价值）：</p>
+  <ul class="plain">
+    <li><strong>编排</strong>：对可并行的任务，通过 <code>ctx.subagents</code> 一次性派生 k 个同规格子代理（同提示、温度 &gt; 0），等价于论文 B 的采样阶段；</li>
+    <li><strong>聚合</strong>：收集 k 份子代理报告，按任务选择 §04 的三种聚合器之一（测试执行 / 投票 / 评审模型）；</li>
+    <li><strong>约束自查</strong>：注册一律走 <code>ctx.effect()</code> / <code>ctx.on()</code>；k、温度、聚合策略必须是可从 cordis.yml 配置的 <code>Config</code> 字段（仓库禁止硬编码调参）；采样产物若回流主对话，必须落会话事件（model-visible ⟺ logged）；若是新能力缝，三角色必须一次做全<sup><a href="#ref6">[6]</a></sup>。</li>
+  </ul>
+
+  <h3><span class="tag">LEVEL 3</span>流水线层：CI 自修复（论文配方的直接移植）</h3>
+  <p>论文 A 的 SWE-bench Lite 配方与本仓库日常开发同构：<strong>k × 廉价模型各自产出候选补丁 → 仓库现成的测试套件做验证器 → 通过者采纳</strong>。论文实测 5 × DeepSeek-Coder-V2 的解决率超过 1 × GPT-4o / Claude 3.5 Sonnet，而总成本约为其 1/4 到 1/5<sup><a href="#ref1">[1]</a></sup>。落到本仓库：修复类任务开 k = 5 的并行子代理，复用 <code>token-meter</code> 计量成本、<code>llm-retry</code> 处理限流；flaky 测试按论文 A 重跑投票。注意事项：具体 provider 接口以 <code>docs/subsystems/subagent.md</code> 为准；行为变更按仓库测试政策补 keyless 快照，用真实可运行例子承载<sup><a href="#ref5">[5]</a></sup><sup><a href="#ref6">[6]</a></sup>。</p>
+
+  <div class="warn"><span class="lab">决策提醒</span>不要跳过 Level 1 直接上 Level 2/3。子代理森林有真实成本（k 倍 token、编排复杂度、日志膨胀），只有当 Level 1 的曲线显示「目标任务单次正确率在 10%–60% 区间、且存在可靠验证器」时，投入才确定有回报；否则收益全被选择器的兑现率吃掉。</div>
+</section>
+
+<!-- ============ §06 ============ -->
+<section id="s6">
+  <div class="sec-head">
+    <div class="sec-no">§06</div>
+    <h2>参考资料</h2>
+    <div class="sec-en">REFERENCES</div>
+  </div>
+  <ul class="refs">
+    <li id="ref1"><span class="rn">[1]</span><span>Brown et al. <em>Large Language Monkeys: Scaling Inference Compute with Repeated Sampling</em>. arXiv:2407.21787（2024，v3）。数字取自正文与 Table 1（成本）。</span><span class="url">arxiv.org/abs/2407.21787 · github.com/ScalingIntelligence/large_language_monkeys · scalingintelligence.stanford.edu/pubs/large_language_monkeys</span></li>
+    <li id="ref2"><span class="rn">[2]</span><span>Li, Zhang, Yu, Fu, Ye (Tencent). <em>More Agents Is All You Need</em>. TMLR 2024 · arXiv:2402.05120。数字取自正文与实验节。</span><span class="url">arxiv.org/abs/2402.05120 · github.com/MoreAgentsIsAllYouNeed/AgentForest</span></li>
+    <li id="ref3"><span class="rn">[3]</span><span>Wang et al. <em>Self-Consistency Improves Chain of Thought Reasoning in Language Models</em>. ICLR 2023 · arXiv:2203.11171。增益数字取自摘要（PaLM-540B 主表）。</span><span class="url">arxiv.org/abs/2203.11171</span></li>
+    <li id="ref4"><span class="rn">[4]</span><span>DeepSeek API 官方定价页（2026-09-10 核对）：deepseek-flash / deepseek-v4-pro 峰谷与缓存价、峰值时段定义、v4-pro 退役公告。</span><span class="url">api-docs.deepseek.com/quick_start/pricing</span></li>
+    <li id="ref5"><span class="rn">[5]</span><span>本仓库子系统文档：subagent 能力家族与 provider 契约、llm 流式接口。</span><span class="url">docs/subsystems/subagent.md · docs/subsystems/llm-streaming.md</span></li>
+    <li id="ref6"><span class="rn">[6]</span><span>本仓库工程约束：AGENTS.md（能力缝三角色、effects 注册、model-visible ⟺ logged、禁止硬编码调参）、docs/testing.md（快照政策）。</span><span class="url">AGENTS.md · docs/testing.md</span></li>
+  </ul>
+</section>
+</main>
+
+<footer class="wrap">
+  以量取胜 · 小模型重复采样研究报告 · DS-RS-2026-001<br>
+  所有引用数字于 2026-09-10 逐条核对自 arXiv 论文全文（v1 与 v3）及 DeepSeek 官方定价页；图 1 为按论文公式重绘的示意，图 2 为论文 Table 1 原始数据。价格与模型版本随时间变化，落地前以官方页面为准。
+</footer>
+
+</body>
+</html>
