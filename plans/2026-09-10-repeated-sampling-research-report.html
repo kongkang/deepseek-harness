@@ -184,7 +184,7 @@
 
 <!-- ============ 封面 ============ -->
 <header class="hero wrap">
-  <div class="hero-kicker rv">RESEARCH DOSSIER · TEST-TIME COMPUTE · 2026-09-10 核对</div>
+  <div class="hero-kicker rv">RESEARCH DOSSIER · TEST-TIME COMPUTE · 2023–2026 证据核对</div>
   <div class="hero-flex">
     <div>
       <h1 class="rv d1">以量取胜<span class="accent">：</span>小模型重复采样，<br>为什么能打赢旗舰大模型</h1>
@@ -194,23 +194,24 @@
   </div>
   <div class="hero-meta rv d3">
     <span>报告编号 <b>DS-RS-2026-001</b></span>
-    <span>数据核对 <b>2026-09-10 · 全部取自论文原文与官方页面</b></span>
+    <span>数据核对 <b>2026-09-10 · 2023–2026 论文原文 + 官方价格页</b></span>
     <span>适用 <b>deepseek-harness 项目落地评估</b></span>
   </div>
   <div class="stat-strip rv d4">
     <div class="stat"><div class="v">56% <em>← 15.9%</em></div><div class="k">SWE-bench Lite 解决率：DeepSeek-Coder-V2 采样 250 次，超过当时单次最强的 43%<sup><a href="#ref1">[1]</a></sup></div></div>
     <div class="stat"><div class="v">59% <em>vs 54%</em></div><div class="k">GSM8K：40 × Llama2-13B 投票超过 1 × Llama2-70B<sup><a href="#ref2">[2]</a></sup></div></div>
-    <div class="stat"><div class="v">+17.9pt</div><div class="k">GSM8K：自洽性多数投票带来的绝对增益（PaLM-540B）<sup><a href="#ref3">[3]</a></sup></div></div>
+    <div class="stat"><div class="v">99.9%</div><div class="k">AIME 2025：DeepConf@512 置信度过滤并行思考（Qwen3 / GPT-OSS，2025）<sup><a href="#ref7">[7]</a></sup></div></div>
     <div class="stat"><div class="v">≈1/3.6</div><div class="k">成本：5 × DeepSeek-Coder-V2（$0.04）优于 1 × GPT-4o（$0.13）<sup><a href="#ref1">[1]</a></sup></div></div>
   </div>
 
   <nav class="toc rv d4">
     <a href="#s1"><span class="no">§01</span>结论速览</a>
-    <a href="#s2"><span class="no">§02</span>实验是怎么做的</a>
-    <a href="#s3"><span class="no">§03</span>原理：为什么有效</a>
-    <a href="#s4"><span class="no">§04</span>复现指南</a>
-    <a href="#s5"><span class="no">§05</span>落地到本项目</a>
-    <a href="#s6"><span class="no">§06</span>参考资料</a>
+    <a href="#s2"><span class="no">§02</span>2025–2026 复核</a>
+    <a href="#s3"><span class="no">§03</span>实验是怎么做的</a>
+    <a href="#s4"><span class="no">§04</span>原理：为什么有效</a>
+    <a href="#s5"><span class="no">§05</span>复现指南</a>
+    <a href="#s6"><span class="no">§06</span>落地到本项目</a>
+    <a href="#s7"><span class="no">§07</span>参考资料</a>
   </nav>
 </header>
 
@@ -274,10 +275,58 @@
   <div class="note"><span class="lab">核对说明</span>本报告所有数字于 2026-09-10 直接核对自 arXiv 全文 HTML（论文 A 的 v1 与 v3 两版）与 DeepSeek 官方价格页，未采用二手转述。两点澄清：① 论文 A 网络上流传的「Gemini Pro × HumanEval」表述在 v1–v3 任何版本中都不存在，其任务集为 GSM8K / MATH / MiniF2F / CodeContests / SWE-bench Lite，模型为 Llama-3、Gemma、Pythia 与 DeepSeek-Coder-V2；② 论文 A 的对比基线是 2024 年中的旗舰模型，如今旗舰单次能力已更强，但「采样扩展规律」本身不随时间失效——复现时应以当前模型重测基线。</div>
 </section>
 
-<!-- ============ §02 ============ -->
+<!-- ============ §02 复核 ============ -->
 <section id="s2">
   <div class="sec-head">
     <div class="sec-no">§02</div>
+    <h2>复核：2025–2026 的证据还支持吗？</h2>
+    <div class="sec-en">RE-EVALUATED WITH 2025–2026 EVIDENCE</div>
+  </div>
+
+  <p class="lead">§01 的三篇论文都出自 2023–2024 年。用 2025–2026 年的证据重新检验，结论是：<strong>想法不仅依然成立，地位还上升了</strong>——2026 年 4 月的 T² 缩放定律已经把「过训练的小模型 × 推理时重复采样」写进计算最优的训练配方；但「小模型 × k 次朴素投票」这个具体形式已被三样升级取代：对照物换成推理模型、选择器升级为置信度过滤、成本模型从 FLOPs 换成内存访问。以下所有数字均于 2026-09-10 核对自各论文摘要或全文。</p>
+
+  <h3 id="t2025"><span class="tag">TABLE 4</span>支持性证据（2025–2026）</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th style="width:22%">论文</th><th>已核对的结论</th><th style="width:22%">对想法的影响</th></tr></thead>
+    <tbody>
+      <tr><td><strong>DeepConf</strong>（Meta AI & UCSD，2025-08，ICLR 2026，被引 238）<sup><a href="#ref7">[7]</a></sup></td><td>在 Qwen3 / GPT-OSS 开源模型上，用模型内部置信度过滤并行思考轨迹：DeepConf@512 在 AIME 2025 达 <span class="hi">99.9%</span>，比全并行思考省 <span class="hi">84.7%</span> token；免训练、免调参</td><td>采样×选择仍是当前最强范式；选择器升级为置信度过滤</td></tr>
+      <tr><td><strong>ParaThinker</strong>（2025-09）<sup><a href="#ref8">[8]</a></sup></td><td>扩展瓶颈不是模型能力而是串行策略的「隧道视野」：8 条原生并行路径使 1.5B / 7B 模型平均 <span class="hi">+12.3% / +7.5%</span>，延迟仅 <span class="hi">+7.1%</span>；小模型超越大得多的对手</td><td>并行采样优于更长的串行思考；小模型恰好受益最大</td></tr>
+      <tr><td><strong>Sample, Scrutinize and Scale</strong>（Google，2025-02，ICML 2025）<sup><a href="#ref9">[9]</a></sup></td><td>采样 + 自验证把 Gemini 1.5 Pro 推到 o1-Preview 之上；发现「隐式缩放」：候选池越大，自验证本身越准；同时指出前沿模型开箱自验证能力出奇地弱</td><td>2024 发现的「验证器瓶颈」有了规模化解法</td></tr>
+      <tr><td><strong>s1</strong>（2025-01）<sup><a href="#ref10">[10]</a></sup></td><td>Qwen2.5-32B 用 1K 条推理轨迹 SFT +「Wait」预算强制：AIME24 从 50% 到 57%，竞赛数学超 o1-preview 最多 27%</td><td>单次调用内的思考预算也可缩放——与并行采样互补</td></tr>
+      <tr><td><strong>T² scaling laws</strong>（2026-04）<sup><a href="#ref12">[12]</a></sup></td><td>在固定端到端算力预算下联合优化模型大小、训练 token 数与推理采样数：计入推理成本后，最优预训练配方「剧烈移入过训练区间」，并用预训练实验证实</td><td><span class="hi">想法被写进训练定律</span>：小模型（过训练）× 推理时多次采样是联合最优</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3><span class="tag">TABLE 5</span>反方与边界证据（必须一并看）</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th style="width:22%">论文</th><th>已核对的结论</th><th style="width:22%">对复现的约束</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Kinetics</strong>（Infini-AI Lab，2025-06）<sup><a href="#ref11">[11]</a></sup></td><td>用 FLOPs 评估测试时扩展严重误导：扩展过程中<strong>注意力 / 内存访问（而非参数量）成为主导成本</strong>，小模型的有效性因此被显著高估；0.6B–32B 实验表明存在阈值，阈值以下的模型不值得投入测试时算力；稀疏注意力可大幅降低每 token 成本（低预算区间增益超 60 分）</td><td>「小」的尺寸要上移（约 7B–32B 档）；成本按内存带宽而非 FLOPs 估算</td></tr>
+      <tr><td><strong>The Illusion of Thinking</strong>（Apple，2025-06，被引 746）及反驳（2025-06）<sup><a href="#ref13">[13]</a></sup></td><td>受控谜题实验：低复杂度任务上推理模型反而不如普通模型（overthink），高复杂度上两类模型双双崩溃；反驳论文证明「崩溃」部分源于输出 token 上限在数学上不可能装下答案</td><td>p ≈ 0 的边界比 2024 年的认知出现得更早；「多想 / 多采」不是万能药，两篇都需谨慎引用</td></tr>
+      <tr><td><strong>Stop Overthinking</strong> 综述（2025-03，被引 503）<sup><a href="#ref14">[14]</a></sup></td><td>「过度思考」已被系统化研究：更长的思考不等于更好的答案，冗余推理是普遍现象</td><td>k 与单次思考预算都应按任务曲线调节，而非无脑加大</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3><span class="tag">SHIFT 1</span>对照物变了：从「大模型单次」到「推理模型单次」</h3>
+  <p>2024 年论文对比的是<strong>不思考的</strong>大模型单次调用；2025 年起（R1 / o3 / Qwen3-thinking 之后），前沿默认形态是单次调用就自带长思考的推理模型。所以「小模型 × k 次 vs 大模型 × 1 次」在今天真正要回答的问题是：<strong>k 次并行采样，还是 1 次更长的串行思考？</strong>ParaThinker 的答案是并行赢——串行长思考会形成「隧道视野」，初始小错锁死整条路径，而并行线程 +12.3%/+7.5% 的增益只花 7.1% 延迟<sup><a href="#ref8">[8]</a></sup>；DeepConf 则证明「并行 + 置信度过滤」在开源模型上能同时拿到准确率（99.9% AIME25）和成本（token −84.7%）<sup><a href="#ref7">[7]</a></sup>。</p>
+
+  <h3><span class="tag">SHIFT 2</span>选择器升级：从「投票封顶」到「置信度 + 自验证规模化」</h3>
+  <p>2024 年的最大瓶颈是投票 / 奖励模型在 ~100 样本封顶（§03）。2025 年的两条解法：① <strong>把验证本身规模化</strong>——Sample, Scrutinize and Scale 发现「隐式缩放」，候选池越大自验证越准，从而把 Gemini 1.5 Pro 推过 o1-Preview<sup><a href="#ref9">[9]</a></sup>；② <strong>绕开外部验证器</strong>——DeepConf 直接读模型内部置信度，提前终止低置信轨迹，把「选」的成本砍掉一个数量级<sup><a href="#ref7">[7]</a></sup>。注意自洽性投票（§01 论文 C）在其中退化为基线而非最优。</p>
+
+  <h3><span class="tag">SHIFT 3</span>成本定律被 2026 正式化</h3>
+  <p>2024 年「5 次采样比 1 次旗舰便宜」还是经验测算；2026 年 4 月的 T² 缩放定律把它升级为训练侧定律：<strong>计入推理成本后，最优预训练点移入「过训练」区间</strong>——即故意把较小模型训得远超 Chinchilla 最优，再用推理时重复采样兑现，且该结论经预训练实验验证、并在后训练后依然成立<sup><a href="#ref12">[12]</a></sup>。换句话说，工业界按此定律训练的下一代开源模型，天生就是为「× k 次采样」设计的。</p>
+
+  <div class="note"><span class="lab">裁决</span>这个想法在 2025–2026 不仅被支撑，还从「推理技巧」升级为「缩放定律」。但复现方案要换三样东西：<strong>① 采样对象</strong>从 chat 模型换成 thinking 档模型（deepseek-reasoner 档 / Qwen3-thinking 类），纯 chat 模型只留给有精确验证器的代码与数学任务；<strong>② 聚合方式</strong>从朴素投票升级为置信度过滤（DeepConf 式，省 ~85% token），投票仅作保底；<strong>③ 「小」的尺寸</strong>按 Kinetics 上移到约 7B–32B 档，成本按内存带宽而非 FLOPs 估算<sup><a href="#ref11">[11]</a></sup>。同时保留 §04 的边界清单：p ≈ 0 的任务与不可验证的开放式任务，采样多少次都没用。</div>
+</section>
+
+<!-- ============ §03 ============ -->
+<section id="s3">
+  <div class="sec-head">
+    <div class="sec-no">§03</div>
     <h2>实验是怎么做的</h2>
     <div class="sec-en">HOW THE EXPERIMENTS WERE RUN</div>
   </div>
@@ -359,10 +408,10 @@
   <p><strong>结果与理论。</strong>准确率随 agent 数对数线性单调上升，没有出现震荡；GSM8K 上 40 × Llama2-13B（59%）超过 1 × Llama2-70B（54%）。论文用潜变量解释：模型对每道题有内在的「答对倾向」，单次采样只是带噪声观测，采样越多越接近真值。进一步分析发现<strong>增益与题目难度正相关</strong>（难度由固有难度、推理步数、答案先验概率三因素决定），并由此推出两个变体：按推理步逐级投票的 Step-wise Forest、把低先验题拆解成高先验子任务的 Hierarchical Forest。该方法与 CoT、自我辩论、Reflexion 等正交可叠加；唯一例外是 Llama2 在代码任务上叠加「辩论」会退化——agent 互相引用了对方的错误代码<sup><a href="#ref2">[2]</a></sup>。</p>
 </section>
 
-<!-- ============ §03 ============ -->
-<section id="s3">
+<!-- ============ §04 ============ -->
+<section id="s4">
   <div class="sec-head">
-    <div class="sec-no">§03</div>
+    <div class="sec-no">§04</div>
     <h2>原理：为什么有效，什么时候失效</h2>
     <div class="sec-en">MECHANISM & BOUNDARIES</div>
   </div>
@@ -374,7 +423,7 @@
     <div class="arr">→</div>
     <div class="node"><div class="t">② 答案提取</div><div class="d">从每个样本抽出可比对的答案并规范化（去空格 / 单位 / 大小写）</div></div>
     <div class="arr">→</div>
-    <div class="node"><div class="t">③ 验证 / 选择</div><div class="d">执行测试 ／ 多数投票 ／ 评审模型，三选一（见 §04 决策树）</div></div>
+    <div class="node"><div class="t">③ 验证 / 选择</div><div class="d">执行测试 ／ 多数投票 ／ 评审模型，三选一（见 §05 决策树）</div></div>
     <div class="arr">→</div>
     <div class="node"><div class="t">④ 交付最优</div><div class="d">输出第一个通过验证的候选，或得分最高者</div></div>
   </div>
@@ -411,10 +460,10 @@
   </ul>
 </section>
 
-<!-- ============ §04 ============ -->
-<section id="s4">
+<!-- ============ §05 ============ -->
+<section id="s5">
   <div class="sec-head">
-    <div class="sec-no">§04</div>
+    <div class="sec-no">§05</div>
     <h2>复现指南</h2>
     <div class="sec-en">REPRODUCTION PLAYBOOK</div>
   </div>
@@ -484,7 +533,7 @@ TEMP  = 0.9                 <span class="c"># 多样性与质量的折中；低�
 <span class="k">def</span> <span class="f">normalize</span>(ans: str) -> str:       <span class="c"># 规范化后再比对，避免空格/符号误判</span>
     <span class="k">return</span> re.sub(<span class="s">r"[\s,，$¥%]"</span>, <span class="s">""</span>, ans).lower()
 
-<span class="c"># ---- 聚合策略三选一（对应 §04 决策树） ----</span>
+<span class="c"># ---- 聚合策略三选一（对应 §05 决策树） ----</span>
 <span class="k">def</span> <span class="f">aggregate_vote</span>(samples: list[str]) -> str:          <span class="c"># ② 多数投票</span>
     counts = Counter(normalize(extract(s)) <span class="k">for</span> s <span class="k">in</span> samples)
     best, _ = counts.most_common(1)[0]
@@ -515,6 +564,8 @@ TEMP  = 0.9                 <span class="c"># 多样性与质量的折中；低�
 
 asyncio.run(main())</pre>
   <div class="code-cap">sample_ensemble.py — 三条聚合路线都给全了；执行过滤的 run_tests 由你的沙箱 / 测试套件提供。</div>
+
+  <div class="note"><span class="lab">2025 升级</span>如果端点返回 logprobs，可把「投票」升级为 DeepConf 式<strong>置信度过滤</strong>：按平均 token 置信度给候选打分、提前丢弃低置信轨迹——论文实测比全并行省 84.7% token，AIME 2025 上 DeepConf@512 达 99.9%<sup><a href="#ref7">[7]</a></sup>。同时把采样对象换成 thinking 档模型（如 deepseek-reasoner 类）：s1 证明单次思考长度本身也可用预算控制缩放<sup><a href="#ref10">[10]</a></sup>；纯 chat 模型留给有精确验证器的代码 / 数学任务。另外记住 Kinetics 的警告：「小」别小过 7B 档，成本按内存带宽算<sup><a href="#ref11">[11]</a></sup>。</div>
 
   <h3><span class="tag">PARAMS</span>采样参数怎么定</h3>
   <div class="tw">
@@ -576,10 +627,10 @@ asyncio.run(main())</pre>
   </div>
 </section>
 
-<!-- ============ §05 ============ -->
-<section id="s5">
+<!-- ============ §06 ============ -->
+<section id="s6">
   <div class="sec-head">
-    <div class="sec-no">§05</div>
+    <div class="sec-no">§06</div>
     <h2>落地到本项目</h2>
     <div class="sec-en">APPLYING IT TO DEEPSEEK-HARNESS</div>
   </div>
@@ -593,7 +644,8 @@ asyncio.run(main())</pre>
   <p>本仓库的 <code>packages/subagent/</code> 家族已经具备全部零件：多个 provider（in-process spawn / fork、ACP、dsh-sdk 等）注册在 <code>ctx.subagents</code>，<code>tool-subagent</code> 把委派暴露给模型<sup><a href="#ref5">[5]</a></sup>。把「Agent Forest」装进来就是新增一个 <strong>Consumer 角色</strong>的编排插件（或先做成 example bundle 验证价值）：</p>
   <ul class="plain">
     <li><strong>编排</strong>：对可并行的任务，通过 <code>ctx.subagents</code> 一次性派生 k 个同规格子代理（同提示、温度 &gt; 0），等价于论文 B 的采样阶段；</li>
-    <li><strong>聚合</strong>：收集 k 份子代理报告，按任务选择 §04 的三种聚合器之一（测试执行 / 投票 / 评审模型）；</li>
+    <li><strong>聚合</strong>：收集 k 份子代理报告，按任务选择 §05 的三种聚合器之一（测试执行 / 投票 / 评审模型）；</li>
+    <li><strong>采样端（2025–2026 修正）</strong>：优先 thinking 档模型与置信度过滤——2025 年起的并行采样研究都以推理模型为对象：置信度过滤省 ~85% token（DeepConf<sup><a href="#ref7">[7]</a></sup>），原生并行绕开串行「隧道视野」（ParaThinker<sup><a href="#ref8">[8]</a></sup>）；</li>
     <li><strong>约束自查</strong>：注册一律走 <code>ctx.effect()</code> / <code>ctx.on()</code>；k、温度、聚合策略必须是可从 cordis.yml 配置的 <code>Config</code> 字段（仓库禁止硬编码调参）；采样产物若回流主对话，必须落会话事件（model-visible ⟺ logged）；若是新能力缝，三角色必须一次做全<sup><a href="#ref6">[6]</a></sup>。</li>
   </ul>
 
@@ -603,10 +655,10 @@ asyncio.run(main())</pre>
   <div class="warn"><span class="lab">决策提醒</span>不要跳过 Level 1 直接上 Level 2/3。子代理森林有真实成本（k 倍 token、编排复杂度、日志膨胀），只有当 Level 1 的曲线显示「目标任务单次正确率在 10%–60% 区间、且存在可靠验证器」时，投入才确定有回报；否则收益全被选择器的兑现率吃掉。</div>
 </section>
 
-<!-- ============ §06 ============ -->
-<section id="s6">
+<!-- ============ §07 ============ -->
+<section id="s7">
   <div class="sec-head">
-    <div class="sec-no">§06</div>
+    <div class="sec-no">§07</div>
     <h2>参考资料</h2>
     <div class="sec-en">REFERENCES</div>
   </div>
@@ -617,13 +669,21 @@ asyncio.run(main())</pre>
     <li id="ref4"><span class="rn">[4]</span><span>DeepSeek API 官方定价页（2026-09-10 核对）：deepseek-flash / deepseek-v4-pro 峰谷与缓存价、峰值时段定义、v4-pro 退役公告。</span><span class="url">api-docs.deepseek.com/quick_start/pricing</span></li>
     <li id="ref5"><span class="rn">[5]</span><span>本仓库子系统文档：subagent 能力家族与 provider 契约、llm 流式接口。</span><span class="url">docs/subsystems/subagent.md · docs/subsystems/llm-streaming.md</span></li>
     <li id="ref6"><span class="rn">[6]</span><span>本仓库工程约束：AGENTS.md（能力缝三角色、effects 注册、model-visible ⟺ logged、禁止硬编码调参）、docs/testing.md（快照政策）。</span><span class="url">AGENTS.md · docs/testing.md</span></li>
+    <li id="ref7"><span class="rn">[7]</span><span>Fu et al.（Meta AI & UCSD）. <em>Deep Think with Confidence (DeepConf)</em>. 2025-08 · ICLR 2026。99.9% @512、token −84.7% 取自摘要。</span><span class="url">arxiv.org/abs/2508.15260</span></li>
+    <li id="ref8"><span class="rn">[8]</span><span>Wen et al. <em>ParaThinker: Native Parallel Thinking as a New Paradigm to Scale LLM Test-time Compute</em>. 2025-09。+12.3% / +7.5%、延迟 +7.1% 取自摘要。</span><span class="url">arxiv.org/abs/2509.04475</span></li>
+    <li id="ref9"><span class="rn">[9]</span><span>Zhao et al.（Google）. <em>Sample, Scrutinize and Scale: Effective Inference-Time Search by Scaling Verification</em>. ICML 2025。</span><span class="url">arxiv.org/abs/2502.01839</span></li>
+    <li id="ref10"><span class="rn">[10]</span><span>Muennighoff et al. <em>s1: Simple test-time scaling</em>. 2025-01。50%→57% (AIME24)、超 o1-preview 最多 27% 取自摘要。</span><span class="url">arxiv.org/abs/2501.19393</span></li>
+    <li id="ref11"><span class="rn">[11]</span><span>Infini-AI Lab. <em>Kinetics: Rethinking Test-Time Scaling Laws</em>. 2025-06。内存访问主导成本、0.6B–32B 实验、稀疏注意力增益取自摘要。</span><span class="url">arxiv.org/abs/2506.05333</span></li>
+    <li id="ref12"><span class="rn">[12]</span><span>Roberts et al. <em>Test-Time Scaling Makes Overtraining Compute-Optimal (T² scaling laws)</em>. 2026-04。</span><span class="url">arxiv.org/abs/2604.01411</span></li>
+    <li id="ref13"><span class="rn">[13]</span><span>Shojaee et al.（Apple）. <em>The Illusion of Thinking</em>. 2025-06；反驳：Lawsen &amp; Opus, <em>The Illusion of the Illusion of Thinking</em>. 2025-06。</span><span class="url">arxiv.org/abs/2506.06941 · arxiv.org/abs/2506.09250</span></li>
+    <li id="ref14"><span class="rn">[14]</span><span>Sui et al. <em>Stop Overthinking: A Survey on Efficient Reasoning for Large Language Models</em>. 2025-03。</span><span class="url">arxiv.org/abs/2503.16419</span></li>
   </ul>
 </section>
 </main>
 
 <footer class="wrap">
   以量取胜 · 小模型重复采样研究报告 · DS-RS-2026-001<br>
-  所有引用数字于 2026-09-10 逐条核对自 arXiv 论文全文（v1 与 v3）及 DeepSeek 官方定价页；图 1 为按论文公式重绘的示意，图 2 为论文 Table 1 原始数据。价格与模型版本随时间变化，落地前以官方页面为准。
+  §01–§04 的引用数字于 2026-09-10 逐条核对自 arXiv 论文全文（v1 与 v3）及 DeepSeek 官方定价页；§02 的 2025–2026 证据核对自各论文 arXiv 摘要页（DeepConf / ParaThinker / S³ / s1 / Kinetics / T² / Illusion 及其反驳 / Stop Overthinking 综述）。图 1 为按论文公式重绘的示意，图 2 为论文 Table 1 原始数据。价格与模型版本随时间变化，落地前以官方页面为准。
 </footer>
 
 </body>
