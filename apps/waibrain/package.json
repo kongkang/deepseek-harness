@@ -1,0 +1,6 @@
+{
+  "name": "@deepseek-ai/dsh-waibrain-app",
+  "version": "0.1.5-rc.2",
+  "private": true,
+  "description": "Standalone WaiBrain browser app; builds through apps/web tooling."
+}

@@ -15,7 +15,7 @@ import { assertReleasedArtifactRelationships } from '@deepseek-ai/dsh-session-fo
 import { RELEASED_V2_EVENT_DISPOSITIONS } from './dispositions.ts'
 
 const HEADER_REQUIRED = ['version', 'id', 'createdAt', 'isSeeded', 'delegationDepth'] as const
-const HEADER_OPTIONAL = ['cwd', 'parentSession', 'origin', 'agentPreset'] as const
+const HEADER_OPTIONAL = ['cwd', 'parentSession', 'origin', 'agentPreset', 'systemPrompt'] as const
 const EVENT_REQUIRED = ['type', 'seq', 'time', 'data'] as const
 const SURFACE_TYPES = new Set(['user/message', 'assistant/message', 'tool/result'])
 const SURFACE_OPTIONAL = ['ignorable', 'sourceEventSeqs', 'surfaceOp'] as const

@@ -2,7 +2,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import { installModelSelection, type ModelSelectionRef } from '@deepseek-ai/dsh-agent'
-import { PERSONA_SECTION } from '@deepseek-ai/dsh-system-prompt'
+import { PERSONA_PREFIX_SECTION, PERSONA_SUFFIX_SECTION } from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import { NEUTRAL_WAIBRAIN_PERSONA } from './composition.ts'
 
@@ -14,8 +14,8 @@ export const inject = ['systemPrompt', 'tools']
 /** Register the complete dynamic persona, zero-tool mask, route, and admission guard. */
 export function apply(ctx: Context): void {
   ctx.effect(() => ctx.systemPrompt.section({
-    name: PERSONA_SECTION,
-    order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA'),
+    name: PERSONA_PREFIX_SECTION,
+    order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX'),
     complete: true,
     text: (context) => {
       const host = ctx.get('waibrainHost')
@@ -24,6 +24,14 @@ export function apply(ctx: Context): void {
         : host?.personaForSession(context.agent.id) ?? NEUTRAL_WAIBRAIN_PERSONA
     },
   }), 'waibrainSession.persona()')
+  // Shadow the deployment persona suffix with an empty section: the WaiBrain
+  // persona is complete, and forked external-brain children only shadow the
+  // prefix, which would otherwise expose deployment templates such as {{cwd}}.
+  ctx.effect(() => ctx.systemPrompt.section({
+    name: PERSONA_SUFFIX_SECTION,
+    order: ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX'),
+    text: '',
+  }), 'waibrainSession.personaSuffix()')
   ctx.systemPrompt.suppressRuntimeContext()
   ctx.tools.restrict({ allow: [] })
 

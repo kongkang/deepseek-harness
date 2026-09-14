@@ -187,7 +187,7 @@ async function harness(
     root: join(storageRoot, 'sessions'), compression: 'none',
   })
   new TestSessionQuery(ctx)
-  await ctx.plugin(SystemPrompt, { persona: 'deployment persona' })
+  await ctx.plugin(SystemPrompt, { personaPrefix: 'deployment persona' })
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(AgentLoop, { agents: [] })
@@ -333,7 +333,7 @@ describe('WaiBrain Host standard Session runtime', () => {
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(SessionStore)
     await ctx.plugin(SessionProjectionRegistry)
-    await ctx.plugin(SystemPrompt, { persona: 'deployment persona' })
+    await ctx.plugin(SystemPrompt, { personaPrefix: 'deployment persona' })
     await ctx.plugin(ToolRuntime)
     await ctx.plugin(AgentRegistry)
     await ctx.plugin(AgentLoop, { agents: [] })
@@ -1439,6 +1439,7 @@ describe('WaiBrain Host standard Session runtime', () => {
     agent.session.append('assistant/message', {
       turn: 1,
       step: 1,
+      stream: [],
       message: createAssistantMessage({
         content: [{ type: 'text', text: '' }],
         source: { provider: 'mock', model: 'main' },

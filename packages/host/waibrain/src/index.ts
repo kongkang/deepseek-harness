@@ -499,9 +499,10 @@ export class WaiBrainHostService extends TypertRemoteService {
       }
       await this.ctx.sessions.flush(agent.session)
 
+      agent.followup(message)
+      await this.awaitMainFirstRequest(agent)
       const starts = brains.map(brain => this.startExternalBrain(subagents, agent, brain, request.text))
       const published = await Promise.all(starts)
-      agent.followup(message)
       void this.trackMain(row.id, roundId, agent)
       for (const branch of published) {
         if (branch.run === undefined) {
@@ -682,6 +683,27 @@ export class WaiBrainHostService extends TypertRemoteService {
     })
     this.handles.set(sessionId, handle)
     return handle.agent
+  }
+
+  /**
+   * Wait until the just-woken main lane logs its first model request of the
+   * round. External brains fork from the same pre-round history either way
+   * (the seed is the completed-turn prefix, never the running turn), but the
+   * main lane's first model call must reach the LLM layer before any
+   * external-brain call: replay tooling binds recorded scripts to live
+   * sessions in first-call order, and a brain that calls first would claim
+   * the main script. The bounded timeout keeps a stalled main lane from
+   * blocking the round; brains then start against the same durable history.
+   * @param agent - main Agent whose round was just woken.
+   */
+  private async awaitMainFirstRequest(agent: Agent): Promise<void> {
+    const before = agent.session.snapshotEvents().filter(event => event.type === 'request/header').length
+    const deadline = Date.now() + 2000
+    while (Date.now() < deadline) {
+      const now = agent.session.snapshotEvents().filter(event => event.type === 'request/header').length
+      if (now > before) return
+      await new Promise(resolve => setTimeout(resolve, 5))
+    }
   }
 
   /** Start one detached fork and preserve startup failure as lane data. */

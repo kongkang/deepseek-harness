@@ -2149,7 +2149,7 @@ describe('JsonlSessionPersistence: scanLog unit', () => {
 
   it('round-trips the session-specific System Prompt', () => {
     const line = toHeaderLine({
-      version: 0,
+      version: SESSION_FORMAT_VERSION,
       id: SessionId('persona'),
       createdAt: 1,
       delegationDepth: 0,
@@ -2162,7 +2162,14 @@ describe('JsonlSessionPersistence: scanLog unit', () => {
   })
 
   it('rejects a session header whose systemPrompt is not a string', () => {
-    const log = '{"type":"session","version":0,"id":"bad-prompt","createdAt":1,"delegationDepth":0,"systemPrompt":7}\n'
+    const log = JSON.stringify({
+      type: 'session',
+      version: SESSION_FORMAT_VERSION,
+      id: 'bad-prompt',
+      createdAt: 1,
+      delegationDepth: 0,
+      systemPrompt: 7,
+    }) + '\n'
 
     expect(() => scanLog(Buffer.from(log))).toThrow(/session header/)
   })
