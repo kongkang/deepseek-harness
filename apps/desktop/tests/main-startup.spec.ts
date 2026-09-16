@@ -74,6 +74,7 @@ const harness = await vi.hoisted(async () => {
   })
   return {
     windows, hosts, handlers, app, FakeWindow, FakeHost,
+    menu: { setApplicationMenu: vi.fn(), buildFromTemplate: vi.fn() },
     dialog: { showErrorBox: vi.fn(), showMessageBox: vi.fn() },
     applyRelease: vi.fn(() => { preparing.resolve(); return prepared.promise }),
     assertProfileRuntime: vi.fn(),
@@ -101,7 +102,7 @@ vi.mock('electron', () => ({
   ipcMain: {
     handle: (channel: string, handler: (event: { senderFrame: { url: string } }) => unknown) => { harness.handlers.set(channel, handler) },
   },
-  Menu: { setApplicationMenu: vi.fn(), buildFromTemplate: vi.fn() },
+  Menu: harness.menu,
   protocol: { registerSchemesAsPrivileged: vi.fn(), handle: vi.fn() },
 }))
 vi.mock('../src/paths.ts', () => ({ resolveDesktopPaths: () => ({ profile: 'desktop-test-profile' }) }))
@@ -155,6 +156,28 @@ afterEach(async () => {
 })
 
 describe('desktop main startup', () => {
+  it('registers the macOS Edit menu so copy/paste keyboard equivalents reach renderer inputs', async () => {
+    vi.stubGlobal('process', { ...process, platform: 'darwin', resourcesPath: 'desktop-test-resources' })
+    const built = { installed: true }
+    harness.menu.buildFromTemplate.mockReturnValue(built)
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    const template = harness.menu.buildFromTemplate.mock.calls[0]![0] as ReadonlyArray<{ role?: string }>
+    expect(template.some(item => item.role === 'editMenu')).toBe(true)
+    expect(harness.menu.setApplicationMenu).toHaveBeenCalledWith(built)
+  })
+
+  it('omits the Edit menu outside macOS, where keyboard shortcuts bypass the menu', async () => {
+    vi.stubGlobal('process', { ...process, platform: 'win32', resourcesPath: 'desktop-test-resources' })
+    const built = { installed: true }
+    harness.menu.buildFromTemplate.mockReturnValue(built)
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    const template = harness.menu.buildFromTemplate.mock.calls[0]![0] as ReadonlyArray<{ role?: string }>
+    expect(template.every(item => item.role !== 'editMenu')).toBe(true)
+    expect(harness.menu.setApplicationMenu).toHaveBeenCalledWith(built)
+  })
+
   it('exits with a diagnostic when both initialization and emergency navigation fail', async () => {
     const exited = Promise.withResolvers<undefined>()
     vi.spyOn(harness.app, 'getLocale').mockImplementationOnce(() => { throw new Error('locale unavailable') })
