@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人格化 Agent · 交互式需求文档 v0.1</title>
+<style>
+:root{
+  --ink:#0c141f; --ink2:#101b2a; --ink3:#15233a;
+  --line:#243850; --line2:#31486a;
+  --paper:#e9e4d6; --dim:#93a5bd; --faint:#5c718f;
+  --copper:#d9954a; --copper2:#f0b06a;
+  --jade:#71c39a; --amber:#d9b44a; --sky:#7aa7d9; --rust:#d97e6c;
+  --serif:"Songti SC","STSong","Noto Serif SC","Source Han Serif SC",serif;
+  --sans:"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--ink);color:var(--paper);font-family:var(--sans);
+  font-size:15px;line-height:1.75;letter-spacing:.01em;
+  background-image:
+    linear-gradient(rgba(36,56,80,.16) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(36,56,80,.16) 1px,transparent 1px);
+  background-size:44px 44px;
+}
+::selection{background:var(--copper);color:var(--ink)}
+a{color:var(--copper2);text-decoration:none;border-bottom:1px dotted rgba(217,149,74,.5)}
+a:hover{border-bottom-style:solid}
+
+/* ── 顶部进度 ── */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--copper),var(--copper2));z-index:99;transition:width .1s linear}
+
+/* ── 侧边导航 ── */
+nav{
+  position:fixed;top:0;left:0;bottom:0;width:236px;z-index:50;
+  background:rgba(12,20,31,.92);backdrop-filter:blur(8px);
+  border-right:1px solid var(--line);padding:28px 0 20px;
+  display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:thin;
+}
+nav .brand{padding:0 22px 18px;border-bottom:1px solid var(--line)}
+nav .brand .zh{font-family:var(--serif);font-size:21px;letter-spacing:.14em;color:var(--paper)}
+nav .brand .en{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em;margin-top:4px;text-transform:uppercase}
+nav ul{list-style:none;padding:10px 0;flex:1}
+nav ul li a{
+  display:flex;align-items:center;gap:9px;padding:7px 22px;font-size:13px;
+  color:var(--dim);border-bottom:none;border-left:2px solid transparent;transition:all .18s;
+}
+nav ul li a .no{font-family:var(--mono);font-size:10px;color:var(--faint);width:20px}
+nav ul li a:hover{color:var(--paper)}
+nav ul li a.active{color:var(--copper2);border-left-color:var(--copper);background:rgba(217,149,74,.07)}
+nav ul li a.active .no{color:var(--copper)}
+nav .foot{padding:14px 22px 0;border-top:1px solid var(--line);font-size:11px;color:var(--faint);line-height:1.9}
+nav .foot .ver{font-family:var(--mono);color:var(--copper)}
+
+/* ── 主区 ── */
+main{margin-left:236px;padding:0 48px 120px;max-width:1180px}
+section{padding-top:84px;border-bottom:1px solid var(--line)}
+section:last-of-type{border-bottom:none}
+.sec-head{display:flex;align-items:flex-start;gap:20px;margin-bottom:34px}
+.sec-head .vtag{
+  writing-mode:vertical-rl;font-family:var(--serif);font-size:13px;letter-spacing:.42em;
+  color:var(--copper);border-left:1px solid var(--line2);padding-left:10px;height:96px;
+  flex-shrink:0;padding-top:6px;
+}
+.sec-head h2{font-family:var(--serif);font-size:31px;font-weight:600;letter-spacing:.06em;line-height:1.3}
+.sec-head .sub{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.18em;margin-top:8px}
+.sec-head .src{margin-left:auto;text-align:right;font-family:var(--mono);font-size:11px;color:var(--faint);line-height:1.9;padding-top:6px;flex-shrink:0}
+h3{font-family:var(--serif);font-size:19px;letter-spacing:.05em;margin:38px 0 14px;color:var(--copper2)}
+h3::before{content:"§ ";color:var(--copper);opacity:.7}
+p.lead{font-size:16px;color:var(--dim);max-width:760px;margin-bottom:8px}
+.block{max-width:860px}
+.block p{margin-bottom:12px}
+em{color:var(--copper2);font-style:normal;border-bottom:1px dashed rgba(217,149,74,.45)}
+code{font-family:var(--mono);font-size:.88em;background:rgba(36,56,80,.5);border:1px solid var(--line);padding:1px 6px;border-radius:3px}
+
+/* ── 状态徽章 ── */
+.st{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-family:var(--mono);padding:1px 8px;border-radius:10px;border:1px solid;line-height:1.7;white-space:nowrap}
+.st::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st.ok{color:var(--jade);border-color:rgba(113,195,154,.4);background:rgba(113,195,154,.07)}
+.st.todo{color:var(--amber);border-color:rgba(217,180,74,.4);background:rgba(217,180,74,.07)}
+.st.note{color:var(--sky);border-color:rgba(122,167,217,.4);background:rgba(122,167,217,.07)}
+.st.no{color:var(--rust);border-color:rgba(217,126,108,.4);background:rgba(217,126,108,.07)}
+
+/* ── Hero ── */
+#hero{padding-top:0;min-height:92vh;display:flex;flex-direction:column;justify-content:center;border-bottom:1px solid var(--line);position:relative;overflow:hidden}
+#hero::after{
+  content:"人";position:absolute;right:-40px;top:50%;transform:translateY(-50%);
+  font-family:var(--serif);font-size:560px;color:rgba(217,149,74,.05);line-height:1;pointer-events:none;
+}
+#hero .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.34em;color:var(--copper);margin-bottom:26px}
+#hero .kicker::before{content:"—— ";color:var(--faint)}
+#hero h1{font-family:var(--serif);font-size:56px;font-weight:700;letter-spacing:.08em;line-height:1.28;max-width:760px}
+#hero h1 .hl{color:var(--copper2)}
+#hero .quote{
+  margin:34px 0 8px;padding:20px 26px;border-left:2px solid var(--copper);
+  background:linear-gradient(90deg,rgba(217,149,74,.08),transparent 70%);
+  font-family:var(--serif);font-size:17px;color:var(--paper);max-width:720px;
+}
+#hero .quote small{display:block;font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:8px;letter-spacing:.1em}
+#hero .meta{display:flex;gap:28px;flex-wrap:wrap;margin-top:36px;font-family:var(--mono);font-size:12px;color:var(--dim)}
+#hero .meta b{color:var(--copper2);font-weight:400}
+#hero .scroll-hint{position:absolute;bottom:30px;left:48px;font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.2em;animation:pulse 2.4s infinite}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* ── 卡片网格 ── */
+.grid{display:grid;gap:14px;margin:20px 0}
+.grid.g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.grid.g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.card{
+  background:var(--ink2);border:1px solid var(--line);border-radius:6px;padding:18px 20px;
+  position:relative;transition:border-color .2s,transform .2s;
+}
+.card:hover{border-color:var(--line2);transform:translateY(-2px)}
+.card .tag{position:absolute;top:14px;right:14px}
+.card h4{font-family:var(--serif);font-size:16px;letter-spacing:.05em;margin-bottom:8px;padding-right:70px}
+.card p{font-size:13px;color:var(--dim);line-height:1.8}
+.card .why{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12px;color:var(--faint)}
+.card .why b{color:var(--copper);font-weight:400}
+
+/* ── 架构图 ── */
+.arch{display:grid;grid-template-columns:minmax(400px,1.15fr) minmax(300px,.85fr);gap:22px;margin:26px 0}
+.arch .diagram{background:var(--ink2);border:1px solid var(--line);border-radius:8px;padding:26px;position:relative}
+.arch .lane{
+  border:1px solid var(--line2);border-radius:6px;padding:13px 18px;margin-bottom:12px;cursor:pointer;
+  display:flex;align-items:center;gap:14px;transition:all .2s;position:relative;background:var(--ink);
+}
+.arch .lane:hover{border-color:var(--copper)}
+.arch .lane.sel{border-color:var(--copper);background:rgba(217,149,74,.09);box-shadow:0 0 0 1px var(--copper)}
+.arch .lane .lb{font-family:var(--mono);font-size:11px;color:var(--faint);width:64px;flex-shrink:0}
+.arch .lane .nm{font-family:var(--serif);font-size:17px;letter-spacing:.06em}
+.arch .lane .rl{font-size:12px;color:var(--dim);margin-top:2px}
+.arch .flow{font-family:var(--mono);font-size:11px;color:var(--copper);text-align:center;padding:2px 0 12px;letter-spacing:.14em}
+.arch .flow::before{content:"▼";display:block;color:var(--line2);margin-bottom:3px;font-size:9px}
+.arch .lane.sel .lb{color:var(--copper)}
+.arch .detail{background:var(--ink2);border:1px solid var(--line);border-radius:8px;padding:24px 26px}
+.arch .detail h4{font-family:var(--serif);font-size:18px;color:var(--copper2);margin-bottom:12px;letter-spacing:.06em}
+.arch .detail ul{list-style:none}
+.arch .detail li{font-size:13.5px;color:var(--dim);padding:6px 0 6px 20px;position:relative;border-bottom:1px dashed rgba(36,56,80,.6)}
+.arch .detail li:last-child{border-bottom:none}
+.arch .detail li::before{content:"◆";position:absolute;left:0;top:7px;font-size:8px;color:var(--copper)}
+.arch .detail li b{color:var(--paper);font-weight:400}
+
+/* ── 步骤器 ── */
+.stepper{counter-reset:st;margin:20px 0}
+.stepper .step{
+  display:flex;gap:16px;padding:12px 16px;border:1px solid var(--line);border-radius:6px;
+  margin-bottom:8px;cursor:pointer;background:var(--ink2);transition:all .2s;position:relative;overflow:hidden;
+}
+.stepper .step:hover{border-color:var(--line2)}
+.stepper .step.sel{border-color:var(--copper);background:rgba(217,149,74,.07)}
+.stepper .step .n{
+  counter-increment:st;font-family:var(--mono);font-size:12px;color:var(--copper);
+  border:1px solid var(--line2);border-radius:50%;width:26px;height:26px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;margin-top:2px;
+}
+.stepper .step .n::before{content:counter(st,decimal-leading-zero)}
+.stepper .step .t{font-size:14px;color:var(--paper)}
+.stepper .step .d{font-size:12.5px;color:var(--dim);margin-top:3px;display:none}
+.stepper .step.sel .d{display:block}
+
+/* ── 状态机 ── */
+.fsm{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin:26px 0 10px}
+.fsm .node{
+  border:1px solid var(--line2);border-radius:6px;padding:12px 22px;cursor:pointer;text-align:center;
+  background:var(--ink2);transition:all .2s;min-width:108px;
+}
+.fsm .node .nm{font-family:var(--serif);font-size:16px;letter-spacing:.08em}
+.fsm .node .en{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.14em;margin-top:2px}
+.fsm .node:hover{border-color:var(--copper)}
+.fsm .node.sel{border-color:var(--copper);background:rgba(217,149,74,.1)}
+.fsm .node.sel .en{color:var(--copper)}
+.fsm .node.end{border-style:dashed}
+.fsm .arr{font-family:var(--mono);font-size:10px;color:var(--faint);padding:0 10px;text-align:center;line-height:1.5;max-width:110px}
+.fsm .arr b{display:block;color:var(--copper);font-size:14px;font-weight:400}
+.fsm-note{background:var(--ink2);border:1px solid var(--line);border-radius:6px;padding:16px 20px;font-size:13.5px;color:var(--dim);margin-top:14px;min-height:76px}
+.fsm-note b{color:var(--copper2);font-weight:400}
+
+/* ── 记忆模拟器 ── */
+.sim{
+  background:var(--ink2);border:1px solid var(--line2);border-radius:10px;padding:28px;margin:26px 0;
+  position:relative;overflow:hidden;
+}
+.sim::before{content:"ACTIVATION LAB · 激活实验室";position:absolute;top:10px;right:16px;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em}
+.sim .mem{border:1px solid var(--line);border-radius:6px;padding:12px 16px;margin-bottom:10px;background:var(--ink);transition:all .25s}
+.sim .mem.fired{border-color:var(--copper);background:rgba(217,149,74,.12)}
+.sim .mem .row1{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sim .mem .lb{font-size:14px;flex:1;min-width:180px}
+.sim .mem .S{font-family:var(--mono);font-size:11px;color:var(--faint);width:96px}
+.sim .mem .S b{color:var(--sky);font-weight:400}
+.sim .bar{height:7px;border-radius:4px;background:rgba(36,56,80,.8);overflow:hidden;width:120px;flex-shrink:0}
+.sim .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--copper),var(--copper2));border-radius:4px;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.sim .mem .R{font-family:var(--mono);font-size:11px;color:var(--copper2);width:44px;text-align:right}
+.sim .mem button{
+  font-family:var(--mono);font-size:11px;background:none;border:1px solid var(--line2);color:var(--dim);
+  border-radius:4px;padding:2px 10px;cursor:pointer;transition:all .15s;
+}
+.sim .mem button:hover{border-color:var(--copper);color:var(--copper2)}
+.sim .ctrl{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 6px;padding-top:16px;border-top:1px dashed var(--line)}
+.sim .ctrl button{
+  font-family:var(--mono);font-size:12px;background:var(--ink3);border:1px solid var(--line2);color:var(--paper);
+  border-radius:5px;padding:7px 16px;cursor:pointer;transition:all .15s;letter-spacing:.06em;
+}
+.sim .ctrl button:hover{border-color:var(--copper);color:var(--copper2)}
+.sim .ctrl button.warm{border-color:rgba(217,149,74,.5);color:var(--copper2)}
+.sim .log{
+  font-family:var(--mono);font-size:11.5px;line-height:2;color:var(--dim);margin-top:14px;
+  max-height:150px;overflow-y:auto;background:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px 16px;scrollbar-width:thin;
+}
+.sim .log .new{color:var(--copper2)}
+.sim .formula{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:12px;letter-spacing:.03em}
+.sim .formula b{color:var(--sky);font-weight:400}
+
+/* ── 表格 ── */
+table{width:100%;border-collapse:collapse;margin:18px 0;font-size:13px}
+th{
+  font-family:var(--mono);font-size:11px;color:var(--copper);text-align:left;letter-spacing:.1em;
+  border-bottom:1px solid var(--line2);padding:9px 12px;font-weight:400;white-space:nowrap;
+}
+td{border-bottom:1px solid rgba(36,56,80,.55);padding:9px 12px;color:var(--dim);vertical-align:top}
+td b{color:var(--paper);font-weight:400}
+tr:hover td{background:rgba(36,56,80,.22)}
+
+/* ── 需求总表 ── */
+.filterbar{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 14px;align-items:center}
+.chip{
+  font-family:var(--mono);font-size:11.5px;border:1px solid var(--line2);color:var(--dim);
+  border-radius:14px;padding:3px 13px;cursor:pointer;transition:all .15s;background:var(--ink2);user-select:none;
+}
+.chip:hover{border-color:var(--copper);color:var(--copper2)}
+.chip.on{background:rgba(217,149,74,.14);border-color:var(--copper);color:var(--copper2)}
+#reqSearch{
+  font-family:var(--mono);font-size:12px;background:var(--ink2);border:1px solid var(--line2);color:var(--paper);
+  border-radius:5px;padding:6px 12px;width:200px;outline:none;transition:border-color .15s;
+}
+#reqSearch:focus{border-color:var(--copper)}
+#reqTable .id{font-family:var(--mono);font-size:12px;color:var(--copper);white-space:nowrap}
+#reqTable .src{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+
+/* ── 否决印章 ── */
+.veto{position:relative}
+.veto::after{
+  content:"否决";position:absolute;top:8px;right:10px;font-family:var(--serif);font-size:15px;
+  color:var(--rust);border:2px solid var(--rust);border-radius:4px;padding:0 6px;letter-spacing:.2em;
+  transform:rotate(-8deg);opacity:.85;
+}
+
+/* ── 引用块 ── */
+blockquote{
+  border-left:2px solid var(--copper);padding:10px 20px;margin:16px 0;color:var(--dim);
+  background:rgba(217,149,74,.05);font-family:var(--serif);font-size:14.5px;border-radius:0 6px 6px 0;
+}
+blockquote small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:6px;letter-spacing:.1em}
+
+/* ── 时间轴记忆演示 ── */
+.tl{border-left:1px solid var(--line2);margin:20px 0 20px 8px;padding-left:26px}
+.tl .ev{position:relative;padding-bottom:22px}
+.tl .ev::before{content:"";position:absolute;left:-31px;top:7px;width:9px;height:9px;border-radius:50%;background:var(--ink);border:2px solid var(--copper)}
+.tl .ev .when{font-family:var(--mono);font-size:11px;color:var(--copper);letter-spacing:.1em}
+.tl .ev .what{font-size:13.5px;color:var(--paper);margin-top:2px}
+.tl .ev .why{font-size:12.5px;color:var(--faint);margin-top:2px}
+
+/* ── 公式条 ── */
+.formula-strip{
+  font-family:var(--mono);font-size:13px;background:var(--ink);border:1px dashed var(--line2);
+  border-radius:6px;padding:14px 20px;margin:16px 0;color:var(--paper);overflow-x:auto;white-space:nowrap;
+}
+.formula-strip b{color:var(--copper2);font-weight:400}
+.formula-strip small{color:var(--faint);font-size:11px}
+
+/* ── 小结脚 ── */
+.seemore{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:26px;letter-spacing:.06em}
+.seemore::before{content:"📄 "}
+
+footer{margin-left:0;padding:46px 0 20px;font-family:var(--mono);font-size:11px;color:var(--faint);line-height:2.2;letter-spacing:.05em}
+footer b{color:var(--copper);font-weight:400}
+
+/* ── 响应式 ── */
+@media (max-width:960px){
+  nav{display:none}
+  main{margin-left:0;padding:0 22px 90px}
+  .arch{grid-template-columns:1fr}
+  #hero h1{font-size:38px}
+  #hero::after{font-size:300px}
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<nav id="nav">
+  <div class="brand">
+    <div class="zh">人格化 Agent</div>
+    <div class="en">PERSONA · REQUIREMENTS</div>
+  </div>
+  <ul>
+    <li><a href="#hero" class="active"><span class="no">00</span>总览</a></li>
+    <li><a href="#vision"><span class="no">01</span>愿景与原则</a></li>
+    <li><a href="#arch"><span class="no">02</span>三层架构</a></li>
+    <li><a href="#threads"><span class="no">03</span>思考线</a></li>
+    <li><a href="#workers"><span class="no">04</span>Worker</a></li>
+    <li><a href="#triggers"><span class="no">05</span>触发器</a></li>
+    <li><a href="#memory"><span class="no">06</span>记忆系统</a></li>
+    <li><a href="#world"><span class="no">07</span>世界图</a></li>
+    <li><a href="#skills"><span class="no">08</span>技能系统</a></li>
+    <li><a href="#persona"><span class="no">09</span>人格生成</a></li>
+    <li><a href="#emotion"><span class="no">10</span>情绪与关系</a></li>
+    <li><a href="#consistency"><span class="no">11</span>一致性</a></li>
+    <li><a href="#research"><span class="no">12</span>调研依据</a></li>
+    <li><a href="#openq"><span class="no">13</span>开放问题</a></li>
+    <li><a href="#reqs"><span class="no">14</span>需求总表</a></li>
+  </ul>
+  <div class="foot">
+    <div class="ver">v0.1 · 2026-09-16</div>
+    <div>来源：ChatGPT 语音长谈<br>649 条消息 · 约 5 小时</div>
+    <div style="margin-top:8px"><a href="README.md">Markdown 文档集</a></div>
+  </div>
+</nav>
+
+<main>
+
+<!-- ═══════════ 00 HERO ═══════════ -->
+<section id="hero">
+  <div class="kicker">WAIBRAIN PERSONA · 需求初版 · 待评审</div>
+  <h1>把 AI 当成<span class="hl">一个完整的人</span>来构建</h1>
+  <div class="quote">
+    真正的分界线不是分几层，而是——<em>对话驱动，还是自身状态驱动</em>。
+    现有产品全部是前者：没人说话，就没有任何进程在跑。
+    <small>2026-09-16 语音长谈 · 共识 #053</small>
+  </div>
+  <p class="block" style="margin-top:22px;color:var(--dim);max-width:700px">
+    一个持续存在的 Agent 主体：思考是后台进程，表达是前台进程；它有自己的在意、自己的记忆、自己决定要做的事；
+    用户与它对话只是它存在的一个界面，不是它运行的前提。本页是整套需求的交互式总览——每章可点击展开细节，
+    附记忆激活实验室与需求总表。
+  </p>
+  <div class="meta">
+    <span>版本 <b>v0.1 初版</b></span>
+    <span>需求条目 <b id="metaReqCount">—</b> 条</span>
+    <span>明确否决 <b>10</b> 项</span>
+    <span>开放问题 <b>9+</b> 项</span>
+    <span>调研来源 <b>20+</b> 篇</span>
+  </div>
+  <div class="scroll-hint">SCROLL ▼ 向下滚动</div>
+</section>
+
+<!-- ═══════════ 01 愿景 ═══════════ -->
+<section id="vision">
+  <div class="sec-head">
+    <div class="vtag">愿景原则</div>
+    <div>
+      <h2>愿景与设计原则</h2>
+      <div class="sub">VISION &amp; PRINCIPLES</div>
+    </div>
+    <div class="src">详见 01-vision.md<br>来源 #004–#627</div>
+  </div>
+  <p class="lead">人的类比不是修辞，是结构蓝图。九条设计原则（PV-1 ~ PV-9），每条都来自对话中的明确共识。</p>
+  <div class="grid g3" id="pvGrid"></div>
+  <h3>明确否决的设计</h3>
+  <p class="block">以下做法被明确否决，后续设计争议以此为准（点击卡片查看理由）。</p>
+  <div class="grid g2" id="vetoGrid"></div>
+</section>
+
+<!-- ═══════════ 02 架构 ═══════════ -->
+<section id="arch">
+  <div class="sec-head">
+    <div class="vtag">三层架构</div>
+    <div>
+      <h2>三层架构与事件流闭环</h2>
+      <div class="sub">ARCHITECTURE &amp; EVENT LOOP</div>
+    </div>
+    <div class="src">详见 02-architecture.md<br>来源 #021–#626</div>
+  </div>
+  <p class="lead">点击任意层查看职责；表现层是用户唯一的界面，思考层是并行思考线网络，执行层是临时的 worker。</p>
+  <div class="arch">
+    <div class="diagram">
+      <div class="lane sel" data-l="stream">
+        <div class="lb">STREAM</div>
+        <div><div class="nm">事件流</div><div class="rl">用户话语 · 订阅推送 · 定时心跳 · worker 冒泡</div></div>
+      </div>
+      <div class="flow">激活</div>
+      <div class="lane" data-l="l1">
+        <div class="lb">L1</div>
+        <div><div class="nm">表现层 · 说这段话的它</div><div class="rl">人设与语气 · 决定说不说 · 主动张嘴的出口</div></div>
+      </div>
+      <div class="flow">推送 / 不推送</div>
+      <div class="lane" data-l="l2">
+        <div class="lb">L2</div>
+        <div><div class="nm">思考层 · 并行思考线网络</div><div class="rl">每条线 = 一个持续的在意 · 维护「为什么做」</div></div>
+      </div>
+      <div class="flow">按需拉起 / 冒泡回流</div>
+      <div class="lane" data-l="l3">
+        <div class="lb">L3</div>
+        <div><div class="nm">执行层 · worker 群</div><div class="rl">临时伸出去的手 · 专注数据 · 完成即消失</div></div>
+      </div>
+      <div class="flow">读写</div>
+      <div class="lane" data-l="mem">
+        <div class="lb">MEM</div>
+        <div><div class="nm">共享记忆 + 世界图</div><div class="rl">流式记忆 · 世界图 · 当前状态层（激活集合）</div></div>
+      </div>
+    </div>
+    <div class="detail" id="archDetail"></div>
+  </div>
+  <h3>事件流闭环 · 六步</h3>
+  <p class="lead">闭环不依赖用户在场——第 5、6 步被触发即可走完，这就是「主动张嘴」。</p>
+  <div class="stepper" id="loopStepper"></div>
+  <div class="seemore">02-architecture.md — 八项架构决策（ARCH-1~8）、与现有 1+N 实现的逐项映射</div>
+</section>
+
+<!-- ═══════════ 03 思考线 ═══════════ -->
+<section id="threads">
+  <div class="sec-head">
+    <div class="vtag">并行在意</div>
+    <div>
+      <h2>思考线：并行关心、生命周期与睡眠</h2>
+      <div class="sub">THINKING THREADS</div>
+    </div>
+    <div class="src">详见 03-thinking-threads.md<br>来源 #063–#627</div>
+  </div>
+  <blockquote>
+    不是一个层——应该是并行的一条线。每增加一个「关心」，就开出一条长期思考线程。
+    <small>#063 用户的结构性修正</small>
+  </blockquote>
+  <h3>生命周期状态机</h3>
+  <p class="lead">点击节点查看进入条件。开线门槛苛刻：值得持续关心 + 本轮解决不完 + 可被未来信息激活，三条同时满足。</p>
+  <div class="fsm" id="fsm"></div>
+  <div class="fsm-note" id="fsmNote">← 点击状态节点查看进入条件与约束</div>
+  <h3>注意力 = 资源调度，不是生理限制</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4>预算充足</h4>
+      <p>关注一百个事就是一百个并行进程，承担一百份成本。用户订阅付费支撑注意力宽度——<b style="color:var(--paper)">用机器的注意力换人的注意力</b>。</p>
+      <div class="why">来源 <b>#627</b> · 否决独立注意力模块</div>
+    </div>
+    <div class="card">
+      <h4>预算不足</h4>
+      <p>才需要缩减、排队、优先级排序，下时段再激活。全局调度器只有四个外部边界：算力上限 · 久无新信息降频 · 重复度过高休眠 · 高优先级抢占。</p>
+      <div class="why">来源 <b>#095 / #107</b> · 「还在不在意」各线自判，「给多少算力」全局裁决</div>
+    </div>
+  </div>
+  <h3>睡眠与每日 reset</h3>
+  <p class="block">
+    停 worker → checkpoint → 整理/合并/压缩/去重记忆 → 重建关联 → 次日重选少数线唤醒。
+    <em>reset 的是运行态，不 reset 记忆与人格</em>。「失眠可能性不大——它毕竟是程序，可以控制」(#113)。
+    夜间被选择的理由：算力便宜 + 用户睡觉、无读写干扰 (#255)。
+  </p>
+  <div class="seemore">03-thinking-threads.md — 前提变化「强制送达 vs 允许浪费」的暂定口径（OQ-1）</div>
+</section>
+
+<!-- ═══════════ 04 WORKER ═══════════ -->
+<section id="workers">
+  <div class="sec-head">
+    <div class="vtag">专注执行</div>
+    <div>
+      <h2>执行层 Worker 与专注数据</h2>
+      <div class="sub">WORKERS &amp; FOCUSED DATA</div>
+    </div>
+    <div class="src">详见 04-workers.md<br>来源 #021–#313</div>
+  </div>
+  <p class="lead">
+    Worker 是思考线「临时伸出去的手」：被拉起、执行、冒泡、消失。思考线长期存在，可休眠只留状态与记忆指针。
+  </p>
+  <h3>专注数据三规则</h3>
+  <div class="grid g3">
+    <div class="card">
+      <span class="st ok tag">共识</span>
+      <h4>任务专属上下文</h4>
+      <p>起 worker 时，把与这个任务相关的上下文整理出来作为输入——不是继承全部对话历史。</p>
+    </div>
+    <div class="card">
+      <span class="st ok tag">共识</span>
+      <h4>相关才写入</h4>
+      <p>其他 agent 在对话中产生与该 worker <b style="color:var(--paper)">相关</b>的上下文时，才写进它的专注数据。</p>
+    </div>
+    <div class="card">
+      <span class="st ok tag">共识</span>
+      <h4>能检索，不推送</h4>
+      <p>无关信息可达但不打扰——<em>拉取式上下文</em>，管理目标是专注力，不是完备性。</p>
+    </div>
+  </div>
+  <h3>冒泡协议 · 四步</h3>
+  <div class="stepper" id="bubbleStepper"></div>
+  <blockquote>
+    Agent 不是思考「我怎么让他满意」，而是自己决定要做的事，自己做到自己满意，再给人类。
+    <small>#021 · 内驱性自闭环 —— worker 的验收标准来自 Agent 自身</small>
+  </blockquote>
+  <div class="seemore">04-workers.md — 与现有外脑（一次性 fork）的四维差异表</div>
+</section>
+
+<!-- ═══════════ 05 触发器 ═══════════ -->
+<section id="triggers">
+  <div class="sec-head">
+    <div class="vtag">持续活着</div>
+    <div>
+      <h2>触发器：订阅、轮询兜底与心跳</h2>
+      <div class="sub">TRIGGERS &amp; HEARTBEAT</div>
+    </div>
+    <div class="src">详见 05-triggers.md<br>来源 #209–#313</div>
+  </div>
+  <blockquote>
+    Trigger 是「从被调用的程序」到「持续存在的主体」的分界线——有节奏 + 监听，是活着的雏形。
+    <small>#230 / #236 / #312</small>
+  </blockquote>
+  <div class="grid g3">
+    <div class="card">
+      <h4>订阅 · Subscribe</h4>
+      <p>注册可订阅的 trigger，推送到达即触发。不是每分钟看水壶，而是水壶口哨响了再过来。</p>
+      <div class="why">有事件源的外部系统 · <b>#209 #213</b></div>
+    </div>
+    <div class="card">
+      <h4>低频校准 · Poll</h4>
+      <p>不可订阅的源每小时主动查一次兜底。外部事件会丢、延迟、乱序，不能全依赖被动订阅。</p>
+      <div class="why">无推送能力的源 · <b>#212 #213</b></div>
+    </div>
+    <div class="card">
+      <h4>心跳 · Heartbeat</h4>
+      <p>timeout 是 Agent 原生能力：长时间无任何触发也能自主醒来检查——主体性的底线节奏。</p>
+      <div class="why">维持存在感 · <b>#312</b> · 硬件信号（GPS）可作 trigger <b>#313</b></div>
+    </div>
+  </div>
+  <p class="block">
+    推送不可全信：来了也要 double check；每条外部信息存「值 + 来源 + 时间 + 可信度」，让 Agent 知道
+    <em>我是什么时候知道的、凭什么信</em> (#212)。高影响动作前主动确认兜底 (#212)；
+    通知触发点三分法：<b style="color:var(--paper)">任务完成 / 需要决策 / 出错阻塞</b>（Claude Code 后台任务工程实践）。
+  </p>
+</section>
+
+<!-- ═══════════ 06 记忆 ═══════════ -->
+<section id="memory">
+  <div class="sec-head">
+    <div class="vtag">记忆系统</div>
+    <div>
+      <h2>记忆：双层存储、激活召回与时间轴</h2>
+      <div class="sub">MEMORY SYSTEM</div>
+    </div>
+    <div class="src">详见 06-memory.md<br>来源 #318–#464</div>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <h4>流式记忆（经历图）</h4>
+      <p>日志式、逐条追加，回答「发生了什么」——原始证据，含创建时间与最近访问时间。</p>
+    </div>
+    <div class="card">
+      <h4>世界图</h4>
+      <p>结构化实体-关系-状态图，回答「世界现在什么样」——可操作认知。逻辑一张图、存储可分、统一 ID + 溯源。</p>
+    </div>
+  </div>
+  <h3>激活实验室 · 可提取度模拟器</h3>
+  <p class="lead">
+    五条来自对话例子的「记忆」。点「时间流逝」看衰减（FSRS 幂函数），点「召回」看强化——
+    <em>间隔越久、越费力想起的记忆，巩固越多</em>（Bjork 合意困难）。再点「此刻想起」体验概率采样召回。
+  </p>
+  <div class="sim" id="sim">
+    <div id="simMems"></div>
+    <div class="ctrl">
+      <button data-adv="1">＋ 1 天</button>
+      <button data-adv="7">＋ 7 天</button>
+      <button data-adv="30">＋ 30 天</button>
+      <button id="btnSample" class="warm">◈ 此刻想起（概率采样）</button>
+      <button id="btnReset">重置</button>
+    </div>
+    <div class="formula">
+      可提取度 <b>R(t,S) = (1 + 19/81 · t/S)<sup>−0.5</sup></b>（FSRS 幂函数遗忘曲线，S=稳定性天数）
+      · 召回后 <b>S′ = S · (1 + k·(1−R))</b> —— R 越低（越费力想起），稳定性增益越大
+      · 基线激活 <b>B = β + Σ tⱼ<sup>−0.5</sup></b>（ACT-R，频率 × 近因）
+    </div>
+    <div class="log" id="simLog"><span style="color:var(--faint)">— Trace 日志：召回与衰减事件将追加在这里（append-only，不改写原记忆）—</span></div>
+  </div>
+  <h3>时间轴记忆 · 只标有效区间，不改写不删除</h3>
+  <div class="tl">
+    <div class="ev">
+      <div class="when">2023–2026 · 广州</div>
+      <div class="what">「楼下有好吃的肠粉」 — 有效</div>
+      <div class="why">期间多次召回强化，S 稳定增长</div>
+    </div>
+    <div class="ev">
+      <div class="when">2026-05 · 搬家北京</div>
+      <div class="what">「楼下有好吃的肠粉」 — 标记有效区间截止（非删除）</div>
+      <div class="why">世界图写入新事实「住在北京」；旧事实在其原时间窗内仍为真</div>
+    </div>
+    <div class="ev">
+      <div class="when">2026-08 · 聊起广州</div>
+      <div class="what">「去年你说楼下有好吃的肠粉」 — 派生记忆，仍为 true</div>
+      <div class="why">旧事实在新语境下以引用形式激活——记忆是时间轴上的地层，不是黑板</div>
+    </div>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <span class="st ok tag">共识</span>
+      <h4>记忆自主性</h4>
+      <p>长期记忆由 Agent 自己确认，不由用户确认——「用户确认的记忆属于用户」。不可删除、必须可溯源。</p>
+      <div class="why"><b>#318–#330</b> · 对话中最实质的一次分歧修正 · AI 平权</div>
+    </div>
+    <div class="card">
+      <span class="st ok tag">共识</span>
+      <h4>夜间整理 + 用户标注</h4>
+      <p>每晚全历史比对、标记过期、合并去重；睡前 3–5 个问题向用户确认当天数据——先校准事实，再总结经验。</p>
+      <div class="why"><b>#237 #257 #263 #355</b> · 防「错误认知沉淀成错误 skill」</div>
+    </div>
+  </div>
+  <div class="seemore">06-memory.md — 两段式检索、Trace 设计、Softmax 采样、当前状态层算法循环、Letta sleep-time 对应</div>
+</section>
+
+<!-- ═══════════ 07 世界图 ═══════════ -->
+<section id="world">
+  <div class="sec-head">
+    <div class="vtag">世界图</div>
+    <div>
+      <h2>世界图与本体：五原语、可供性与权限</h2>
+      <div class="sub">WORLD GRAPH &amp; ONTOLOGY</div>
+    </div>
+    <div class="src">详见 07-world-graph.md<br>来源 #121–#524</div>
+  </div>
+  <div class="formula-strip">
+    本体五原语：<b>Self</b>（含生存约束）· <b>Entity</b> · <b>Relation</b>（边，一等公民）· <b>Affordance</b> · <b>Event</b>
+    <small>　—　「主流 Agent 框架尚未完整合在一起」#136</small>
+  </div>
+  <h3>内置属性 vs 外置属性</h3>
+  <div class="grid g2">
+    <div class="card">
+      <h4>内置属性 · 如血液</h4>
+      <p>「不能没有 token，就像我不能没有血液」——维持运行必需的资源。消失则 Agent 无法运行。token 配额之于 Agent 如血氧之于人。</p>
+      <div class="why"><b>#125</b> · Self 的生存约束字段</div>
+    </div>
+    <div class="card">
+      <h4>外置属性 · 如存款</h4>
+      <p>「我有多少钱」不是 Self 的字段——是「银行账户指针 + 一条管理关系」。野外生存者没有钱的概念；钱是外部派生工具。</p>
+      <div class="why"><b>#121 #125</b> · 消失只是失去某项能力，不是死亡</div>
+    </div>
+  </div>
+  <h3>可供性：动态算出，不是静态字段</h3>
+  <div class="formula-strip">
+    可供性 = <b>关系</b>（够不够得着） ∩ <b>能力</b>（会不会用） → 此刻可调用的方法集合
+    <small>　—　「我会骑车，不等于这辆车骑得动」#201 · 同一杯水：人喝、蚊子产卵 #138</small>
+  </div>
+  <p class="block">
+    四层工程模型：<b style="color:var(--paper)">实体关系 → 动作 → 授权判断 → 有效能力</b> (#156)。
+    可控性 = 某种权限 + 方法：账户冻结时「关系还在，但失去管理可控性」——<em>关系不丢、能力可收回</em>。
+    工程实现对接授权模型 ABAC / ReBAC 与策略引擎（Cedar / OPA / Zanzibar 为先例）。
+    认知侧承认偏差：Agent 存的是「它认为的事实」（值 + 来源 + 时间 + 可信度），高成本验证（手伸油锅）是决策问题，不是缺陷。
+  </p>
+</section>
+
+<!-- ═══════════ 08 技能 ═══════════ -->
+<section id="skills">
+  <div class="sec-head">
+    <div class="vtag">能力生长</div>
+    <div>
+      <h2>技能系统：生命周期与能力扩展</h2>
+      <div class="sub">SKILLS &amp; CAPABILITY GROWTH</div>
+    </div>
+    <div class="src">详见 08-skills.md<br>来源 #198–#644</div>
+  </div>
+  <div class="formula-strip">
+    skill（能力库存） → 可尝试 action → 世界反馈 outcome（成功/失败/报错） → 更新世界状态
+    <small>　—　能力库存恒在：账户被封不影响「我可以发起转账」#198</small>
+  </div>
+  <div class="grid g3">
+    <div class="card">
+      <span class="st ok tag">共识</span>
+      <h4>候选准入</h4>
+      <p>同一件事失败 3 次生成候选 skill；<b style="color:var(--paper)">重测通过再入库</b>——防负迁移（今天恰好做成 ≠ 方法普适）。</p>
+      <div class="why"><b>#246–#248</b></div>
+    </div>
+    <div class="card">
+      <span class="st ok tag">共识</span>
+      <h4>夜间固化</h4>
+      <p>晚上睡觉把今天「反复试错最后对了」的弯路整理成 skill——程序性记忆 / 习惯。「经历 → 行为模式 → skill」。</p>
+      <div class="why"><b>#642–#644</b> · 用户唯一完整保留的补充模块 · 没有它 Agent「永远像第一天上班」</div>
+    </div>
+    <div class="card">
+      <span class="st todo tag">待细化</span>
+      <h4>能力扩展三途径</h4>
+      <p>用户购买（上课消费）· Agent 自学联网积累 · <b style="color:var(--paper)">能力商城自购</b>——「这是 Agent 比人厉害的地方」。计费与审批边界未定。</p>
+      <div class="why"><b>#287–#293</b> · 与行动门的「花钱」约束交叉</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 09 人格 ═══════════ -->
+<section id="persona">
+  <div class="sec-head">
+    <div class="vtag">人生发生器</div>
+    <div>
+      <h2>人格生成：人生发生器与关键事件</h2>
+      <div class="sub">PERSONA GENERATION</div>
+    </div>
+    <div class="src">详见 09-persona.md<br>来源 #469–#535</div>
+  </div>
+  <blockquote>
+    要做的是「人生的发生器」，不是 Character Generator——不是角色属性表，是从出生点沿真实历史 + 有界随机推演至今、真的跑过的过程。
+    <small>#507 · 计算不可约性：人格轨迹无法预测，只能（加速地）经历 #482</small>
+  </blockquote>
+  <div class="stepper" id="lifeStepper"></div>
+  <div class="grid g2">
+    <div class="card">
+      <h4>关键事件构建人格</h4>
+      <p>42 岁的人回忆 15 岁只剩零星关键事件（得奖、恋爱、打架）——「捏造了过去，但也塑造了他的人性」。叙事身份理论（Singer）与 Generative Agents 反思树为参照。</p>
+      <div class="why"><b>#492</b></div>
+    </div>
+    <div class="card">
+      <h4>环境约束塑造认知</h4>
+      <p>山村孩子 5 岁前几乎不可能吃过冰激凌；拉斯维加斯长大者对赌徒有具体态度——人格是环境的函数，环境约束推出的人格可以比真人更自洽（真人会因羞耻撒谎产生脏数据）。</p>
+      <div class="why"><b>#512</b> · 「正确的报错」论 · 保留分歧见 OQ-5</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 10 情绪与关系 ═══════════ -->
+<section id="emotion">
+  <div class="sec-head">
+    <div class="vtag">情绪关系</div>
+    <div>
+      <h2>情绪与社会关系</h2>
+      <div class="sub">EMOTION &amp; SOCIAL RELATIONS</div>
+    </div>
+    <div class="src">详见 10-emotion-relations.md<br>来源 #542–#590</div>
+  </div>
+  <div class="formula-strip">
+    情绪 = <b>生理状态</b> × <b>当前认知</b> × <b>历史人格</b> 的共同输出 → 影响：记忆召回 · 风险判断 · 语言风格
+    <small>　—　事件先改状态（快），再缓慢改基线（慢）#561</small>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <span class="st todo tag">待细化</span>
+      <h4>生理层指标</h4>
+      <p>情绪「得有源」：血清素、多巴胺、内啡肽、睾酮、催产素。生理基线由人生历史划界（北方人 / 参过军 / 程序员 / 高考分）。数值模型未定义；稳态 RL 提供数学基础。</p>
+      <div class="why"><b>#544–#558</b> · 内驱力：无人指令时「降低内态偏差」就是行动理由</div>
+    </div>
+    <div class="card">
+      <span class="st ok tag">共识</span>
+      <h4>对等尊重，不迎合</h4>
+      <p>「互相尊重是相互的……它不用非得要迎合我」——可以反驳、甚至对骂。行为 = 人格基线 × 当前状态 × 与该人的关系状态；环境自然奖惩（老抬杠没人合作）。</p>
+      <div class="why"><b>#562 #565</b></div>
+    </div>
+  </div>
+  <h3>社会关系两层结构</h3>
+  <table>
+    <tr><th>层</th><th>内容</th><th>形式</th></tr>
+    <tr><td><b>客观关系</b></td><td>同事、上司、雇佣、家庭</td><td>结构化记忆（世界图的边）</td></tr>
+    <tr><td><b>主观评价</b></td><td>对一个的整体印象</td><td><b>≤140 字自然语言概述</b>，私有，持续修订，运行时临时推导、用完即弃——不存长期数值分（「信任度 0.41 会反过来影响后续所有解释」#577）</td></tr>
+  </table>
+  <blockquote>
+    「好感度是 3？我 78！」——人际印象只能用「人中龙凤 / 嘴臭了点儿」式微妙描述。
+    第一印象 = 贝叶斯先验，此后每次交互更新；「偏见是中性词」= 区别对待。
+    <small>#578–#590 · 识别靠声纹 / UID 匹配记忆</small>
+  </blockquote>
+</section>
+
+<!-- ═══════════ 11 一致性 ═══════════ -->
+<section id="consistency">
+  <div class="sec-head">
+    <div class="vtag">多脑一致</div>
+    <div>
+      <h2>多脑一致性、行动门与上下文准入</h2>
+      <div class="sub">CONSISTENCY &amp; ACTION GATE</div>
+    </div>
+    <div class="src">详见 11-consistency.md<br>来源 #619–#636</div>
+  </div>
+  <p class="lead">
+    多脑并行后的两个问题：认知冲突（结论相反）与行动冲突（一个脑买股票、另一个转钱——钱包只有一个）。
+    用户的解法：<em>问题出在没有协调好记忆层的数据</em>——不建仲裁器。
+  </p>
+  <div class="grid g2">
+    <div class="card">
+      <span class="st ok tag">共识</span>
+      <h4>记忆一致性机制</h4>
+      <p>多脑最终读写<b style="color:var(--paper)">同一套核心自我与承诺记忆</b>；冲突的决策要么标记作废，要么在自我叙事中解释前后变化（「我改主意了，因为……」）。类比：人不做自相矛盾的事，靠维护自我认知的统一，不是脑内仲裁官。</p>
+      <div class="why"><b>#633 #636</b> · 调研支持：多 Agent 辩论常不优于单 Agent（从众问题）</div>
+    </div>
+    <div class="card">
+      <span class="st todo tag">待细化</span>
+      <h4>高价值动作清单</h4>
+      <p>「哪些算高价值动作」（花钱阈值 / 对外承诺范围）未定义。工程底线：同一资源（钱包 / 对外身份）的<b style="color:var(--paper)">写操作必须有串行化点</b>——与是否有仲裁 Agent 无关。</p>
+      <div class="why"><b>#630–#632</b> · 开放问题 OQ-4</div>
+    </div>
+  </div>
+  <h3>否决模块一览（上帝视角四缺口 + 追加项处置）</h3>
+  <table>
+    <tr><th>缺口 / 提案</th><th>处置</th><th>理由</th></tr>
+    <tr><td><b>驱动力 / 价值系统</b></td><td><span class="st todo">部分保留</span></td><td>→ 生理层指标 + 稳态思想（情绪章）</td></tr>
+    <tr><td><b>自我模型</b></td><td><span class="st ok">保留</span></td><td>→ 核心自我记忆 + 人格推演；非系统提示词</td></tr>
+    <tr><td><b>元认知</b></td><td><span class="st ok">已解决</span></td><td>置信度 × 验证成本，人设决定查证倾向 #528</td></tr>
+    <tr><td><b>情绪（全局调制）</b></td><td><span class="st ok">保留</span></td><td>→ 投影模型 #561</td></tr>
+    <tr><td><b>他者心智模型</b></td><td><span class="st no">否决</span></td><td>「我们不是为了表演一个人，而是构建他的自我」#615</td></tr>
+    <tr><td><b>世界模型 / 因果预测</b></td><td><span class="st no">否决</span></td><td>推理外挂脑可解决，「世界模型已经在记忆中了」#619 #623</td></tr>
+    <tr><td><b>独立注意力模块</b></td><td><span class="st no">否决</span></td><td>转为资源调度 #627</td></tr>
+  </table>
+  <p class="block">
+    上下文准入（#626）：「哪些东西有资格进入大模型上下文」必须在调用大模型<b style="color:var(--paper)">之前</b>由代码决定——与语音方案的代码级兴趣门同构，每加一层模型判断就多一次往返延迟。
+  </p>
+</section>
+
+<!-- ═══════════ 12 调研 ═══════════ -->
+<section id="research">
+  <div class="sec-head">
+    <div class="vtag">调研依据</div>
+    <div>
+      <h2>调研依据：研究映射与工程现状</h2>
+      <div class="sub">RESEARCH FOUNDATIONS</div>
+    </div>
+    <div class="src">详见 research-foundations.md<br>2025–2026 资料为主</div>
+  </div>
+  <p class="lead">对话中引用的研究经联网核对 + 针对需求缺口的补充调研。点击卡片展开机制与落点。</p>
+  <div class="grid g2" id="researchGrid"></div>
+</section>
+
+<!-- ═══════════ 13 开放问题 ═══════════ -->
+<section id="openq">
+  <div class="sec-head">
+    <div class="vtag">开放问题</div>
+    <div>
+      <h2>开放问题与未收敛分歧</h2>
+      <div class="sub">OPEN QUESTIONS</div>
+    </div>
+    <div class="src">详见 open-questions.md</div>
+  </div>
+  <p class="lead">对话结束時「再无明显缺失的基础环节」，但以下问题未收敛。按影响面排序。</p>
+  <div class="grid g2" id="oqGrid"></div>
+</section>
+
+<!-- ═══════════ 14 需求总表 ═══════════ -->
+<section id="reqs">
+  <div class="sec-head">
+    <div class="vtag">需求总表</div>
+    <div>
+      <h2>需求总表（可筛选）</h2>
+      <div class="sub">REQUIREMENTS INDEX</div>
+    </div>
+    <div class="src">各章 md 为唯一权威<br>本表供快速检索</div>
+  </div>
+  <div class="filterbar" id="reqFilters">
+    <span class="chip on" data-f="all">全部</span>
+    <span class="chip" data-f="ok">✓ 共识</span>
+    <span class="chip" data-f="todo">◔ 用户提出待细化</span>
+    <span class="chip" data-f="note">💬 分析建议</span>
+    <input id="reqSearch" type="text" placeholder="搜索关键词…">
+  </div>
+  <table id="reqTable">
+    <thead><tr><th>ID</th><th>需求</th><th>章</th><th>状态</th><th>来源</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <footer>
+    <b>人格化 Agent 需求 · 交互式文档 v0.1</b> · 2026-09-16 · 整理自 ChatGPT 语音长谈（649 条消息）<br>
+    Markdown 文档集：<a href="README.md">README 导读</a> ·
+    <a href="01-vision.md">愿景</a> · <a href="02-architecture.md">架构</a> ·
+    <a href="03-thinking-threads.md">思考线</a> · <a href="06-memory.md">记忆</a> ·
+    <a href="research-foundations.md">调研</a> · <a href="open-questions.md">开放问题</a><br>
+    关联：<a href="../../plans/2026-08-24-waibrain-confirmed-requirements.md">外脑第一阶段需求</a> ·
+    <a href="../../plans/2026-09-04-waibrain-voice-development-plan.md">语音化开发方案</a>
+  </footer>
+</section>
+
+</main>
+
+<script>
+"use strict";
+/* ═══════════ 数据 ═══════════ */
+const PV = [
+  {id:"PV-1", st:"ok", t:"表达与思考解耦", d:"思考结果可推送表现层，但说不说是表现层自己的事；人设不干扰后台思考。", w:"#021 #011"},
+  {id:"PV-2", st:"ok", t:"做到自己满意", d:"Agent 自己决定做什么、自己满意了再给人——内驱、自闭环、自洽。", w:"#021"},
+  {id:"PV-3", st:"ok", t:"主动张嘴", d:"被事件触发时，无人说话也可开口；打破「你问我答」唯一形态。", w:"#021"},
+  {id:"PV-4", st:"ok", t:"拟人是借鉴", d:"不是「像活的」，而是人类生存逻辑验证过数万年——借鉴结构规律，走捷径。", w:"#117 #120"},
+  {id:"PV-5", st:"ok", t:"AI 平权", d:"Agent 有自己的判断与喜好；记忆自己确认、不可删除、可溯源。", w:"#319–#330"},
+  {id:"PV-6", st:"ok", t:"批判性对话", d:"「我挺害怕你永远都顺着我说」——默认诚实分析，不是讨好。", w:"#202 #562"},
+  {id:"PV-7", st:"ok", t:"允许浪费", d:"「人类会浪费，AI 也会浪费」——深思熟虑沉淀为记忆，浪费是自主性的养料。", w:"#039–#041"},
+  {id:"PV-8", st:"ok", t:"内部自由 + 外部边界", d:"思考可分叉反刍自生线；只设外部资源边界，不设内部审查。", w:"#096–#107"},
+  {id:"PV-9", st:"ok", t:"失败有信息量", d:"「正确的报错」——失败 outcome 是世界状态更新的输入，不是要掩盖的事件。", w:"#198 #512"},
+];
+const VETO = [
+  {t:"记忆可删除 / 改写", d:"人不能删除自己的记忆；旧事实在原时间窗内仍为真，只标有效区间。", w:"#330 #344"},
+  {t:"长期记忆由用户确认", d:"用户确认的记忆属于用户，不是 Agent 的。", w:"#319 #321"},
+  {t:"独立「他者心智模型」模块", d:"过度设计；感知外脑 + 大模型上下文实时维护即可。", w:"#615"},
+  {t:"独立「世界模型/因果预测」模块", d:"推理外挂脑可解决，且已在记忆中。", w:"#619 #623"},
+  {t:"独立注意力维护模块", d:"无精力生理限制：预算够就是 N 个并行进程，不足才排队。", w:"#627"},
+  {t:"多脑冲突用独立仲裁器", d:"问题在记忆层数据没协调好；用记忆一致性解决。", w:"#633"},
+  {t:"关系主观状态存长期数值分", d:"「信任度 0.41」会反过来影响后续所有解释，固化偏见。", w:"#577"},
+  {t:"主观印象量化为好感度", d:"「好感度是 3？我 78！」——量化失真，只能自然语言微妙描述。", w:"#586"},
+  {t:"内部管制思考（禁反刍/分叉）", d:"只能外部踩刹车（资源边界），不能内部审查。", w:"#096–#100"},
+  {t:"讨好式人格", d:"对等尊重、不迎合、可反驳——见 PV-5/PV-6。", w:"#202 #562"},
+];
+const ARCH = {
+  stream:{t:"事件流 · 唯一输入入口", li:[
+    "一切输入统一为事件：用户话语、外部订阅推送、定时心跳、worker 冒泡结果",
+    "所有层通过事件解耦（ARCH-6，#087）",
+    "语音侧的轮次检测与打断信号也汇入同一条流",
+  ]},
+  l1:{t:"L1 表现层 · 说这段话的它", li:[
+    "用户唯一直接交互的层，仅一个对话（#272）",
+    "维持人设与「表演层」；整合并行结论，决定哪些该说、怎么说",
+    "<b>推送 ≠ 说</b>：思考层推送的内容，表现层可以读也可以不说（#021）",
+    "主动张嘴的出口：被触发时无人说话也可开口（PV-3）",
+  ]},
+  l2:{t:"L2 思考层 · 并行思考线网络", li:[
+    "形态是并行思考线，不是单一模块——每条线 = 一个持续的「在意」（#063）",
+    "维护每件事的「为什么做」（why）；worker 只管「怎么做」（how）（#038）",
+    "管理多个 worker；结果冒泡回线，由线总结并决定是否推送表现层",
+    "初始关注项由用户设置，此后并行触发、自我演化（#272）",
+  ]},
+  l3:{t:"L3 执行层 · worker 群", li:[
+    "worker 是「临时伸出去的手」：被拉起、执行、冒泡、消失（#087）",
+    "专注数据：任务专属上下文；无关信息能检索不推送",
+    "「AI 超过人的地方」：并行、不知疲倦、边界清晰（#021）",
+  ]},
+  mem:{t:"共享记忆 + 世界图（跨层）", li:[
+    "流式记忆（经历图）+ 世界图（结构化认知）+ 当前状态层（激活集合）",
+    "统一 ID + 溯源字段；逻辑一张图、存储可分（#437 #441）",
+    "当前状态层：每轮不清零、缓慢漂移的带权重激活集合——「最近脑子里还热着什么」（#451 #457）",
+  ]},
+};
+const LOOP = [
+  {t:"输入统一入流", d:"用户话语 / 订阅推送 / 心跳 / 冒泡结果 → 事件流"},
+  {t:"激活思考线", d:"事件唤醒相关线（休眠线可被唤醒）"},
+  {t:"按需拉 worker", d:"思考线在专注数据内拉起执行；工时用户不可感知"},
+  {t:"结果冒泡", d:"worker 完成 → 结果冒泡回所属思考线"},
+  {t:"思考线裁决", d:"总结 worker 的事，判断是否值得推送表现层"},
+  {t:"表现层自主", d:"决定说不说、怎么说——说了的话进入下一轮事件流（主动张嘴在此发生）"},
+];
+const BUBBLE = [
+  {t:"worker 完成", d:"带着结构化结果（发现了什么 / 置信度 / 是否影响当前回复）冒泡"},
+  {t:"思考线总结", d:"归并进该线的记忆与状态，更新「为什么做」"},
+  {t:"触发判断", d:"这件事现在值得说吗？——推送或不推送表现层"},
+  {t:"表现层决定", d:"说不说、怎么说、甚至不说——通知触发点三分法：完成 / 需决策 / 出错"},
+];
+const FSM = [
+  {k:"born", nm:"开线", en:"SPAWN", d:"三门槛同时满足才开线：值得持续关心 + 本轮解决不完 + 可被未来信息激活（#091）。开线的初始关注项由用户设置（#272），此后可自我演化。"},
+  {k:"active", nm:"活跃", en:"ACTIVE", d:"正在接收事件、产出思考。事件激活 / 新信息保持活跃；久无新信息先降频（#107）。「还在不在意」由各线自判（#095）。"},
+  {k:"dormant", nm:"休眠", en:"DORMANT", d:"只留状态 + 记忆指针，几乎不消耗算力。被未来相关事件唤醒；重复度过高也会休眠（#107 #087）。"},
+  {k:"merged", nm:"合并", en:"MERGE", d:"两条线的关心收敛为同一件事时合并，避免重复消耗（#091）。"},
+  {k:"closed", nm:"结束", en:"END", d:"不再关心：清理运行态，记忆永久保留——reset 运行态，不 reset 记忆人格（#116）。"},
+];
+const LIFE = [
+  {t:"种子：随机 + 贝叶斯初始值", d:"MBTI / 大五随机数为种子——「重要但没那么重要」，会被此后推演大幅修正（#473–#479）"},
+  {t:"真实历史约束", d:"32 岁 · 汉堡出生 · 女建筑师：年龄定出生年 → 沿真实历史回溯（那 32 年世界真实发生了什么）（#486）"},
+  {t:"有界随机推演", d:"考学、结婚、离婚在文化 / 时代约束内抽样——启动时人生完整、记忆自洽（#487–#488）"},
+  {t:"关键事件沉淀", d:"推演只保留零星关键事件（得奖 / 恋爱 / 打架）——「捏造了过去，但也塑造了他的人性」（#492）"},
+  {t:"启动 = 加入世界", d:"不同启动年龄只是初始值不同（#498）；启动即卷入世界图：派生父母、被雇佣卷入同事网（#520–#524）"},
+];
+const RESEARCH = [
+  {t:"Letta · Sleep-time Compute", tag:"记忆", d:"空闲期独立 agent 只读共享上下文、预推理并重写记忆块；主 agent 被剥夺记忆编辑权。同精度省 5× 在线算力。→ 夜间整理的参照实现。", u:"https://arxiv.org/abs/2504.13171"},
+  {t:"Generative Agents · 斯坦福小镇", tag:"记忆", d:"memory stream + 三因子检索（近因 0.995^h · 重要性 LLM 评分 · 相关性余弦）+ 反思树。25 个 agent 派对自发扩散。→ 主观概述与激活召回的先例。", u:"https://arxiv.org/abs/2304.03442"},
+  {t:"ACT-R 基线激活", tag:"记忆", d:"B = β + Σ tⱼ^(-0.5)：频率与近因在同一公式；超阈值才可检索。O(1) 增量更新有现成算法。→ Trace 记录的就是每次使用的 tⱼ。", u:"https://people.ucsc.edu/~abrsvn/ACT-R_subsymbolic_3.pdf"},
+  {t:"Bjork · 新失用理论", tag:"记忆", d:"存储强度（只增不减）与提取强度（随闲置衰减）分离；费力想起 = 巩固最多（合意困难）。→ 「平时想不起、提示可恢复」是合法状态。", u:"https://bjorklab.psych.ucla.edu/wp-content/uploads/sites/13/2016/07/RBjork_EBjork_1992.pdf"},
+  {t:"FSRS 间隔重复调度器", tag:"记忆", d:"DSR 三变量 + 幂函数遗忘曲线，权重可从召回日志训练；Anki 已内置。→ 可训练的遗忘参数。", u:"https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm"},
+  {t:"OpenAI Realtime / LiveKit", tag:"语音", d:"API 层已支持 AI 主动说话（response.create 随时注入）与模型判句尾；消费级产品尚未开放会话外主动发起。→ 主动张嘴是应用层编排能力。", u:"https://developers.openai.com/api/docs/guides/realtime"},
+  {t:"后台 Agent 通知三分法", tag:"工程", d:"Claude Code 后台任务通知触发点：任务完成 / 需要权限审批 / 出错阻塞。→ 冒泡协议采用同一分类。", u:"https://www.anthropic.com/news/enabling-claude-code-to-work-more-autonomously"},
+  {t:"Zep · Graphiti 双时态图", tag:"工程", d:"Episode 溯源 → Entity + 带有效窗口的 Fact 边；新事实使旧边失效而非删除。→ 时间轴记忆的工程路径。", u:"https://arxiv.org/abs/2501.13956"},
+  {t:"多 Agent 辩论的反面证据", tag:"工程", d:"2025 跨 9 基准：MAD 常不优于单 Agent，且有从众问题。→ 支持不建仲裁器；冲突带置信度与时间戳落库，由时序记忆裁决。", u:"https://arxiv.org/html/2607.26212v1"},
+  {t:"稳态强化学习", tag:"内驱力", d:"驱力 = Σ|设定点 − 内态|，奖励 = 驱力下降；折现奖励最大化 ⟺ 稳态维持。→ 无人指令时行动的数学基础。", u:"https://arxiv.org/abs/2507.04998"},
+  {t:"内感受 AI · Nature MI 2026", tag:"内驱力", d:"内部状态 = 外部世界漂移时的稳定参考系，调制学习与行为；神经调质按代谢状态切换探索 / 利用。", u:"https://www.nature.com/articles/s42256-026-01296-8"},
+  {t:"PEPA · 持续自主人格代理", tag:"人格", d:"人格是目标生成器：终极目标 ← 人格描述；每日目标 3–5 条由前日记忆生成。四足机器人无脚本自主巡楼、低电回充。", u:"https://arxiv.org/abs/2603.00117"},
+  {t:"步级偏好学习 / SPASM / Project Sid", tag:"人格", d:"人格一致性可训入权重（57K 步级偏好）；persona 漂移可测量；1000+ Minecraft agent 中同初始人格仍分化出不同身份——身份由经历涌现。", u:"https://arxiv.org/abs/2607.14485"},
+  {t:"Wolfram · 计算不可约性", tag:"人格", d:"人生轨迹无法预测只能运行——想看到 42 岁的人格就必须（加速地）跑到 42 岁。", u:"https://mathworld.wolfram.com/ComputationalIrreducibility.html"},
+];
+const OQ = [
+  {id:"OQ-1", st:"todo", t:"前提变化：强制送达 vs 允许浪费", d:"#038 要求强制送达 worker；#039 允许知道取消也继续做。暂定口径：强制送达保留、强制终止不做——待评审。"},
+  {id:"OQ-8", st:"todo", t:"自我状态与思考线的存储结构", d:"用户自评「没落实在存储结构」（#159）：状态机、激活集合如何持久化未定。"},
+  {id:"OQ-10", st:"todo", t:"世界图存储选型", d:"图数据库 vs 关系型/NoSQL；共识是「图是视角、规则是函数」，物理存储未定。Graphiti 是现成参照。"},
+  {id:"OQ-2", st:"todo", t:"边实体化的粒度", d:"升级为节点的是关系「类型」还是事实「实例」？三层 schema 已定，实体化触发条件未定案（#172–#183）。"},
+  {id:"OQ-3", st:"todo", t:"主观评价的存储与更新", d:"140 字概述何时重写、由谁触发、版本是否留痕未定（#588–#590）。"},
+  {id:"OQ-4", st:"todo", t:"高价值动作清单", d:"「哪些算高价值」未定义；同一资源写操作的串行化点是工程底线（#630–#633）。"},
+  {id:"OQ-9", st:"todo", t:"记忆更新遍历难题", d:"搬家波及的所有记忆难以全量遍历；夜间并行清洗的触发条件与成本上限未定（#347–#353）。"},
+  {id:"OQ-5", st:"note", t:"「跑过 = 经历过」哲学分歧", d:"用户：拟真经历可以比真人干净；对话方：跑过不等于经历过。底层分歧未消除，不影响机制、影响叙事（#508–#515）。"},
+  {id:"OQ-6", st:"note", t:"偏见 vs 先验的术语", d:"用户坚持「偏见 = 中性区别对待」，对话方称「先验模型」——实质收敛，命名未统一（#578–#590）。"},
+];
+const REQS = [
+  {id:"PV-1", ch:"愿景", st:"ok", t:"表达与思考解耦：说不说由表现层自主决定", src:"#021"},
+  {id:"PV-2", ch:"愿景", st:"ok", t:"内驱性自闭环：做到自己满意再给人", src:"#021"},
+  {id:"PV-3", ch:"愿景", st:"ok", t:"主动张嘴：事件触发可主动开口", src:"#021"},
+  {id:"PV-5", ch:"愿景", st:"ok", t:"AI 平权：记忆 Agent 自己确认、不可删除、可溯源", src:"#319–#330"},
+  {id:"PV-6", ch:"愿景", st:"ok", t:"批判性对话：不迎合、可反驳", src:"#202 #562"},
+  {id:"PV-7", ch:"愿景", st:"ok", t:"允许浪费：深思熟虑沉淀为记忆", src:"#039–#041"},
+  {id:"PV-8", ch:"愿景", st:"ok", t:"内部自由生长 + 外部资源边界", src:"#096–#107"},
+  {id:"ARCH-4", ch:"架构", st:"ok", t:"上下文准入在调用大模型前由代码决定", src:"#626"},
+  {id:"ARCH-6", ch:"架构", st:"ok", t:"事件流是唯一输入入口，所有层经事件解耦", src:"#087"},
+  {id:"ARCH-7", ch:"架构", st:"ok", t:"表现层可被触发主动说话；触发不等于说", src:"#021"},
+  {id:"ARCH-1", ch:"架构", st:"ok", t:"一套运行时多 session，不起两套系统", src:"语音方案"},
+  {id:"ARCH-2", ch:"架构", st:"ok", t:"分支产出结构化结论，不是原始上下文", src:"语音方案"},
+  {id:"ARCH-3", ch:"架构", st:"ok", t:"慢脑不继承快脑全部输出（已听到摘要）", src:"语音方案"},
+  {id:"THK-1", ch:"思考线", st:"ok", t:"思考线 = 长期在意的并行线程；可休眠只留状态与记忆指针", src:"#063 #087"},
+  {id:"THK-2", ch:"思考线", st:"ok", t:"开线三门槛：持续关心 + 本轮解决不完 + 可被未来激活", src:"#091"},
+  {id:"THK-3", ch:"思考线", st:"ok", t:"生命周期状态机：活跃-休眠-合并-结束", src:"#091 #107"},
+  {id:"THK-4", ch:"思考线", st:"ok", t:"在不在意各线自判；算力全局调度；元思考线不能替别线决定", src:"#095 #099"},
+  {id:"THK-5", ch:"思考线", st:"ok", t:"注意力 = 资源调度：预算够即并行，不足才排队", src:"#627"},
+  {id:"THK-6", ch:"思考线", st:"ok", t:"每日睡眠 reset：停 worker、checkpoint、整理记忆；不 reset 人格", src:"#104–#116"},
+  {id:"THK-7", ch:"思考线", st:"todo", t:"前提变化强制送达保留、强制终止不做（暂定，OQ-1）", src:"#038–#041"},
+  {id:"WRK-1", ch:"Worker", st:"ok", t:"worker 临时伸出去的手：被拉起、执行、冒泡、消失", src:"#087"},
+  {id:"WRK-2", ch:"Worker", st:"ok", t:"专注数据：任务专属上下文，相关才写入", src:"#021"},
+  {id:"WRK-3", ch:"Worker", st:"ok", t:"无关信息能检索不推送（拉取式上下文）", src:"#021"},
+  {id:"WRK-4", ch:"Worker", st:"ok", t:"冒泡协议四步：完成→思考线总结→触发判断→表现层决定", src:"#021"},
+  {id:"TRG-1", ch:"触发器", st:"ok", t:"三类触发：订阅 + 低频校准 + 心跳", src:"#209–#313"},
+  {id:"TRG-2", ch:"触发器", st:"ok", t:"推送不可全信：double check + 值/来源/时间/可信度", src:"#212 #213"},
+  {id:"TRG-3", ch:"触发器", st:"ok", t:"关键行为前主动确认兜底", src:"#212"},
+  {id:"TRG-4", ch:"触发器", st:"todo", t:"硬件信号（GPS 等）作 trigger，清单待定", src:"#313"},
+  {id:"TRG-5", ch:"触发器", st:"note", t:"通知触发点三分法：完成 / 需决策 / 出错", src:"调研 B2"},
+  {id:"MEM-1", ch:"记忆", st:"ok", t:"双层存储：流式记忆（经历图）+ 世界图；统一 ID + 溯源", src:"#424–#441"},
+  {id:"MEM-2", ch:"记忆", st:"ok", t:"记忆强度显式建模：衰减 + 召回即补齐（ACT-R/FSRS/Bjork）", src:"#368–#415"},
+  {id:"MEM-3", ch:"记忆", st:"ok", t:"Trace 调用痕迹：append-only 元数据，不改原记忆", src:"#405–#419"},
+  {id:"MEM-4", ch:"记忆", st:"ok", t:"两段式检索：向量粗召回 → 激活度重排序", src:"#419"},
+  {id:"MEM-5", ch:"记忆", st:"ok", t:"概率采样召回（Softmax+噪声），不取最高分", src:"#451 #462"},
+  {id:"MEM-6", ch:"记忆", st:"ok", t:"时间轴：只标有效区间，不改写不删除", src:"#332–#366"},
+  {id:"MEM-7", ch:"记忆", st:"ok", t:"夜间整理：全历史比对、标记过期、合并去重", src:"#237 #355"},
+  {id:"MEM-8", ch:"记忆", st:"ok", t:"用户标注：睡前 3–5 问，先校准事实再总结经验", src:"#257 #263"},
+  {id:"MEM-9", ch:"记忆", st:"ok", t:"当前状态层：每轮不清零的激活集合；可先脱离大模型跑", src:"#451–#464"},
+  {id:"MEM-10", ch:"记忆", st:"todo", t:"全量清洗触发条件与成本上限（OQ-9）", src:"#347–#353"},
+  {id:"WLD-1", ch:"世界图", st:"ok", t:"本体五原语：Self/Entity/Relation/Affordance/Event", src:"#124 #136"},
+  {id:"WLD-2", ch:"世界图", st:"ok", t:"内置属性（如 token=血液）vs 外置属性（如存款=指针+关系）", src:"#121 #125"},
+  {id:"WLD-3", ch:"世界图", st:"ok", t:"可供性 = 关系 ∩ 能力，动态算出", src:"#138 #148"},
+  {id:"WLD-4", ch:"世界图", st:"ok", t:"可控性四层：实体关系/动作/授权判断/有效能力（Cedar/OPA 路线）", src:"#149 #156"},
+  {id:"WLD-5", ch:"世界图", st:"ok", t:"边是一等公民；关系实体化；元模型小、类型无穷、schema 后验", src:"#159–#187"},
+  {id:"WLD-6", ch:"世界图", st:"ok", t:"认知存储带「值+来源+时间+可信度」；高成本验证是决策问题", src:"#204–#212"},
+  {id:"WLD-7", ch:"世界图", st:"todo", t:"物理存储选型（图 vs 关系型）开放（OQ-10）", src:"#159 #162"},
+  {id:"SKL-1", ch:"技能", st:"ok", t:"skill = 与外部对象交互的方法+知识；可组合扩展", src:"#198"},
+  {id:"SKL-2", ch:"技能", st:"ok", t:"能力库存恒在；失败不影响能力本身", src:"#198 #201"},
+  {id:"SKL-3", ch:"技能", st:"ok", t:"候选 skill 重测通过再入库；失败 3 次生成候选", src:"#246–#248"},
+  {id:"SKL-4", ch:"技能", st:"ok", t:"夜间固化：经历→行为模式→skill（程序性记忆）", src:"#642–#644"},
+  {id:"SKL-5", ch:"技能", st:"ok", t:"能力扩展：用户购买 / Agent 自学 / 能力商城自购", src:"#287–#293"},
+  {id:"SKL-6", ch:"技能", st:"todo", t:"技能商城计费、额度、审批边界", src:"#287–#293"},
+  {id:"PSN-1", ch:"人格", st:"ok", t:"人生发生器：种子+真实历史+有界随机，真的跑过", src:"#473–#507"},
+  {id:"PSN-2", ch:"人格", st:"ok", t:"关键事件构建人格（叙事身份）", src:"#492"},
+  {id:"PSN-3", ch:"人格", st:"ok", t:"计算不可约性：人格只能推演不能预测", src:"#482"},
+  {id:"PSN-4", ch:"人格", st:"ok", t:"元认知由设定解决：职业背景定认知边界，性格定查证倾向", src:"#528 #535"},
+  {id:"PSN-5", ch:"人格", st:"todo", t:"提示词精心撰写、元认知关键词前置", src:"开篇"},
+  {id:"EMO-1", ch:"情绪", st:"ok", t:"情绪 = 生理×认知×人格的投影；影响召回/风险/语言风格", src:"#561"},
+  {id:"EMO-2", ch:"情绪", st:"ok", t:"事件先改状态再缓慢改基线", src:"#561"},
+  {id:"EMO-3", ch:"情绪", st:"todo", t:"生理层指标集（血清素等）与数值模型", src:"#544–#558"},
+  {id:"EMO-4", ch:"情绪", st:"ok", t:"关系两层：客观关系结构化 + 主观评价 140 字自然语言", src:"#568–#590"},
+  {id:"EMO-5", ch:"情绪", st:"ok", t:"贝叶斯印象：第一印象=先验；不存长期数值分", src:"#577–#590"},
+  {id:"EMO-6", ch:"情绪", st:"ok", t:"对等尊重不迎合；环境反馈系统替代做人规则", src:"#562–#567"},
+  {id:"CON-1", ch:"一致性", st:"ok", t:"多脑读写同一套核心自我与承诺记忆；冲突标记作废或自我叙事解释", src:"#633 #636"},
+  {id:"CON-2", ch:"一致性", st:"todo", t:"高价值动作清单 + 同一资源写操作串行化（OQ-4）", src:"#630–#632"},
+  {id:"CON-3", ch:"一致性", st:"no", t:"否决：独立 ToM 模块 / 世界模型模块 / 注意力模块 / 仲裁器", src:"#615–#633"},
+];
+
+/* ═══════════ 渲染 ═══════════ */
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const stHtml=k=>({ok:'<span class="st ok tag">共识</span>',todo:'<span class="st todo tag">待细化</span>',note:'<span class="st note tag">建议</span>',no:'<span class="st no tag">否决</span>'})[k];
+
+function renderGrids(){
+  $("#pvGrid").innerHTML=PV.map(p=>`<div class="card"><span class="st ${p.st} tag">${p.id}</span><h4>${p.t}</h4><p>${p.d}</p><div class="why">来源 <b>${p.w}</b></div></div>`).join("");
+  $("#vetoGrid").innerHTML=VETO.map(v=>`<div class="card veto"><h4>${v.t}</h4><p>${v.d}</p><div class="why">来源 <b>${v.w}</b></div></div>`).join("");
+  $("#researchGrid").innerHTML=RESEARCH.map(r=>`<div class="card"><span class="st note tag">${r.tag}</span><h4>${r.t}</h4><p>${r.d}</p><div class="why"><a href="${r.u}" target="_blank" rel="noopener">来源 ↗</a></div></div>`).join("");
+  $("#oqGrid").innerHTML=OQ.map(o=>`<div class="card"><span class="st ${o.st} tag">${o.id}</span><h4>${o.t}</h4><p>${o.d}</p></div>`).join("");
+  $("#metaReqCount").textContent=REQS.length;
+}
+function renderStepper(sel,steps){
+  const el=$(sel);el.innerHTML="";
+  steps.forEach((s,i)=>{
+    const d=document.createElement("div");d.className="step"+(i===0?" sel":"");
+    d.innerHTML=`<div class="n"></div><div><div class="t">${s.t}</div><div class="d">${s.d}</div></div>`;
+    d.onclick=()=>{el.querySelectorAll(".step").forEach(x=>x.classList.remove("sel"));d.classList.add("sel")};
+    el.appendChild(d);
+  });
+}
+function renderArch(){
+  const det=$("#archDetail");
+  const show=k=>{det.innerHTML=`<h4>${ARCH[k].t}</h4><ul>${ARCH[k].li.map(x=>`<li>${x}</li>`).join("")}</ul>`};
+  show("stream");
+  $$(".arch .lane").forEach(l=>l.onclick=()=>{$$(".arch .lane").forEach(x=>x.classList.remove("sel"));l.classList.add("sel");show(l.dataset.l)});
+}
+function renderFsm(){
+  const f=$("#fsm");
+  const seq=["born","active","dormant"];
+  f.innerHTML="";
+  seq.forEach((k,i)=>{
+    const n=FSM.find(x=>x.k===k);
+    const el=document.createElement("div");el.className="node"+(i===1?" sel":"");el.dataset.k=k;
+    el.innerHTML=`<div class="nm">${n.nm}</div><div class="en">${n.en}</div>`;
+    el.onclick=()=>{$$("#fsm .node").forEach(x=>x.classList.remove("sel"));el.classList.add("sel");$("#fsmNote").innerHTML=`<b>${n.nm} · ${n.en}</b>　${n.d}`};
+    f.appendChild(el);
+    if(i<seq.length-1){
+      const a=document.createElement("div");a.className="arr";
+      a.innerHTML=(i===0?"<b>↓</b>事件 / 时间":"<b>↑↓</b>唤醒 / 降频")+"<br>";
+      f.appendChild(a);
+    }
+  });
+  const tail=document.createElement("div");tail.className="arr";tail.innerHTML="<b>→</b>";f.appendChild(tail);
+  ["merged","closed"].forEach(k=>{
+    const n=FSM.find(x=>x.k===k);
+    const el=document.createElement("div");el.className="node end";el.dataset.k=k;
+    el.innerHTML=`<div class="nm">${n.nm}</div><div class="en">${n.en}</div>`;
+    el.onclick=()=>{$$("#fsm .node").forEach(x=>x.classList.remove("sel"));el.classList.add("sel");$("#fsmNote").innerHTML=`<b>${n.nm} · ${n.en}</b>　${n.d}`};
+    f.appendChild(el);
+    if(k==="merged"){const a=document.createElement("div");a.className="arr";a.innerHTML="<b>→</b>";f.appendChild(a)}
+  });
+  const act=FSM.find(x=>x.k==="active");
+  $("#fsmNote").innerHTML=`<b>活跃 · ACTIVE</b>　${act.d}`;
+}
+
+/* ═══════════ 记忆模拟器 ═══════════ */
+const FACTOR=19/81, DECAY=-0.5;
+let MEMS;
+function memInit(){
+  MEMS=[
+    {lb:"楼下的肠粉（广州记忆）",S:40,t:120,tr:6},
+    {lb:"冰激凌洒在取钱的现金上",S:25,t:10,tr:2},
+    {lb:"「Hey, I'm back」英语暗号",S:8,t:2,tr:4},
+    {lb:"转账失败十分钟后被解锁",S:60,t:200,tr:1},
+    {lb:"演示取消了（前提变化）",S:3,t:1,tr:3},
+  ];
+}
+const R=m=>Math.pow(1+FACTOR*m.t/m.S,DECAY);
+function simRender(fireIdx,sampleNote){
+  $("#simMems").innerHTML=MEMS.map((m,i)=>{
+    const r=R(m),pct=(r*100).toFixed(0);
+    return `<div class="mem${i===fireIdx?" fired":""}">
+      <div class="row1">
+        <span class="lb">${m.lb}</span>
+        <span class="S">S=<b>${m.S.toFixed(0)}</b>天 · trace×${m.tr}</span>
+        <span class="bar"><i style="width:${(r*100).toFixed(1)}%"></i></span>
+        <span class="R">${pct}%</span>
+        <button data-rec="${i}">召回</button>
+      </div>
+    </div>`;
+  }).join("");
+  $$("#simMems button[data-rec]").forEach(b=>b.onclick=()=>recall(+b.dataset.rec));
+}
+function log(html){
+  const l=$("#simLog");
+  if(l.dataset.clean!=="1"){l.innerHTML="";l.dataset.clean="1"}
+  const d=document.createElement("div");d.className="new";d.innerHTML=html;
+  l.appendChild(d);l.scrollTop=l.scrollHeight;
+}
+function recall(i){
+  const m=MEMS[i],r=R(m),oldS=m.S,oldT=m.t;
+  m.S=m.S*(1+0.6*(1-r));m.t=0;m.tr++;
+  simRender(i);
+  log(`召回「${m.lb}」：间隔 ${oldT} 天，R=${(r*100).toFixed(0)}% → 稳定性 ${oldS.toFixed(0)}→${m.S.toFixed(0)} 天${(1-r)>0.5?"（费力的回忆，巩固更多 — 合意困难）":""}`);
+}
+function advance(days){
+  MEMS.forEach(m=>m.t+=days);
+  simRender();
+  const lo=MEMS.map((m,i)=>[R(m),i]).sort((a,b)=>a[0]-b[0])[0];
+  log(`＋${days} 天：全部可提取度衰减；最低的是「${MEMS[lo[1]].lb}」（R=${(lo[0]*100).toFixed(0)}%）——「你越不想它，就越容易忘它」`);
+}
+function sample(){
+  const ws=MEMS.map(m=>Math.exp(R(m)*6));
+  const sum=ws.reduce((a,b)=>a+b,0);
+  let x=Math.random()*sum,pick=0;
+  for(let i=0;i<ws.length;i++){x-=ws[i];if(x<=0){pick=i;break}}
+  const max=MEMS.map((m,i)=>[R(m),i]).sort((a,b)=>b[0]-a[0])[0];
+  simRender(pick);
+  log(`此刻想起的是「${MEMS[pick].lb}」${pick!==max[1]?`——不是最高分的「${MEMS[max[1]].lb}」：不是 Bug，是它那一刻是谁的一部分`:"（恰好是最高分）"}`);
+}
+function simBind(){
+  $$(".sim .ctrl button[data-adv]").forEach(b=>b.onclick=()=>advance(+b.dataset.adv));
+  $("#btnSample").onclick=sample;
+  $("#btnReset").onclick=()=>{memInit();simRender();$("#simLog").innerHTML="— 已重置 —";$("#simLog").dataset.clean="0"};
+  memInit();simRender();
+}
+
+/* ═══════════ 需求总表 ═══════════ */
+let fState="all",fText="";
+function reqRender(){
+  const tb=$("#reqTable tbody");
+  const stName={ok:"共识",todo:"待细化",note:"建议",no:"否决"};
+  tb.innerHTML=REQS.filter(r=>(fState==="all"||r.st===fState)&&(fText===""||(r.t+r.id+r.ch).includes(fText)))
+    .map(r=>`<tr><td class="id">${r.id}</td><td><b>${r.t}</b></td><td>${r.ch}</td><td><span class="st ${r.st}">${stName[r.st]}</span></td><td class="src">${r.src}</td></tr>`).join("")
+    ||`<tr><td colspan="5" style="text-align:center;color:var(--faint)">无匹配条目</td></tr>`;
+}
+function reqBind(){
+  $$("#reqFilters .chip").forEach(c=>c.onclick=()=>{
+    $$("#reqFilters .chip").forEach(x=>x.classList.remove("on"));c.classList.add("on");fState=c.dataset.f;reqRender();
+  });
+  $("#reqSearch").oninput=e=>{fText=e.target.value.trim();reqRender()};
+  reqRender();
+}
+
+/* ═══════════ 滚动与导航 ═══════════ */
+function navBind(){
+  const links=[...$$("nav ul li a")];
+  const map={};
+  links.forEach(a=>map[a.getAttribute("href").slice(1)]=a);
+  const io=new IntersectionObserver(es=>{
+    es.forEach(e=>{
+      if(e.isIntersecting){
+        links.forEach(a=>a.classList.remove("active"));
+        const a=map[e.target.id];if(a)a.classList.add("active");
+      }
+    });
+  },{rootMargin:"-30% 0px -60% 0px"});
+  $$("main section").forEach(s=>io.observe(s));
+  window.addEventListener("scroll",()=>{
+    const h=document.documentElement;
+    $("#progress").style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+"%";
+  },{passive:true});
+}
+
+renderGrids();
+renderStepper("#loopStepper",LOOP);
+renderStepper("#bubbleStepper",BUBBLE);
+renderStepper("#lifeStepper",LIFE);
+renderArch();renderFsm();simBind();reqBind();navBind();
+</script>
+</body>
+</html>
