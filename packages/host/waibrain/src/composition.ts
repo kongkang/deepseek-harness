@@ -147,6 +147,10 @@ export function buildBrainPersona(brain: WaiBrainExternalBrain): string {
     '先用它查，再基于查到的东西给结论。不要凭印象说，也不要对用户说你去查一下。',
     '你没有其他工具：不能执行命令、读写文件或调用任何函数。',
     '绝不要输出工具调用语法（例如 <tool_calls>、<invoke>、<parameter> 这类标签）。',
+    '',
+    '什么时候不回答：',
+    `- 如果这一轮的内容与你的立场完全无关，只回复 ${NO_TALKING_MARKER}，不要勉强凑一个答案。`,
+    '- 判断标准是「这件事跟我的职责有没有关系」，不是「我有没有把握」。没把握但有话说，照样说。',
   ].filter(part => part !== '').join('\n')
 }
 

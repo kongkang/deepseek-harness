@@ -846,15 +846,19 @@ export class WaiBrainHostService extends TypertRemoteService {
       const clipped = this.clipUtf8(output, this.maxResultBytes)
       const completed = outcome.kind === 'result' && outcome.result.stopReason === 'completed'
       // A brain that answered with tool-call syntax produced no conclusion; it
-      // must not be injected into the main conversation as one.
-      const toolSyntax = completed && looksLikeToolCall(clipped.text)
+      // must not be injected into the main conversation as one. A brain that
+      // declined an irrelevant round is the mechanism working, not a failure.
+      const declined = completed && clipped.text.trim() === NO_TALKING_MARKER
+      const toolSyntax = completed && !declined && looksLikeToolCall(clipped.text)
       const status = outcome.kind === 'timeout'
         ? 'timeout' as const
         : !completed
           ? 'error' as const
-          : clipped.text.length === 0 || toolSyntax ? 'empty' as const : 'completed' as const
+          : clipped.text.length === 0 || toolSyntax || declined ? 'empty' as const : 'completed' as const
       const diagnostic = outcome.kind === 'result'
-        ? (toolSyntax ? '外挂外脑返回了工具调用语法而不是结论' : outcome.result.diagnostic)
+        ? (declined
+            ? '外挂外脑判定本轮与自身职责无关，选择不回答'
+            : toolSyntax ? '外挂外脑返回了工具调用语法而不是结论' : outcome.result.diagnostic)
         : '外挂外脑超时'
       const fallback = this.clipUtf8(
         toolSyntax ? diagnostic ?? '' : (clipped.text || diagnostic || '外挂外脑没有返回正文'),
