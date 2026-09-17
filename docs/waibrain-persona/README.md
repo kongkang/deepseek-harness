@@ -43,7 +43,7 @@ source: "2026-09-16 ChatGPT 语音长谈（649 条消息，档案见 plans/ 目�
 | [12-updates.md](12-updates.md) | 后续对话增量纪要（09-17 两段：工程落地层、架构再解释；持续追加） |
 | [research-foundations.md](research-foundations.md) | 联网调研依据：记忆认知科学、工程现状、内驱力与人格 |
 | [open-questions.md](open-questions.md) | 全部开放问题与未收敛分歧 |
-| [interactive.html](interactive.html) | 交互式需求文档（浏览器直接打开） |
+| [interactive.html](interactive.html) | 交互式需求文档（最新版，浏览器直接打开；历史快照：[v0.1](interactive-v0.1.html)） |
 
 ## 状态标注约定
 

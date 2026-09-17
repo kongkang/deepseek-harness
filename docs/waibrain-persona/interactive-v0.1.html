@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>人格化 Agent · 交互式需求文档 v0.2</title>
+<title>人格化 Agent · 交互式需求文档 v0.1</title>
 <style>
 :root{
   --ink:#0c141f; --ink2:#101b2a; --ink3:#15233a;
@@ -307,15 +307,14 @@ footer b{color:var(--copper);font-weight:400}
     <li><a href="#persona"><span class="no">09</span>人格生成</a></li>
     <li><a href="#emotion"><span class="no">10</span>情绪与关系</a></li>
     <li><a href="#consistency"><span class="no">11</span>一致性</a></li>
-    <li><a href="#updates"><span class="no">12</span>增量纪要 09-17</a></li>
-    <li><a href="#research"><span class="no">13</span>调研依据</a></li>
-    <li><a href="#openq"><span class="no">14</span>开放问题</a></li>
-    <li><a href="#reqs"><span class="no">15</span>需求总表</a></li>
+    <li><a href="#research"><span class="no">12</span>调研依据</a></li>
+    <li><a href="#openq"><span class="no">13</span>开放问题</a></li>
+    <li><a href="#reqs"><span class="no">14</span>需求总表</a></li>
   </ul>
   <div class="foot">
-    <div class="ver">v0.2 · 2026-09-17</div>
-    <div>来源：ChatGPT 语音长谈<br>1394 条消息 · 3 部分</div>
-    <div style="margin-top:8px"><a href="README.md">Markdown 文档集</a><br><a href="interactive-v0.1.html">v0.1 快照</a> · <a href="12-updates.md">增量纪要</a></div>
+    <div class="ver">v0.1 · 2026-09-16</div>
+    <div>来源：ChatGPT 语音长谈<br>649 条消息 · 约 5 小时</div>
+    <div style="margin-top:8px"><a href="README.md">Markdown 文档集</a></div>
   </div>
 </nav>
 
@@ -323,7 +322,7 @@ footer b{color:var(--copper);font-weight:400}
 
 <!-- ═══════════ 00 HERO ═══════════ -->
 <section id="hero">
-  <div class="kicker">WAIBRAIN PERSONA · 需求 v0.2 · 待评审 · 收录至第三部分</div>
+  <div class="kicker">WAIBRAIN PERSONA · 需求初版 · 待评审</div>
   <h1>把 AI 当成<span class="hl">一个完整的人</span>来构建</h1>
   <div class="quote">
     真正的分界线不是分几层，而是——<em>对话驱动，还是自身状态驱动</em>。
@@ -336,11 +335,11 @@ footer b{color:var(--copper);font-weight:400}
     附记忆激活实验室与需求总表。
   </p>
   <div class="meta">
-    <span>版本 <b>v0.2</b>（<a href="interactive-v0.1.html">v0.1 快照</a> 保留）</span>
+    <span>版本 <b>v0.1 初版</b></span>
     <span>需求条目 <b id="metaReqCount">—</b> 条</span>
-    <span>对话 <b>1394</b> 条消息 · 3 部分</span>
-    <span>开放问题 <b>13</b> 项</span>
-    <span>存档 <a href="../../plans/2026-09-16-persona-voice-transcript-part1.md">p1</a>·<a href="../../plans/2026-09-16-persona-voice-transcript-part2.md">p2</a>·<a href="../../plans/2026-09-16-persona-voice-transcript-part3.md">p3</a></span>
+    <span>明确否决 <b>10</b> 项</span>
+    <span>开放问题 <b>9+</b> 项</span>
+    <span>调研来源 <b>20+</b> 篇</span>
   </div>
   <div class="scroll-hint">SCROLL ▼ 向下滚动</div>
 </section>
@@ -792,132 +791,7 @@ footer b{color:var(--copper);font-weight:400}
   </p>
 </section>
 
-<!-- ═══════════ 12 增量纪要 ═══════════ -->
-<section id="updates">
-  <div class="sec-head">
-    <div class="vtag">增量纪要</div>
-    <div>
-      <h2>09-17 增量：工程落地层与架构再解释</h2>
-      <div class="sub">DAY-2 ADDITIONS</div>
-    </div>
-    <div class="src">详见 12-updates.md<br>来源 #650–#1394</div>
-  </div>
-  <blockquote>
-    我们没有打破原来的东西，只是换了一种理解。……多个注意力头解决小任务、信息通过图传导，我认为我没有变。
-    <small>#1193 / #1377 —— 增量定性：再解释而非推翻。散的内容进本篇，不并入正文（用户 2026-09-17 决定）</small>
-  </blockquote>
-  <h3>第二部分（#650–#1089 白天）· 已合入正文的需求</h3>
-  <div class="grid g3">
-    <div class="card">
-      <span class="st ok tag">共识 WRK-5</span>
-      <h4>授权识别</h4>
-      <p>「目标明确、范围明确、授权明确才执行……不是意图识别，而是授权识别」。动机：「AI 总是过度地去思考、过度地去干活儿」「没问明白，做的东西不是我想要的」；模型存在 over-calling bias，行动倾向是独立变量。</p>
-      <div class="why"><b>#658 #666 #708 #714</b> · 已入 <a href="04-workers.md">04-workers</a></div>
-    </div>
-    <div class="card">
-      <span class="st ok tag">共识</span>
-      <h4>一致性优先于预测率</h4>
-      <p>可买可不买时买或不买都对，「除非说话跟行为完全违背」才算问题；Agent 前后自洽、能用积累的状态合理解释行为——据此否定行为预测类研究的价值。</p>
-      <div class="why"><b>#788 #791 #831</b> · 已入情绪关系章的评价口径</div>
-    </div>
-    <div class="card">
-      <span class="st ok tag">共识</span>
-      <h4>表现层不能重</h4>
-      <p>主对话「只负责说不说话以及怎么表达。它不能重，重了反应就变慢」；是表演层、不思考的小模型；子对话之间的过滤与协调下沉第二层（事件总线 + 订阅、扁平不从属）。</p>
-      <div class="why"><b>#836–#860</b> · 已入架构章表现层职责</div>
-    </div>
-  </div>
-  <h3>第二部分 · 记录未并入的机制</h3>
-  <div class="grid g2">
-    <div class="card">
-      <span class="st note tag">记录</span>
-      <h4>原子 Agent 六要素</h4>
-      <p>主/子对话是同一最小 Agent 的不同实例：id、模型、system prompt、tools、skills、独立 session。主 = 快模型 + 表达型 prompt + 几乎无工具；子 = 强模型 + 思考型。落地选 DSH 插件框架，只用框架不继承编排。</p>
-      <div class="why"><b>#961 #968 #953</b></div>
-    </div>
-    <div class="card">
-      <span class="st note tag">记录</span>
-      <h4>公共时间线</h4>
-      <p>子对话每轮只看实际发生过的话（用户 + 主对话说出口的）+ 少量私有标签，丢弃上轮私有推理——防分支「越来越偏……变得没有用了」。</p>
-      <div class="why"><b>#987–#1001</b> · 💬 提案，用户未反对</div>
-    </div>
-    <div class="card">
-      <span class="st note tag">记录</span>
-      <h4>缓存感知架构</h4>
-      <p>分支独立缓存链使 1+N 成本线性爆炸（用户先推论、后证实）；方案：共享 system/tools/公共历史前缀，分支差异用会话中途 System 追加。</p>
-      <div class="why"><b>#1002–#1042</b> · DeepSeek V4.1 Flash 原生支持</div>
-    </div>
-    <div class="card">
-      <span class="st todo tag">未定案</span>
-      <h4>工具三分离</h4>
-      <p>可见 / 可选 / 可执行三分离。用户否决软提示（「靠 agent 的不幻觉来输出……可控性降低」）；暂定：公共工具共享前缀、高权限工具 restrict 真删接受缓存分叉，远期自建推理层做解码级子集约束。</p>
-      <div class="why"><b>#1051–#1067</b> · 开放问题 OQ-17</div>
-    </div>
-    <div class="card">
-      <span class="st note tag">记录</span>
-      <h4>图工程原则</h4>
-      <p>「没有真实需求就不画这条边」——每步只加被当前行为逼出的节点/边；「Agent 是节点，插件和运行时负责边的逻辑」，并由此诊断递归派生缺陷（「一加二跑成一加四」：边逻辑被放进节点内）。</p>
-      <div class="why"><b>#910 #935 #969 #982</b></div>
-    </div>
-    <div class="card">
-      <span class="st note tag">记录</span>
-      <h4>六阶段里程碑</h4>
-      <p>第一步只做四件事：主对话顺畅说话、一个子对话后台跑、结果实时回流、主对话选择说或不说且延迟不明显变差。随后：多子并行不互通 → 收敛 → 长期状态 → 行动（第三层）→ 动态编排。「全局背景一次说清，执行权限一点一点给。」</p>
-      <div class="why"><b>#918 #922 #949</b> · 开发方法论</div>
-    </div>
-  </div>
-  <h3>第三部分（#1090–#1394 晚）· 架构再解释</h3>
-  <div class="formula-strip">
-    从「主对话 + N 个外脑」到「<b>平级反应单元网络</b>」：想事不是为了要表达，表达只是一种需求（#1120）· 「主」只是这一次触发链中离边界最近的节点（#1244/#1249）
-  </div>
-  <div class="grid g3">
-    <div class="card">
-      <span class="st todo tag">待验证</span>
-      <h4>最小反应单元</h4>
-      <p>「能不能找到在这个体系内的最小 IPO」→ Actor 模型：接收输入、按状态处理、发 0..N 输出。用户命名确认「reactive unit 可能是重点」。</p>
-      <div class="why"><b>#1210–#1334</b></div>
-    </div>
-    <div class="card">
-      <span class="st todo tag">待验证</span>
-      <h4>激活扩散动力学</h4>
-      <p>点亮、加强/衰减、弱则消失、强则扩散；连接强度由历史事件造起来。候选原语集「激活、传播、衰减、派生、回流、收敛」——用户类比作体系的 CRUD。</p>
-      <div class="why"><b>#1244 #1249</b> · 与记忆章激活召回同族</div>
-    </div>
-    <div class="card">
-      <span class="st todo tag">待验证</span>
-      <h4>需求驱动的生长</h4>
-      <p>「'我要一个财务 Agent'这类需求本身就是一个触发事件，它应该触发生长，而不是直接映射到预设模块」「从第一性原理……生长出最终该有的样子，不是想要一个更快的马」。</p>
-      <div class="why"><b>#1314 #1330 #1374</b></div>
-    </div>
-    <div class="card">
-      <span class="st todo tag">待验证</span>
-      <h4>种子与发育规则</h4>
-      <p>种子 = 少量初始反应元 + 生长规则 + 连接方式 + 外部知识获取能力；真正要找的是发育规则（何时分化/复制/连接/稳定）。「先发育，再学习」是分界线。</p>
-      <div class="why"><b>#1336–#1343</b> · 挂起 OQ-14</div>
-    </div>
-    <div class="card">
-      <span class="st todo tag">新需求</span>
-      <h4>内源性平衡</h4>
-      <p>「不害怕它疯长，我害怕它没有理由的复制而没有抑制逻辑」「像自然界的平衡……博弈论均衡才是真正的稳定点」——图自行判断扩张或收缩，非外部铲除。</p>
-      <div class="why"><b>#1379 #1381</b> · 挂起 OQ-15</div>
-    </div>
-    <div class="card">
-      <span class="st ok tag">定向</span>
-      <h4>图 + 对话即 trigger</h4>
-      <p>「和这个模型最贴切的其实就是图」（OQ-10 定方向，引擎未定）；「有人跟他对话了，这也是一个 trigger」——对话入口统一进触发体系；「完成-返回包括不返回也是一种返回」。</p>
-      <div class="why"><b>#1140 #1170 #1189 #1379</b></div>
-    </div>
-  </div>
-  <blockquote>
-    下次直接从这个点往下走，不再重新讨论主/子 Agent：盯住「reactive unit 作为种子细胞最少需要什么，才能长出事后叫『财务 Agent』的结构」。
-    <small>#1371 / #1374 / #1386 —— 对话于 #1394「我们就先停在这里」戛然而止后的约定起点</small>
-  </blockquote>
-  <p class="block" style="color:var(--faint);font-size:13px">
-    比喻层与调研散点（肠脑轴、裂脑解释器、微观-宏观类比、HumanLM 六类内部状态、Actor/Maes 行为网络/形态发生文献锚点）仅存档于 <a href="12-updates.md">12-updates.md</a> 与 <a href="../../plans/2026-09-16-persona-voice-transcript-part3.md">part3 原文</a>。
-  </p>
-</section>
-
-<!-- ═══════════ 13 调研 ═══════════ -->
+<!-- ═══════════ 12 调研 ═══════════ -->
 <section id="research">
   <div class="sec-head">
     <div class="vtag">调研依据</div>
@@ -967,15 +841,11 @@ footer b{color:var(--copper);font-weight:400}
     <tbody></tbody>
   </table>
   <footer>
-    <b>人格化 Agent 需求 · 交互式文档 v0.2</b> · 2026-09-17 · 整理自 ChatGPT 语音长谈（1394 条消息 · 3 部分）· 历史快照：<a href="interactive-v0.1.html">v0.1（2026-09-16，仅第一部分）</a><br>
+    <b>人格化 Agent 需求 · 交互式文档 v0.1</b> · 2026-09-16 · 整理自 ChatGPT 语音长谈（649 条消息）<br>
     Markdown 文档集：<a href="README.md">README 导读</a> ·
     <a href="01-vision.md">愿景</a> · <a href="02-architecture.md">架构</a> ·
     <a href="03-thinking-threads.md">思考线</a> · <a href="06-memory.md">记忆</a> ·
-    <a href="12-updates.md">增量纪要</a> ·
     <a href="research-foundations.md">调研</a> · <a href="open-questions.md">开放问题</a><br>
-    原文存档：<a href="../../plans/2026-09-16-persona-voice-transcript-part1.md">part1</a> ·
-    <a href="../../plans/2026-09-16-persona-voice-transcript-part2.md">part2</a> ·
-    <a href="../../plans/2026-09-16-persona-voice-transcript-part3.md">part3</a> ·
     关联：<a href="../../plans/2026-08-24-waibrain-confirmed-requirements.md">外脑第一阶段需求</a> ·
     <a href="../../plans/2026-09-04-waibrain-voice-development-plan.md">语音化开发方案</a>
   </footer>
@@ -1092,10 +962,6 @@ const OQ = [
   {id:"OQ-9", st:"todo", t:"记忆更新遍历难题", d:"搬家波及的所有记忆难以全量遍历；夜间并行清洗的触发条件与成本上限未定（#347–#353）。"},
   {id:"OQ-5", st:"note", t:"「跑过 = 经历过」哲学分歧", d:"用户：拟真经历可以比真人干净；对话方：跑过不等于经历过。底层分歧未消除，不影响机制、影响叙事（#508–#515）。"},
   {id:"OQ-6", st:"note", t:"偏见 vs 先验的术语", d:"用户坚持「偏见 = 中性区别对待」，对话方称「先验模型」——实质收敛，命名未统一（#578–#590）。"},
-  {id:"OQ-14", st:"todo", t:"种子的最小基因与发育规则", d:"reactive unit 作为种子细胞最少需要什么，才能长出事后叫『财务 Agent』的结构（#1371/#1374）。发育规则未定义；约定下次直接从此点往下走（#1386）。"},
-  {id:"OQ-15", st:"todo", t:"内源性平衡机制", d:"「不害怕它疯长，我害怕它没有理由的复制而没有抑制逻辑」（#1379）；要内源平衡（博弈论均衡式），非外部铲除。机制空白。"},
-  {id:"OQ-16", st:"todo", t:"三层叙事是否重写为平级网络", d:"第三部分把「主对话+外脑」再解释为平级反应单元网络；用户定性为再解释而非推翻（#1193/#1377）。是否重构 02 章叙事，待 reactive unit 方向验证后定。"},
-  {id:"OQ-17", st:"todo", t:"工具三分离的实现", d:"可见/可选/可执行三分离（#1051–#1067）：暂定公共前缀 + 高权限 restrict 真删接受缓存分叉，远期自建推理层。待确认。"},
 ];
 const REQS = [
   {id:"PV-1", ch:"愿景", st:"ok", t:"表达与思考解耦：说不说由表现层自主决定", src:"#021"},
@@ -1164,14 +1030,6 @@ const REQS = [
   {id:"CON-1", ch:"一致性", st:"ok", t:"多脑读写同一套核心自我与承诺记忆；冲突标记作废或自我叙事解释", src:"#633 #636"},
   {id:"CON-2", ch:"一致性", st:"todo", t:"高价值动作清单 + 同一资源写操作串行化（OQ-4）", src:"#630–#632"},
   {id:"CON-3", ch:"一致性", st:"no", t:"否决：独立 ToM 模块 / 世界模型模块 / 注意力模块 / 仲裁器", src:"#615–#633"},
-  {id:"WRK-5", ch:"Worker", st:"ok", t:"授权识别：目标/范围/授权三明确才执行（非意图识别）", src:"#714"},
-  {id:"EMO-7", ch:"情绪", st:"ok", t:"一致性优先于预测率：只查言语与行为完全矛盾", src:"#788 #831"},
-  {id:"ARCH-9", ch:"架构", st:"ok", t:"表现层不能重：只管说不说与怎么说；协调下沉第二层", src:"#836–#860"},
-  {id:"ARCH-10", ch:"架构", st:"ok", t:"对话也是 trigger；「不返回也是一种返回」", src:"#1140 #1189"},
-  {id:"RU-1", ch:"增量·三", st:"todo", t:"最小反应单元（reactive unit，Actor 式 IPO）", src:"#1210–#1334"},
-  {id:"RU-2", ch:"增量·三", st:"todo", t:"激活扩散：激活/传播/衰减/派生/回流/收敛", src:"#1244"},
-  {id:"RU-3", ch:"增量·三", st:"todo", t:"需求驱动的生长：需求是触发生长的事件", src:"#1374"},
-  {id:"RU-4", ch:"增量·三", st:"todo", t:"内源性平衡：防无理由复制，均衡式收缩", src:"#1379 #1381"},
 ];
 
 /* ═══════════ 渲染 ═══════════ */
