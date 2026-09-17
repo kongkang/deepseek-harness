@@ -7,7 +7,7 @@ source: "2026-09-16 ChatGPT 语音长谈（649 条消息，档案见 plans/ 目�
 
 # 人格化 Agent 需求（初版）
 
-本目录是「把 AI 当成一个完整的人」这一产品方向的需求初版（v0.1）。来源是 2026-09-16 的一次 ChatGPT 语音长谈（649 条消息、约 5 小时），话题从三层架构推演到记忆、本体、人格生成、情绪与多脑一致性。本目录整理该对话中确认的需求、架构决策与开放问题，并补充针对性调研。
+本目录是「把 AI 当成一个完整的人」这一产品方向的需求初版（v0.1）。来源是 2026-09-16 起的 ChatGPT 语音长谈：初版整理自 #001–#649（09-16，约 5 小时）；后续增量见 [12-updates.md](12-updates.md)。原文全量存档于 plans/：[part1](../../plans/2026-09-16-persona-voice-transcript-part1.md)（#001–#649）、[part2](../../plans/2026-09-16-persona-voice-transcript-part2.md)（#650–#1089）、[part3](../../plans/2026-09-16-persona-voice-transcript-part3.md)（#1090–#1394，含链接索引），后续对话继续扩展。话题从三层架构推演到记忆、本体、人格生成、情绪与多脑一致性。本目录整理对话中确认的需求、架构决策与开放问题，并补充针对性调研。
 
 ## 这份需求讲什么
 
@@ -40,6 +40,7 @@ source: "2026-09-16 ChatGPT 语音长谈（649 条消息，档案见 plans/ 目�
 | [09-persona.md](09-persona.md) | 人格生成：人生发生器、关键事件、计算不可约性 |
 | [10-emotion-relations.md](10-emotion-relations.md) | 情绪与社会关系：投影模型、贝叶斯印象、主观概述 |
 | [11-consistency.md](11-consistency.md) | 多脑一致性、行动门、上下文准入、否决模块回顾 |
+| [12-updates.md](12-updates.md) | 后续对话增量纪要（09-17 两段：工程落地层、架构再解释；持续追加） |
 | [research-foundations.md](research-foundations.md) | 联网调研依据：记忆认知科学、工程现状、内驱力与人格 |
 | [open-questions.md](open-questions.md) | 全部开放问题与未收敛分歧 |
 | [interactive.html](interactive.html) | 交互式需求文档（浏览器直接打开） |
