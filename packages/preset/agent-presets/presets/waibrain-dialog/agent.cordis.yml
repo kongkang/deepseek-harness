@@ -31,3 +31,14 @@
   name: '@deepseek-ai/dsh-time-context'
   config:
     refreshIntervalMs: 300000
+
+# The model-facing web tools. The `web` service and its providers are host-plane
+# rows in the base bundle; this preset contributes only the Consumer. The main
+# conversation stays zero-tool — it is the expression layer — and the external
+# brains are the ones granted these, so a question about current facts is
+# answered by a brain that looked it up rather than by the dialogue guessing.
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: true
+    searchTimeoutMs: 60000
