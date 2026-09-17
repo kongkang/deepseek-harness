@@ -21,3 +21,13 @@
         thresholdChars: 8192
         headChars: 4096
         tailChars: 1024
+
+# The current clock, appended as a source-attributed message at each step. The
+# dialogue otherwise dates itself from its training data — a September
+# conversation confidently planning a July weekend. This row is the
+# cache-preserving form: the reading is APPENDED after the cached prefix rather
+# than written into the system prompt, which would invalidate every request.
+- id: time-context
+  name: '@deepseek-ai/dsh-time-context'
+  config:
+    refreshIntervalMs: 300000
