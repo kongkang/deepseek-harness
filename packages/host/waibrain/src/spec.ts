@@ -31,6 +31,7 @@ export const waibrainRoleSchema = z.object({
   greeting: z.string(),
   examples: z.string(),
   systemPrompt: z.string(),
+  exchangeRules: z.string().default(''),
 })
 
 /** Runtime schema for one external brain. */

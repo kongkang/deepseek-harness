@@ -11,6 +11,7 @@ import {
   type WaiBrainBootstrap,
   type WaiBrainConversationSummary,
   type WaiBrainConversationView,
+  type WaiBrainRoundView,
   type WaiBrainExternalBrain,
   type WaiBrainExternalBrainRound,
   type WaiBrainRuntime,
@@ -64,6 +65,7 @@ function initialConfig(): WaiBrainAgentConfig {
       greeting: '我在。你今天想从什么开始聊？',
       examples: '用户：我脑子里很乱。\n林川：那我们先不急着整理全部。现在最占心的是哪一件？',
       systemPrompt: '你是林川。保持人格和关系连续性。外挂外脑的答案是内部信号，由你判断如何自然表达。',
+      exchangeRules: '',
     },
     mainSelection: { provider: '', model: '' },
     externalBrains: [],
@@ -159,7 +161,7 @@ function renderManager(state: AppState): string {
 
 function renderRole(state: AppState): string {
   const role = state.draft.role
-  return `<section class="surface role-surface"><div class="surface-heading"><div><span class="step-index">01</span><div><span class="eyebrow">PERSONA</span><h2>角色卡</h2><p>所有字段都由 Host 保存，并按消息轮次冻结版本。</p></div></div><span class="required-note">带 * 为必填</span></div><form class="role-form" data-form="role"><div class="persona-preview"><div class="large-avatar">${escapeHtml(role.name.slice(0, 1) || '？')}</div><div><span>对话预览</span><strong>${escapeHtml(role.name || '未命名角色')}</strong><p>“${escapeHtml(role.greeting || '写一句自然的开场白。')}”</p></div><span class="model-chip">v${String(state.revision ?? 0)}</span></div><div class="two-fields">${field('角色名称', 'roleName', role.name, true)}${field('一句话定位', 'roleTagline', role.tagline, true)}</div>${area('性格特质', 'rolePersonality', role.personality, 3)}<div class="two-fields">${area('说话方式', 'roleVoice', role.voice, 4)}${area('关系与场景', 'roleScenario', role.scenario, 4)}</div>${area('开场白', 'roleGreeting', role.greeting, 3)}<details class="advanced-fields" open><summary>高级角色设定 <span>对话示例与主 System Prompt</span></summary>${area('对话示例', 'roleExamples', role.examples, 5)}${area('主对话 System Prompt', 'roleSystemPrompt', role.systemPrompt, 6, '角色文本不支持 {{ }} 模板。')}</details>${modelControls(state.catalog, state.draft.mainSelection, 'main', ['主对话模型', '主对话思考强度'])}<div class="role-actions"><span><strong>持久配置</strong> 保存后，当前 Agent 的下一条消息使用新版本。</span><button class="primary-button" type="button" data-action="save-agent"${state.saving ? ' disabled' : ''}>保存 Agent</button></div></form></section>`
+  return `<section class="surface role-surface"><div class="surface-heading"><div><span class="step-index">01</span><div><span class="eyebrow">PERSONA</span><h2>角色卡</h2><p>所有字段都由 Host 保存，并按消息轮次冻结版本。</p></div></div><span class="required-note">带 * 为必填</span></div><form class="role-form" data-form="role"><div class="persona-preview"><div class="large-avatar">${escapeHtml(role.name.slice(0, 1) || '？')}</div><div><span>对话预览</span><strong>${escapeHtml(role.name || '未命名角色')}</strong><p>“${escapeHtml(role.greeting || '写一句自然的开场白。')}”</p></div><span class="model-chip">v${String(state.revision ?? 0)}</span></div><div class="two-fields">${field('角色名称', 'roleName', role.name, true)}${field('一句话定位', 'roleTagline', role.tagline, true)}</div>${area('性格特质', 'rolePersonality', role.personality, 3)}<div class="two-fields">${area('说话方式', 'roleVoice', role.voice, 4)}${area('关系与场景', 'roleScenario', role.scenario, 4)}</div>${area('开场白', 'roleGreeting', role.greeting, 3)}<details class="advanced-fields" open><summary>高级角色设定 <span>对话示例与主 System Prompt</span></summary>${area('对话示例', 'roleExamples', role.examples, 5)}${area('主对话 System Prompt', 'roleSystemPrompt', role.systemPrompt, 6, '角色文本不支持 {{ }} 模板。')}${area('对话表达规则（默认提示词）', 'roleExchangeRules', (role.exchangeRules ?? '') || (state.bootstrap?.defaultExchangeRules ?? ''), 10, '主对话如何组织表达的默认提示词，可直接编辑；清空则回到部署默认。')}</details>${modelControls(state.catalog, state.draft.mainSelection, 'main', ['主对话模型', '主对话思考强度'])}<div class="role-actions"><span><strong>持久配置</strong> 保存后，当前 Agent 的下一条消息使用新版本。</span><button class="primary-button" type="button" data-action="save-agent"${state.saving ? ' disabled' : ''}>保存 Agent</button></div></form></section>`
 }
 
 function laneStatus(lane: WaiBrainExternalBrainRound | undefined): string {
@@ -180,11 +182,16 @@ function renderBrainCard(state: AppState, brain: WaiBrainExternalBrain, index: n
   const lane = latestLane(state, brain.id)
   const status = laneStatus(lane)
   const stateClass = lane?.status === 'running' ? 'is-thinking' : lane?.status === 'error' || lane?.status === 'timeout' || lane?.status === 'host-restarted' ? 'is-error' : lane?.status === 'completed' ? 'is-pushed' : ''
-  return `<article class="${compact ? 'runtime-branch-card' : 'config-branch-card'} ${stateClass}" style="--branch-colour:${colours[index % colours.length]}"><div class="branch-card-heading runtime-branch-heading"><span class="branch-symbol">${icon.brain}</span><div><h3>${escapeHtml(brain.label)}</h3><p>${escapeHtml(brain.direction || '尚未填写职责')}</p></div><span class="runtime-status"><i></i>${escapeHtml(brain.enabled ? status : '已关闭')}</span></div><div class="branch-meta"><span>${escapeHtml(brain.selection.provider)} · ${escapeHtml(brain.selection.model)}</span><span>${escapeHtml(brain.selection.reasoningEffort ?? '模型默认')}</span></div>${lane?.summary === undefined ? '' : `<div class="thought-card"><span>本轮答案${lane.truncated ? ' · 已按页面上限截断' : ''}</span><p>${escapeHtml(lane.summary)}${lane.resultUnavailable ? '\n（子 Session 正文不可用，显示降级摘要）' : ''}</p></div>`}<div class="branch-actions"><button type="button" data-action="edit-brain" data-brain-id="${escapeHtml(brain.id)}" aria-label="编辑 ${escapeHtml(brain.label)}">编辑</button><button type="button" data-action="toggle-brain" data-brain-id="${escapeHtml(brain.id)}" aria-label="${brain.enabled ? '关闭' : '启用'} ${escapeHtml(brain.label)}">${brain.enabled ? '关闭' : '启用'}</button><button class="danger-action" type="button" data-action="remove-brain" data-brain-id="${escapeHtml(brain.id)}" aria-label="移除 ${escapeHtml(brain.label)}">移除</button></div></article>`
+  return `<article class="${compact ? 'runtime-branch-card' : 'config-branch-card'} ${stateClass}" style="--branch-colour:${colours[index % colours.length]}"><div class="branch-card-heading runtime-branch-heading"><span class="branch-symbol">${icon.brain}</span><div><h3>${escapeHtml(brain.label)}</h3><p>${escapeHtml(brain.direction || '尚未填写职责')}</p></div><span class="runtime-status"><i></i>${escapeHtml(brain.enabled ? status : '已关闭')}</span></div><div class="branch-meta"><span>${escapeHtml(brain.selection.provider)} · ${escapeHtml(brain.selection.model)}</span><span>${escapeHtml(brain.selection.reasoningEffort ?? '模型默认')}</span></div>${lane?.summary === undefined ? '' : `<div class="thought-card"><span>本轮答案${lane.truncated ? ' · 已按页面上限截断' : ''}</span><p>${escapeHtml(lane.summary)}${lane.resultUnavailable ? '\n（子 Session 正文不可用，显示降级摘要）' : ''}</p></div>`}<div class="branch-actions"><button type="button" data-action="edit-brain" data-brain-id="${escapeHtml(brain.id)}" aria-label="编辑 ${escapeHtml(brain.label)}">编辑</button><button type="button" data-action="toggle-brain" data-brain-id="${escapeHtml(brain.id)}" aria-label="${brain.enabled ? '关闭' : '启用'} ${escapeHtml(brain.label)}">${brain.enabled ? '关闭' : '启用'}</button><button class="danger-action" type="button" data-action="remove-brain" data-brain-id="${escapeHtml(brain.id)}" aria-label="移除 ${escapeHtml(brain.label)}">移除</button></div>${renderBrainEditor(state, brain.id)}</article>`
 }
 
-function renderBrainEditor(state: AppState): string {
+function renderBrainEditor(state: AppState, inlineForBrainId?: string): string {
   if (state.editor === null) return ''
+  // An edit form renders inside the card it belongs to, so opening it does not
+  // move the user to the end of the list. The "add" form has no card yet.
+  const targetsInlineCard = inlineForBrainId === undefined ? false : state.editor.id === inlineForBrainId
+  const isAddForm = inlineForBrainId === undefined && state.editor.id === null
+  if (!targetsInlineCard && !isAddForm) return ''
   const brain = state.editor.id === null ? undefined : state.draft.externalBrains.find(item => item.id === state.editor?.id)
   const selection = brain?.selection ?? defaultSelection(state.catalog ?? { groups: [], failures: [] })
   return `<form class="branch-editor-form wb-brain-editor" data-form="brain-editor"><div class="editor-title"><div><span class="eyebrow">HOST CONFIG</span><h3>${brain === undefined ? '添加外挂外脑' : `编辑 ${escapeHtml(brain.label)}`}</h3></div><button class="icon-button" type="button" data-action="close-editor" aria-label="关闭外挂外脑编辑器">${icon.close}</button></div>${field('外挂外脑名称', 'brainLabel', brain?.label ?? '', true)}${area('外挂外脑职责', 'brainDirection', brain?.direction ?? '', 3)}${area('人格提示词', 'brainPersona', brain?.persona ?? '', 4, '纯文本；不支持 {{ }} 模板。')}${modelControls(state.catalog, selection, 'brain', ['外挂外脑模型', '外挂外脑思考强度'])}<label class="check-field"><input type="checkbox" name="brainEnabled"${brain?.enabled === false ? '' : ' checked'} /><span><strong>启用这个外挂外脑</strong><small>保存后从下一条用户消息开始生效。</small></span></label>${state.editorError === '' ? '' : `<p class="form-error" role="alert">${escapeHtml(state.editorError)}</p>`}<button class="secondary-button full-button" type="button" data-action="save-brain">保存外挂外脑</button></form>`
@@ -201,18 +208,53 @@ function renderStudio(state: AppState): string {
   return `<main class="studio-page"><header class="studio-hero"><div><span class="hero-kicker"><i></i>HOST-BACKED WORKSPACE</span><h1>定义主对话，也管理它的外挂外脑</h1><p>这里的 Agent、人格、模型和外挂外脑均可编辑并持久化。保存的新版本从下一条用户消息开始生效。</p></div><div class="hero-note"><span>${icon.brain}</span><p><strong>真实 Host 数据</strong>刷新页面或重启 Host 后，Agent、对话和运行状态都会恢复。</p></div></header>${state.error === '' ? '' : `<p class="wb-global-error" role="alert">${escapeHtml(state.error)}</p>`}<div class="config-layout">${renderRole(state)}${renderBrains(state)}</div></main>`
 }
 
-function renderMessages(state: AppState): string {
-  const rows = state.conversation?.messages ?? []
-  if (rows.length === 0) return `<article class="message assistant-message greeting-message"><span class="message-author">${escapeHtml(state.draft.role.name)}</span><p>${escapeHtml(state.draft.role.greeting)}</p></article>`
-  return rows.map(message => message.role === 'user'
-    ? `<article class="message user-message"><p>${escapeHtml(message.text)}</p></article>`
-    : `<article class="message assistant-message"><span class="message-author">${escapeHtml(state.draft.role.name)}</span><p>${escapeHtml(message.text)}</p></article>`).join('')
+/**
+ * Render one round's external brains as a collapsed capsule.
+ *
+ * A main reply is usually a response to what a brain pushed in, so the capsule
+ * sits ahead of the round it explains and expands to name each brain and the
+ * conclusion it contributed. Collapsed, it is one quiet row — the chat column
+ * keeps only what the dialogue actually said.
+ * @param state - current application state.
+ * @param round - the round this capsule belongs to.
+ * @returns the capsule markup.
+ */
+function renderRoundTrace(state: AppState, round: WaiBrainRoundView): string {
+  const lanes = round.externalBrains
+  if (lanes.length === 0) return ''
+  const names = lanes.map(lane => lane.label).join(' · ')
+  const rows = lanes.map((lane) => {
+    const brain = state.draft.externalBrains.find(item => item.id === lane.externalBrainId)
+    const text = lane.summary === undefined || lane.summary === ''
+      ? laneStatus(lane)
+      : lane.summary
+    return `<div class="round-trace-item is-${lane.status}"><span class="round-trace-who">${escapeHtml(brain?.label ?? lane.label)}</span><p class="round-trace-said">${escapeHtml(text)}</p></div>`
+  }).join('')
+  const done = lanes.filter(lane => lane.status === 'completed').length
+  return `<details class="round-trace"><summary><span class="round-trace-icon">✦</span><span class="round-trace-title">${String(done)}/${String(lanes.length)} 个外挂外脑参与本轮</span><span class="round-trace-names">${escapeHtml(names)}</span></summary><div class="round-trace-body">${rows}<p class="round-trace-foot">下面是主对话收到这些结论后的回应。</p></div></details>`
 }
 
-/** Content of `.chat-scroll`; shared by the full render and the poll-driven patch. */
+/**
+ * Render the transcript, placing each round's capsule ahead of its messages.
+ * @param state - current application state.
+ * @returns the transcript markup.
+ */
+function renderMessages(state: AppState): string {
+  const rows = state.conversation?.messages ?? []
+  const rounds = state.conversation?.rounds ?? []
+  if (rows.length === 0) return `<article class="message assistant-message greeting-message"><span class="message-author">${escapeHtml(state.draft.role.name)}</span><p>${escapeHtml(state.draft.role.greeting)}</p></article>`
+  return rows.map((message) => {
+    // The round is anchored on the user message that opened it.
+    const round = message.role === 'user' ? rounds.find(item => item.userMessageId === message.id) : undefined
+    const capsule = round === undefined ? '' : renderRoundTrace(state, round)
+    return capsule + (message.role === 'user'
+      ? `<article class="message user-message"><p>${escapeHtml(message.text)}</p></article>`
+      : `<article class="message assistant-message"><span class="message-author">${escapeHtml(state.draft.role.name)}</span><p>${escapeHtml(message.text)}</p></article>`)
+  }).join('')
+}
+
 function renderChatScrollContent(state: AppState): string {
-  const busy = state.conversation?.busy === true || state.sending
-  return `${renderMessages(state)}${busy ? '<article class="message assistant-message pending-message"><span class="message-author">运行状态</span><p>主对话或已提交的外挂结果正在处理…</p></article>' : ''}`
+  return renderMessages(state)
 }
 
 /** Content of `.runtime-branch-list`; shared by the full render and the poll-driven patch. */
@@ -396,6 +438,7 @@ export function mountApp(target: Element | null, options: MountAppOptions = {}):
       name: text('roleName'), tagline: text('roleTagline'), personality: text('rolePersonality'),
       voice: text('roleVoice'), scenario: text('roleScenario'), greeting: text('roleGreeting'),
       examples: text('roleExamples'), systemPrompt: text('roleSystemPrompt'),
+      exchangeRules: text('roleExchangeRules'),
     }
     const main = parseSelection(text('mainModel'))
     if (main !== undefined) {

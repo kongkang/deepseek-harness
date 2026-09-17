@@ -2253,3 +2253,74 @@ h2,
     gap: 5px;
   }
 }
+
+/* ---- Per-round capsule ---------------------------------------------------
+   One collapsed row ahead of each round, naming the external brains that fed
+   it. Expanding shows what each brain concluded; the round's own messages
+   follow below, so the chain from brain to reply reads in order. */
+
+.round-trace {
+  margin: 10px 0 4px;
+  border: 1px solid var(--wb-line, #e6e6e2);
+  border-radius: 10px;
+  background: var(--wb-surface-sunken, #fafaf8);
+  font-size: 13px;
+}
+
+.round-trace > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.round-trace > summary::-webkit-details-marker { display: none; }
+.round-trace-icon { flex: none; color: var(--wb-accent, #5b55d9); }
+.round-trace-title { flex: none; color: var(--wb-text-dim, #6b6b67); }
+
+.round-trace-names {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--wb-text-faint, #9a9a96);
+}
+
+.round-trace-body {
+  border-top: 1px solid var(--wb-line, #e6e6e2);
+  padding: 8px 12px 10px;
+}
+
+.round-trace-item { padding: 5px 0; }
+.round-trace-item + .round-trace-item { border-top: 1px dashed var(--wb-line, #ececE8); }
+
+.round-trace-who {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: 500;
+  color: var(--wb-text-dim, #6b6b67);
+}
+
+.round-trace-item.is-error .round-trace-who,
+.round-trace-item.is-timeout .round-trace-who { color: var(--wb-danger, #c0392b); }
+
+.round-trace-said {
+  margin: 0;
+  color: var(--wb-text, #3a3a37);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.round-trace-item.is-empty .round-trace-said,
+.round-trace-item.is-running .round-trace-said { color: var(--wb-text-faint, #9a9a96); }
+
+.round-trace-foot {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--wb-text-faint, #9a9a96);
+}

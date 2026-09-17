@@ -34,6 +34,7 @@ function agentConfig(name = '林川'): WaiBrainAgentConfig {
     role: {
       name, tagline: '长期思考伙伴', personality: '温和、诚实', voice: '自然简洁',
       scenario: '长期陪伴', greeting: '我在。', examples: '用户：你好。', systemPrompt: `你是${name}。`,
+      exchangeRules: '',
     },
     mainSelection: { provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'off' },
     externalBrains: [{
@@ -72,6 +73,7 @@ class FakeRuntime implements WaiBrainRuntime {
 
   bootstrap(): Promise<WaiBrainBootstrap> {
     return Promise.resolve(structuredClone({
+      defaultExchangeRules: '',
       limits: { maxAdmittedBranches: 8, externalBrainTimeoutMs: 10_000, externalBrainMaxTokens: 256, maxResultBytes: 4096 },
       agents: this.agents,
       selectedAgentId: this.selectedAgentId,
@@ -282,7 +284,11 @@ describe('Host-backed WaiBrain application', () => {
     fireEvent.click(screen.getByRole('button', { name: '发送' }))
     await screen.findByText('我听见了，我们慢慢拆开。')
     expect(runtime.prompts).toEqual([{ conversationId: 'conversation-1', text: '帮我核验一下' }])
-    expect(screen.getByText('事实与新知的独立答案')).not.toBeNull()
+    // The round's capsule names the brain and the conclusion it contributed;
+    // the right rail separately shows it as the latest status.
+    const capsule = root.querySelector('.round-trace')
+    expect(capsule?.textContent).toContain('事实与新知的独立答案')
+    expect(capsule?.textContent).toContain('事实与新知')
 
     fireEvent.click(screen.getByRole('button', { name: '关闭对话' }))
     await screen.findByRole('button', { name: '对话已关闭' })
