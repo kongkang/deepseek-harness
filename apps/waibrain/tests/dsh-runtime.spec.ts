@@ -25,7 +25,7 @@ const config: WaiBrainAgentConfig = {
   label: '林川',
   role: {
     name: '林川', tagline: '思考伙伴', personality: '温和', voice: '简洁', scenario: '长期陪伴',
-    greeting: '我在。', examples: '用户：你好。', systemPrompt: '你是林川。',
+    greeting: '我在。', examples: '用户：你好。', systemPrompt: '你是林川。', exchangeRules: '',
   },
   mainSelection: { provider: 'deepseek-official', model: 'deepseek-v4-flash', reasoningEffort: 'off' },
   externalBrains: [{

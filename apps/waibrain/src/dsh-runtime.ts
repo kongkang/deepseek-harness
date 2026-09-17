@@ -60,6 +60,8 @@ export interface WaiBrainRole {
   greeting: string
   examples: string
   systemPrompt: string
+  /** The dialogue's operating rules; empty means the deployment default applies. */
+  exchangeRules?: string
 }
 
 /** One dynamically managed external brain. */
@@ -142,7 +144,27 @@ export interface WaiBrainLimits {
 }
 
 /** Initial durable application state. */
+export interface WaiBrainExternalBrainRound {
+  externalBrainId: string
+  label: string
+  status: 'running' | 'completed' | 'empty' | 'error' | 'timeout' | 'host-restarted'
+  childSessionId?: string
+  summary?: string
+  truncated?: boolean
+  resultUnavailable?: boolean
+}
+
+export interface WaiBrainRoundView {
+  id: string
+  configRevision: number
+  userMessageId: string
+  mainStatus: 'running' | 'completed' | 'failed' | 'host-restarted'
+  externalBrains: WaiBrainExternalBrainRound[]
+}
+
 export interface WaiBrainBootstrap {
+  /** Deployment default for the operating rules, shown as the editor's initial text. */
+  defaultExchangeRules: string
   limits: WaiBrainLimits
   agents: WaiBrainAgentRevision[]
   selectedAgentId: string | null
