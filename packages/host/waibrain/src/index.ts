@@ -18,7 +18,11 @@ import type {} from '@deepseek-ai/dsh-session-query'
 import type { Domain, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import type { SubagentRun, SubagentRuntime } from '@deepseek-ai/dsh-subagent'
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
-import { buildWaiBrainPersona, buildWaiBrainWake } from './composition.ts'
+import {
+  BRAIN_TOOLS, NO_TALKING_MARKER, buildBrainContext, buildBrainPersona, buildWaiBrainPersona,
+  buildWaiBrainWake, looksLikeToolCall,
+} from './composition.ts'
+import { DEFAULT_EXCHANGE_RULES } from './composition.ts'
 import './events.ts'
 import { waibrainDomainSpec } from './spec.ts'
 import type { WaiBrainAgentRow, WaiBrainConversationRow } from './spec.ts'
@@ -271,6 +275,7 @@ export class WaiBrainHostService extends TypertRemoteService {
       .map(([, row]) => ({ id: row.id, agentId: row.agentId, sessionId: row.sessionId, createdAt: row.createdAt, status: row.status }))
       .sort((left, right) => left.createdAt - right.createdAt)
     return snapshot({
+      defaultExchangeRules: DEFAULT_EXCHANGE_RULES,
       limits: {
         maxAdmittedBranches: this.maxAdmittedBranches,
         externalBrainTimeoutMs: this.externalBrainTimeoutMs,
@@ -383,7 +388,14 @@ export class WaiBrainHostService extends TypertRemoteService {
         sessionId,
         meta: { agentPreset: 'waibrain-dialog' },
         agentOptions: this.agentOptions(revision.config.mainSelection),
-        setup: async (agentCtx) => { await presets.mount(agentCtx, 'waibrain-dialog') },
+        setup: async (agentCtx) => {
+          await presets.mount(agentCtx, 'waibrain-dialog')
+          // The dialogue is the expression layer: it never calls a tool. Its
+          // external brains are separate Agents, and they are where looking
+          // things up happens, so the restriction is applied to this Agent
+          // alone rather than to the preset's whole scope.
+          agentCtx.tools.restrict({ allow: [] })
+        },
       })
       const row: WaiBrainConversationRow = {
         id: conversationId,
@@ -501,7 +513,7 @@ export class WaiBrainHostService extends TypertRemoteService {
 
       agent.followup(message)
       await this.awaitMainFirstRequest(agent)
-      const starts = brains.map(brain => this.startExternalBrain(subagents, agent, brain, request.text))
+      const starts = brains.map(brain => this.startExternalBrain(subagents, agent, brain, request.text, revision.config.role.name))
       const published = await Promise.all(starts)
       void this.trackMain(row.id, roundId, agent)
       for (const branch of published) {
@@ -679,7 +691,10 @@ export class WaiBrainHostService extends TypertRemoteService {
     const handle = await agents.resume({
       resumeSessionId: sessionId,
       agentOptions: this.agentOptions(revision.config.mainSelection),
-      setup: async (agentCtx) => { await presets.mount(agentCtx, 'waibrain-dialog') },
+      setup: async (agentCtx) => {
+        await presets.mount(agentCtx, 'waibrain-dialog')
+        agentCtx.tools.restrict({ allow: [] })
+      },
     })
     this.handles.set(sessionId, handle)
     return handle.agent
@@ -706,12 +721,43 @@ export class WaiBrainHostService extends TypertRemoteService {
     }
   }
 
-  /** Start one detached fork and preserve startup failure as lane data. */
+  /**
+   * The main conversation's most recently completed exchange, as plain text.
+   *
+   * Only user and assistant turns count. The injected 【闪念】 messages are the
+   * brains' own earlier output, and feeding them back is what lets a brain keep
+   * building on a framing the main conversation already declined.
+   * @param agent - The live main conversation.
+   * @returns One labelled exchange block, or an empty string before any turn completed.
+   */
+  private previousExchange(agent: Agent): string {
+    const events = agent.session.snapshotEvents()
+    const ends = events.filter(event => event.type === 'turn/end')
+    const lastEnd = ends.at(-1)
+    if (lastEnd === undefined) return ''
+    const previousEnd = ends.at(-2)
+    const from = previousEnd === undefined ? 0 : previousEnd.seq + 1
+    const lines: string[] = []
+    for (const event of events) {
+      if (event.seq < from || event.seq > lastEnd.seq) continue
+      if (event.type === 'user/message' && event.data.source.kind === 'user') {
+        const text = this.contentText(event.data.content)
+        if (text.length > 0) lines.push(`用户：${text}`)
+      } else if (event.type === 'assistant/message') {
+        const text = this.contentText(event.data.message.content)
+        if (text.length > 0 && text.trim() !== NO_TALKING_MARKER) lines.push(`主对话：${text}`)
+      }
+    }
+    return lines.join('\n')
+  }
+
+  /** Start one detached external brain and preserve startup failure as lane data. */
   private async startExternalBrain(
     subagents: SubagentRuntime,
     parent: Agent,
     brain: WaiBrainExternalBrain,
     userText: string,
+    mainName: string,
   ): Promise<{
     brain: WaiBrainExternalBrain
     controller: AbortController
@@ -726,13 +772,13 @@ export class WaiBrainHostService extends TypertRemoteService {
     const controller = new AbortController()
     this.branchControllers.add(controller)
     try {
-      const run = await subagents.start('fork', {
+      const run = await subagents.start('spawn', {
         label: brain.label,
         parent,
         signal: controller.signal,
-        prompt: [{ type: 'text', text: `职责：${brain.direction}\n\n与主对话相同的用户消息：\n${userText}` }],
-        persona: brain.persona,
-        toolFilter: { allow: [] },
+        prompt: [{ type: 'text', text: buildBrainContext(mainName, this.previousExchange(parent), userText) }],
+        persona: buildBrainPersona(brain),
+        toolFilter: { allow: BRAIN_TOOLS },
         agentOptions: {
           ...this.agentOptions(brain.selection),
           maxTokens: this.externalBrainMaxTokens,
@@ -799,13 +845,21 @@ export class WaiBrainHostService extends TypertRemoteService {
       const output = outcome.kind === 'result' ? this.contentText(outcome.result.output) : ''
       const clipped = this.clipUtf8(output, this.maxResultBytes)
       const completed = outcome.kind === 'result' && outcome.result.stopReason === 'completed'
+      // A brain that answered with tool-call syntax produced no conclusion; it
+      // must not be injected into the main conversation as one.
+      const toolSyntax = completed && looksLikeToolCall(clipped.text)
       const status = outcome.kind === 'timeout'
         ? 'timeout' as const
         : !completed
           ? 'error' as const
-          : clipped.text.length === 0 ? 'empty' as const : 'completed' as const
-      const diagnostic = outcome.kind === 'result' ? outcome.result.diagnostic : '外挂外脑超时'
-      const fallback = this.clipUtf8(clipped.text || diagnostic || '外挂外脑没有返回正文', 512).text
+          : clipped.text.length === 0 || toolSyntax ? 'empty' as const : 'completed' as const
+      const diagnostic = outcome.kind === 'result'
+        ? (toolSyntax ? '外挂外脑返回了工具调用语法而不是结论' : outcome.result.diagnostic)
+        : '外挂外脑超时'
+      const fallback = this.clipUtf8(
+        toolSyntax ? diagnostic ?? '' : (clipped.text || diagnostic || '外挂外脑没有返回正文'),
+        512,
+      ).text
       const wakeText = status === 'completed' ? buildWaiBrainWake(brain.label, clipped.text) : undefined
 
       committedWakeText = await this.serial(conversationId, async () => {
@@ -1056,7 +1110,10 @@ export class WaiBrainHostService extends TypertRemoteService {
         if (text.length > 0) messages.push({ id: event.data.id, role: 'user', text, seq: event.seq })
       } else if (event.type === 'assistant/message') {
         const text = this.contentText(event.data.message.content)
-        if (text.length > 0) messages.push({ id: event.data.message.id, role: 'assistant', text, seq: event.seq })
+        // A silence marker is a control signal, not something the user was told.
+        if (text.length > 0 && text.trim() !== NO_TALKING_MARKER) {
+          messages.push({ id: event.data.message.id, role: 'assistant', text, seq: event.seq })
+        }
       }
     }
     const rounds = new Map<WaiBrainRoundId, {

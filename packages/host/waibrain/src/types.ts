@@ -26,6 +26,12 @@ export interface WaiBrainRole {
   readonly greeting: string
   readonly examples: string
   readonly systemPrompt: string
+  /**
+   * The dialogue's operating rules, shown and edited by the user. Absent on a
+   * record written before the field existed, and empty means the deployment
+   * default applies; both resolve to the default.
+   */
+  readonly exchangeRules?: string
 }
 
 /** One dynamically managed external brain. */
@@ -102,6 +108,12 @@ export interface WaiBrainLimits {
 
 /** Initial durable application snapshot. */
 export interface WaiBrainBootstrap {
+  /**
+   * The deployment's default operating rules for a main conversation. The
+   * editor shows this text so the user reads and can edit the prompt that
+   * actually shapes the dialogue, instead of an empty box.
+   */
+  readonly defaultExchangeRules: string
   readonly limits: WaiBrainLimits
   readonly agents: readonly WaiBrainAgentRevision[]
   readonly selectedAgentId: WaiBrainAgentId | null

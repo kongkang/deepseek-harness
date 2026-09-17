@@ -33,7 +33,10 @@ export function apply(ctx: Context): void {
     text: '',
   }), 'waibrainSession.personaSuffix()')
   ctx.systemPrompt.suppressRuntimeContext()
-  ctx.tools.restrict({ allow: [] })
+  // No scope-wide tool restriction lives here. `tools.restrict` intersects down
+  // the scope, so an `allow: []` at this level also masks every external brain —
+  // and a brain is exactly where looking things up happens. The Host restricts
+  // the dialogue Agent alone, in its own setup.
 
   ctx.on('agent/created', ({ agent }) => {
     const host = ctx.get('waibrainHost')

@@ -30,6 +30,7 @@ import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import SubagentRuntime from '@deepseek-ai/dsh-subagent'
 import type { SubagentRun } from '@deepseek-ai/dsh-subagent'
 import * as ForkInProcess from '@deepseek-ai/dsh-subagent-fork-in-process'
+import * as SpawnInProcess from '@deepseek-ai/dsh-subagent-spawn-in-process'
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import WaiBrainHost, {
@@ -193,6 +194,8 @@ async function harness(
   await ctx.plugin(AgentLoop, { agents: [] })
   await ctx.plugin(SubagentRuntime)
   await ctx.plugin(ForkInProcess, { providerName: 'fork' })
+  // Brains start fresh and carry the context the Host hands them.
+  await ctx.plugin(SpawnInProcess, { providerName: 'spawn' })
   await ctx.plugin(AgentPresets, {
     default: 'waibrain-dialog', roots: [{ path: fixtureRoot, trust: 'system' }],
     includeShippedRoot: false, includeUserRoot: false,
