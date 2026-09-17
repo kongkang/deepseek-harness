@@ -45,3 +45,6 @@ worktrees/
 .agents/worktrees/
 .typert-*/
 native/system/test/bin/
+
+# WaiBrain local dev runtime home (credentials, sessions, storages)
+.waibrain-dev-home/
