@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>外脑 · 人格化路线图 · 进度与拆解</title>
+<style>
+:root{
+  --ink:#0c141f; --ink2:#101b2a; --ink3:#15233a;
+  --line:#243850; --line2:#31486a;
+  --paper:#e9e4d6; --dim:#93a5bd; --faint:#5c718f;
+  --copper:#d9954a; --copper2:#f0b06a;
+  --jade:#71c39a; --amber:#d9b44a; --sky:#7aa7d9; --rust:#d97e6c;
+  --serif:"Songti SC","STSong","Noto Serif SC","Source Han Serif SC",serif;
+  --sans:"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--ink);color:var(--paper);font-family:var(--sans);
+  font-size:15px;line-height:1.7;letter-spacing:.01em;
+  background-image:
+    linear-gradient(rgba(36,56,80,.16) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(36,56,80,.16) 1px,transparent 1px);
+  background-size:44px 44px;
+}
+::selection{background:var(--copper);color:var(--ink)}
+a{color:var(--copper2);text-decoration:none;border-bottom:1px dotted rgba(217,149,74,.5)}
+a:hover{border-bottom-style:solid}
+button{font-family:inherit;cursor:pointer}
+
+/* ── 侧边导航 ── */
+nav{
+  position:fixed;top:0;left:0;bottom:0;width:216px;z-index:50;
+  background:rgba(12,20,31,.92);backdrop-filter:blur(8px);
+  border-right:1px solid var(--line);padding:26px 0 18px;
+  display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:thin;
+}
+nav .brand{padding:0 20px 16px;border-bottom:1px solid var(--line)}
+nav .brand .zh{font-family:var(--serif);font-size:19px;letter-spacing:.14em;color:var(--paper)}
+nav .brand .en{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em;margin-top:4px;text-transform:uppercase}
+nav ul{list-style:none;padding:8px 0;flex:1}
+nav ul li a{
+  display:flex;align-items:center;gap:8px;padding:7px 20px;font-size:13px;
+  color:var(--dim);border-bottom:none;border-left:2px solid transparent;transition:all .18s;
+}
+nav ul li a .no{font-family:var(--mono);font-size:10px;color:var(--faint);width:18px}
+nav ul li a:hover{color:var(--paper)}
+nav ul li a.active{color:var(--copper2);border-left-color:var(--copper);background:rgba(217,149,74,.07)}
+nav ul li a.active .no{color:var(--copper)}
+nav .foot{padding:12px 20px 0;border-top:1px solid var(--line);font-size:11px;color:var(--faint);line-height:1.9}
+nav .foot .ver{font-family:var(--mono);color:var(--copper)}
+nav .foot .dec{font-family:var(--mono);color:var(--amber)}
+
+/* ── 主区 ── */
+main{margin-left:216px;padding:0 46px 110px;max-width:1160px}
+section{padding-top:76px}
+.sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:24px}
+.sec-head h2{font-family:var(--serif);font-size:28px;font-weight:600;letter-spacing:.06em}
+.sec-head .sub{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.18em}
+.sec-head .count{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--copper)}
+p.lead{font-size:15px;color:var(--dim);max-width:780px;margin-bottom:6px}
+em{color:var(--copper2);font-style:normal;border-bottom:1px dashed rgba(217,149,74,.45)}
+code{font-family:var(--mono);font-size:.86em;background:rgba(36,56,80,.5);border:1px solid var(--line);padding:1px 6px;border-radius:3px}
+
+/* ── 状态徽章 ── */
+.st{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-family:var(--mono);padding:1px 8px;border-radius:10px;border:1px solid;line-height:1.7;white-space:nowrap}
+.st::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.st.ok{color:var(--jade);border-color:rgba(113,195,154,.4);background:rgba(113,195,154,.07)}
+.st.todo{color:var(--amber);border-color:rgba(217,180,74,.4);background:rgba(217,180,74,.07)}
+.st.note{color:var(--sky);border-color:rgba(122,167,217,.4);background:rgba(122,167,217,.07)}
+.st.new{color:var(--rust);border-color:rgba(217,126,108,.4);background:rgba(217,126,108,.07)}
+
+/* ── Hero ── */
+#hero{min-height:88vh;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden;padding-top:20px}
+#hero::after{
+  content:"活";position:absolute;right:-30px;top:50%;transform:translateY(-50%);
+  font-family:var(--serif);font-size:520px;color:rgba(217,149,74,.05);line-height:1;pointer-events:none;
+}
+#hero .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.34em;color:var(--copper);margin-bottom:24px}
+#hero .kicker::before{content:"—— ";color:var(--faint)}
+#hero h1{font-family:var(--serif);font-size:54px;font-weight:700;letter-spacing:.08em;line-height:1.3;max-width:760px}
+#hero h1 .hl{color:var(--copper2)}
+#hero .sub{margin-top:18px;font-size:16px;color:var(--dim);max-width:680px}
+#hero .stats{display:flex;gap:14px;flex-wrap:wrap;margin-top:38px}
+#hero .stat{
+  background:var(--ink2);border:1px solid var(--line);border-radius:6px;padding:12px 18px;min-width:118px;
+  transition:border-color .2s,transform .2s;
+}
+#hero .stat:hover{border-color:var(--line2);transform:translateY(-2px)}
+#hero .stat b{display:block;font-family:var(--serif);font-size:26px;color:var(--copper2);line-height:1.2}
+#hero .stat span{font-family:var(--mono);font-size:11px;color:var(--faint)}
+#hero .scroll-hint{position:absolute;bottom:28px;left:0;font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.2em;animation:pulse 2.4s infinite}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* ── 当前位置横幅 ── */
+.where{
+  margin-top:34px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  border:1px solid rgba(217,149,74,.4);border-radius:8px;padding:14px 20px;
+  background:linear-gradient(90deg,rgba(217,149,74,.09),rgba(217,149,74,.02));
+}
+.where .pin{font-family:var(--serif);font-size:17px;color:var(--copper2);white-space:nowrap}
+.where .txt{font-size:14px;color:var(--dim)}
+.where .txt b{color:var(--paper);font-weight:600}
+.where .go{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--copper2);border:1px solid rgba(217,149,74,.5);border-radius:6px;padding:6px 12px;background:transparent;transition:all .2s;white-space:nowrap}
+.where .go:hover{background:rgba(217,149,74,.12)}
+
+/* ── 里程碑 ── */
+.miles{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:18px}
+.mile{background:var(--ink2);border:1px solid var(--line);border-radius:8px;padding:18px 20px;position:relative;transition:border-color .2s,transform .2s}
+.mile:hover{border-color:var(--line2);transform:translateY(-2px)}
+.mile .top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.mile .top h4{font-family:var(--serif);font-size:17px;letter-spacing:.04em}
+.mile .top .tag{margin-left:auto}
+.mile p{font-size:13px;color:var(--dim);line-height:1.75}
+.mile .meter{margin-top:14px}
+.meter{display:flex;flex-direction:column;gap:5px}
+.meter .lbl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--faint)}
+.meter .bar{height:6px;border-radius:3px;background:rgba(36,56,80,.8);border:1px solid var(--line);overflow:hidden;display:flex}
+.meter .bar i{display:block;height:100%}
+.meter .bar .f-jade{background:var(--jade)}
+.meter .bar .f-amber{background:var(--amber)}
+.meter .bar .f-sky{background:var(--sky)}
+.meter .bar .f-none{background:transparent}
+
+/* ── 一句话对比 ── */
+.vs{display:grid;grid-template-columns:1fr 70px 1fr;gap:0;align-items:stretch;margin-top:18px}
+.vs .side{background:var(--ink2);border:1px solid var(--line);border-radius:8px;padding:22px 24px}
+.vs .side h4{font-family:var(--serif);font-size:18px;letter-spacing:.05em;margin-bottom:10px}
+.vs .side p{font-size:13.5px;color:var(--dim);line-height:1.8}
+.vs .side .mini{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+.vs .side .mini span{font-size:12.5px;color:var(--dim);display:flex;gap:8px;align-items:baseline}
+.vs .side .mini span::before{content:"·";color:var(--copper);font-weight:700}
+.vs .old h4{color:var(--faint)}
+.vs .new{border-color:rgba(217,149,74,.45)}
+.vs .new h4{color:var(--copper2)}
+.vs .new .mini span::before{content:"✓";color:var(--jade);font-size:11px}
+.vs .arrow{display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--copper)}
+.vs .arrow span{animation:nudge 2.2s infinite}
+@keyframes nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+@media (max-width:860px){.vs{grid-template-columns:1fr}.vs .arrow{padding:6px 0}.vs .arrow span{transform:rotate(90deg)}}
+
+/* ── 架构图 ── */
+.arch{margin-top:18px;background:var(--ink2);border:1px solid var(--line);border-radius:10px;padding:26px 28px}
+.arch .lane-title{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.2em;margin-bottom:10px;text-align:center}
+.arch .events{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.arch .ev{
+  font-family:var(--mono);font-size:12px;color:var(--dim);border:1px solid var(--line2);border-radius:14px;
+  padding:3px 14px;background:rgba(36,56,80,.45);
+}
+.arch .flow-arrow{color:var(--copper);text-align:center;font-size:16px;line-height:1;padding:10px 0}
+.arch .layers{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.layer{border:1px solid var(--line2);border-radius:8px;padding:16px 18px;background:var(--ink3);position:relative;transition:border-color .2s,transform .2s}
+.layer:hover{border-color:var(--copper);transform:translateY(-2px)}
+.layer .lc{font-family:var(--mono);font-size:10px;color:var(--copper);letter-spacing:.24em}
+.layer h4{font-family:var(--serif);font-size:18px;margin:2px 0 8px;letter-spacing:.05em}
+.layer p{font-size:12.5px;color:var(--dim);line-height:1.75}
+.layer .l1p{border-color:rgba(122,167,217,.5)}
+.layer .l1p .lc{color:var(--sky)}
+.layer .l2p{border-color:rgba(217,149,74,.5)}
+.layer .l3p{border-color:rgba(113,195,154,.5)}
+.layer .l3p .lc{color:var(--jade)}
+.arch .base{
+  margin-top:16px;border:1px dashed var(--line2);border-radius:8px;padding:12px 18px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:rgba(36,56,80,.28);
+}
+.arch .base .bt{font-family:var(--serif);font-size:15px;color:var(--paper);white-space:nowrap}
+.arch .base .bi{font-family:var(--mono);font-size:11.5px;color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:2px 10px}
+.arch .bubble-note{margin-top:12px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--jade)}
+@media (max-width:760px){.arch .layers{grid-template-columns:1fr}}
+
+/* ── 工作流看板 ── */
+.ws-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));margin-top:18px}
+.ws{
+  background:var(--ink2);border:1px solid var(--line);border-radius:8px;padding:16px 18px;
+  transition:border-color .2s,transform .2s;position:relative;
+}
+.ws:hover{border-color:var(--line2);transform:translateY(-2px)}
+.ws .head{display:flex;align-items:center;gap:10px}
+.ws .code{font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--copper);border-radius:4px;padding:1px 7px;font-weight:700}
+.ws .head h4{font-family:var(--serif);font-size:16.5px;letter-spacing:.03em}
+.ws .head .tag{margin-left:auto}
+.ws .one{margin-top:9px;font-size:13px;color:var(--paper);line-height:1.7}
+.ws .now{margin-top:7px;font-size:12px;color:var(--faint)}
+.ws .now b{color:var(--sky);font-weight:400}
+.ws .deps{margin-top:11px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ws .deps .dl{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.1em}
+.dep{
+  font-family:var(--mono);font-size:10.5px;color:var(--copper2);border:1px solid rgba(217,149,74,.4);
+  border-radius:4px;padding:1px 8px;background:rgba(217,149,74,.06);transition:all .15s;
+}
+a.dep:hover{background:rgba(217,149,74,.18);border-bottom:1px solid rgba(217,149,74,.4)}
+.dep.none{color:var(--faint);border-color:var(--line);background:transparent}
+.ws .more-btn{
+  margin-top:12px;font-size:11.5px;font-family:var(--mono);color:var(--faint);background:transparent;
+  border:none;padding:0;display:flex;align-items:center;gap:5px;transition:color .15s;
+}
+.ws .more-btn:hover{color:var(--copper2)}
+.ws .more-btn .tri{display:inline-block;transition:transform .2s;font-size:9px}
+.ws.open .more-btn .tri{transform:rotate(90deg)}
+.ws .detail{
+  max-height:0;overflow:hidden;transition:max-height .3s ease;
+}
+.ws.open .detail{max-height:300px}
+.ws .detail ul{list-style:none;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.ws .detail li{font-size:12.5px;color:var(--dim);padding:3px 0 3px 16px;position:relative;line-height:1.65}
+.ws .detail li::before{content:"▸";position:absolute;left:0;color:var(--copper);font-size:10px;top:6px}
+
+/* ── 路线图 ── */
+.road{margin-top:18px;position:relative;padding-left:34px}
+.road::before{content:"";position:absolute;left:11px;top:8px;bottom:8px;width:2px;background:linear-gradient(var(--copper),var(--line2))}
+.phase{position:relative;margin-bottom:18px}
+.phase .dot{
+  position:absolute;left:-34px;top:14px;width:24px;height:24px;border-radius:50%;
+  background:var(--ink);border:2px solid var(--line2);display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:10px;color:var(--dim);z-index:1;
+}
+.phase.now .dot{border-color:var(--copper);color:var(--copper2);box-shadow:0 0 0 4px rgba(217,149,74,.14)}
+.phase .body{
+  background:var(--ink2);border:1px solid var(--line);border-radius:8px;padding:16px 20px;transition:border-color .2s;
+}
+.phase.now .body{border-color:rgba(217,149,74,.5);background:linear-gradient(90deg,rgba(217,149,74,.07),var(--ink2) 55%)}
+.phase .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.phase .top h4{font-family:var(--serif);font-size:18px;letter-spacing:.04em}
+.phase .top .tag{margin-left:auto}
+.phase .goal{margin-top:8px;font-size:13.5px;color:var(--paper)}
+.phase .chips{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+.phase .chips .dep{font-size:10.5px}
+.phase .chips .dep.ws-chip{color:var(--sky);border-color:rgba(122,167,217,.4);background:rgba(122,167,217,.06)}
+.phase .gate{
+  margin-top:11px;padding-top:10px;border-top:1px dashed var(--line);
+  font-size:12.5px;color:var(--dim);display:flex;gap:8px;align-items:baseline;
+}
+.phase .gate b{font-family:var(--mono);font-size:10px;color:var(--jade);letter-spacing:.16em;white-space:nowrap}
+.voice-lane{
+  margin-top:6px;border:1px dashed rgba(122,167,217,.5);border-radius:8px;padding:14px 20px;
+  background:rgba(122,167,217,.05);
+}
+.voice-lane .vt{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.voice-lane .vt h4{font-family:var(--serif);font-size:16px;color:var(--sky);letter-spacing:.04em}
+.voice-lane .flow{margin-top:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--dim)}
+.voice-lane .flow .step{border:1px solid rgba(122,167,217,.4);border-radius:6px;padding:3px 12px;background:var(--ink2);font-family:var(--mono);font-size:11.5px}
+.voice-lane .flow .arr{color:var(--sky)}
+.voice-lane .flow .merge{color:var(--copper2);border-color:rgba(217,149,74,.5)}
+
+/* ── 待拍板 ── */
+.decs{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));margin-top:18px}
+.dec{
+  background:var(--ink2);border:1px solid var(--line);border-radius:8px;padding:18px 20px;
+  transition:border-color .2s,transform .2s;position:relative;
+}
+.dec:hover{transform:translateY(-2px)}
+.dec .top{display:flex;align-items:center;gap:10px}
+.dec .code{font-family:var(--mono);font-size:11px;color:var(--amber);border:1px solid rgba(217,180,74,.4);border-radius:4px;padding:1px 7px}
+.dec .top h4{font-family:var(--serif);font-size:16.5px;letter-spacing:.03em}
+.dec .q{margin-top:9px;font-size:13px;color:var(--paper);line-height:1.7}
+.dec .rec{
+  margin-top:11px;padding:10px 14px;border-radius:6px;font-size:12.5px;line-height:1.7;
+  background:rgba(217,149,74,.07);border:1px solid rgba(217,149,74,.3);color:var(--dim);
+}
+.dec .rec b{font-family:var(--mono);font-size:10px;color:var(--copper);letter-spacing:.16em;display:block;margin-bottom:3px}
+.dec .mark{
+  margin-top:12px;width:100%;border-radius:6px;padding:7px 0;font-size:12.5px;
+  font-family:var(--mono);background:transparent;color:var(--faint);
+  border:1px dashed var(--line2);transition:all .2s;
+}
+.dec .mark:hover{color:var(--paper);border-color:var(--dim)}
+.dec.done{border-color:rgba(113,195,154,.5)}
+.dec.done .mark{border-style:solid;border-color:rgba(113,195,154,.5);color:var(--jade);background:rgba(113,195,154,.07)}
+.dec.done .code{color:var(--jade);border-color:rgba(113,195,154,.4)}
+.dec .done-tag{position:absolute;top:-9px;right:14px;background:var(--ink);padding:0 8px;font-family:var(--mono);font-size:10px;color:var(--jade);letter-spacing:.14em;display:none}
+.dec.done .done-tag{display:block}
+.dec-summary{
+  margin-top:16px;display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:12px;color:var(--faint);
+}
+.dec-summary .bar{flex:1;height:6px;border-radius:3px;background:rgba(36,56,80,.8);border:1px solid var(--line);overflow:hidden;max-width:340px}
+.dec-summary .bar i{display:block;height:100%;width:0;background:var(--jade);transition:width .4s ease}
+.dec-summary b{color:var(--jade);font-weight:400}
+
+/* ── 页脚 ── */
+footer{margin-top:90px;padding-top:22px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--faint);line-height:2.1}
+footer b{color:var(--dim);font-weight:400}
+
+/* ── 入场动画（纯 CSS，不依赖 JS；reduced-motion 下直接显示） ── */
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.reveal{animation:rise .55s ease both}
+.reveal.d1{animation-delay:.08s}.reveal.d2{animation-delay:.16s}.reveal.d3{animation-delay:.24s}
+.reveal.d4{animation-delay:.32s}.reveal.d5{animation-delay:.4s}
+
+@media (prefers-reduced-motion: reduce){
+  .reveal{animation:none}
+  .vs .arrow span,#hero .scroll-hint{animation:none}
+  html{scroll-behavior:auto}
+}
+
+@media (max-width:900px){
+  nav{display:none}
+  main{margin-left:0;padding:0 22px 90px}
+  #hero h1{font-size:38px}
+}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="brand">
+    <div class="zh">外脑·路线图</div>
+    <div class="en">Persona Roadmap</div>
+  </div>
+  <ul>
+    <li><a href="#status"><span class="no">00</span>现在在哪儿</a></li>
+    <li><a href="#idea"><span class="no">01</span>需求一句话</a></li>
+    <li><a href="#arch"><span class="no">02</span>三层架构</a></li>
+    <li><a href="#ws"><span class="no">03</span>九个工作流</a></li>
+    <li><a href="#road"><span class="no">04</span>分期路线</a></li>
+    <li><a href="#decide"><span class="no">05</span>待拍板×5</a></li>
+  </ul>
+  <div class="foot">
+    <div class="ver">v0.1 · 2026-09-17</div>
+    <div>输入：<br>docs/waibrain-persona/</div>
+    <div class="dec" id="nav-dec">决策 0 / 5</div>
+  </div>
+</nav>
+
+<main>
+
+<!-- ═══════════ HERO ═══════════ -->
+<section id="hero">
+  <div class="kicker">WAIbrain · 人格化路线图</div>
+  <h1>从「你问我答」<br>到<span class="hl">自己活着</span>的 Agent</h1>
+  <div class="sub">人格化需求 v0.1 的进度、拆解与待拍板事项。一页看完，细节点开。</div>
+  <div class="stats">
+    <div class="stat"><b>3</b><span>里程碑</span></div>
+    <div class="stat"><b>9</b><span>工作流</span></div>
+    <div class="stat"><b>5</b><span>分期</span></div>
+    <div class="stat"><b>5</b><span>待拍板</span></div>
+  </div>
+  <div class="where">
+    <span class="pin">◎ 当前位置</span>
+    <span class="txt"><b>Phase 0 · 需求已整理完（v0.1 待评审）</b>——语音链路未动工，人格化零代码</span>
+    <button class="go" onclick="location.hash='#decide'">去拍板 ↓</button>
+  </div>
+  <div class="scroll-hint">SCROLL ▾</div>
+</section>
+
+<!-- ═══════════ 00 现状 ═══════════ -->
+<section id="status" class="reveal d1">
+  <div class="sec-head">
+    <h2>现在在哪儿</h2><span class="sub">THREE MILESTONES</span>
+  </div>
+  <p class="lead">三个里程碑依次叠加，不推翻前者。</p>
+  <div class="miles">
+    <div class="mile">
+      <div class="top"><h4>① 1+N 打字版</h4><span class="st ok tag">已完成</span></div>
+      <p>主对话 + 并行外脑 + 闪念回插，配置与对话持久化。<br>已可运行——三层架构的雏形。</p>
+      <div class="meter">
+        <div class="lbl"><span>实现</span><span>100%</span></div>
+        <div class="bar"><i class="f-jade" style="width:100%"></i></div>
+      </div>
+    </div>
+    <div class="mile">
+      <div class="top"><h4>② 语音方案</h4><span class="st todo tag">已规划</span></div>
+      <p>LiveKit 链路 + 播放时间轴调度。<br>方案已定稿，<em>代码 0 行</em>。</p>
+      <div class="meter">
+        <div class="lbl"><span>方案</span><span>✓</span></div>
+        <div class="bar"><i class="f-amber" style="width:100%"></i></div>
+        <div class="lbl"><span>代码</span><span>0%</span></div>
+        <div class="bar"><i class="f-none" style="width:0%"></i></div>
+      </div>
+    </div>
+    <div class="mile">
+      <div class="top"><h4>③ 人格化</h4><span class="st note tag">待评审</span></div>
+      <p>09-16 语音长谈 649 条 → 14 篇需求文档。<br>本次规划的输入。</p>
+      <div class="meter">
+        <div class="lbl"><span>整理</span><span>✓</span></div>
+        <div class="bar"><i class="f-sky" style="width:100%"></i></div>
+        <div class="lbl"><span>评审</span><span>0%</span></div>
+        <div class="bar"><i class="f-none" style="width:0%"></i></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 01 一句话 ═══════════ -->
+<section id="idea" class="reveal d2">
+  <div class="sec-head">
+    <h2>需求一句话</h2><span class="sub">THE ONE LINE</span>
+  </div>
+  <div class="vs">
+    <div class="side old">
+      <h4>对话驱动（现状）</h4>
+      <p>没人说话，就没有任何进程在跑。</p>
+      <div class="mini">
+        <span>Agent 是被调用的程序</span>
+        <span>所有产品都停在这里</span>
+      </div>
+    </div>
+    <div class="arrow"><span>➜</span></div>
+    <div class="side new">
+      <h4>自身状态驱动（目标）</h4>
+      <p>没人说话，「在意」仍在后台维持、演化、触发行动。</p>
+      <div class="mini">
+        <span>持续存在的主体</span>
+        <span>自己决定做不做、说不说</span>
+        <span>记忆是人格的载体</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 02 架构 ═══════════ -->
+<section id="arch" class="reveal d3">
+  <div class="sec-head">
+    <h2>三层架构</h2><span class="sub">EVENT-DRIVEN LOOPS</span>
+  </div>
+  <p class="lead">一切输入先进事件流，各层通过事件解耦；结果沿冒泡协议回流。</p>
+  <div class="arch">
+    <div class="lane-title">事 件 流 · 唯 一 入 口</div>
+    <div class="events">
+      <span class="ev">用户话语</span>
+      <span class="ev">订阅推送</span>
+      <span class="ev">定时心跳</span>
+      <span class="ev">worker 冒泡</span>
+    </div>
+    <div class="flow-arrow">▼</div>
+    <div class="layers">
+      <div class="layer l1p">
+        <div class="lc">L1 · SPEAK</div>
+        <h4>表现层</h4>
+        <p>说这段话的它。维持人设，决定<b>说不说、怎么说</b>，不做深度思考。</p>
+      </div>
+      <div class="layer l2p">
+        <div class="lc">L2 · THINK</div>
+        <h4>思考线网络</h4>
+        <p>并行的「在意」。每条一个长期关心，可休眠唤醒，维护「为什么做」。</p>
+      </div>
+      <div class="layer l3p">
+        <div class="lc">L3 · ACT</div>
+        <h4>Worker 群</h4>
+        <p>临时伸出去的手。专注数据内执行，做完冒泡、消失。</p>
+      </div>
+    </div>
+    <div class="flow-arrow">▼ ▲ 读写</div>
+    <div class="base">
+      <span class="bt">共享底座</span>
+      <span class="bi">流式记忆</span>
+      <span class="bi">世界图</span>
+      <span class="bi">当前状态层「脑子里还热着什么」</span>
+    </div>
+    <div class="bubble-note">冒泡回路：worker → 思考线总结 → 推送 ≠ 说 → 表现层自主决定</div>
+  </div>
+</section>
+
+<!-- ═══════════ 03 工作流 ═══════════ -->
+<section id="ws" class="reveal d4">
+  <div class="sec-head">
+    <h2>九个工作流</h2><span class="sub">WORKSTREAMS</span>
+    <span class="count">点击卡片展开细节 · 点击依赖跳转</span>
+  </div>
+  <div class="ws-grid">
+
+    <div class="ws" id="ws-1">
+      <div class="head"><span class="code">WS-1</span><h4>事件流 + 触发器</h4><span class="st new tag">全新</span></div>
+      <div class="one">一切输入先进事件流；订阅 / 轮询 / 心跳三类触发。</div>
+      <div class="now">现状：<b>无统一入口</b>，纯消息驱动</div>
+      <div class="deps"><span class="dl">依赖</span><span class="dep none">无</span></div>
+      <button class="more-btn" aria-expanded="false"><span class="tri">▶</span>展开</button>
+      <div class="detail"><ul>
+        <li>用户话语 · 订阅推送 · 心跳 · 冒泡，统一为事件</li>
+        <li>推送不可全信：外部信息存「值 + 来源 + 时间 + 可信度」</li>
+        <li>一切主动性的地基（ARCH-6）</li>
+      </ul></div>
+    </div>
+
+    <div class="ws" id="ws-2">
+      <div class="head"><span class="code">WS-2</span><h4>常驻思考线</h4><span class="st todo tag">有雏形</span></div>
+      <div class="one">外脑从每轮一次性分支 → 常驻、有状态的「在意」。</div>
+      <div class="now">现状：<b>外脑 = 一次性 fork 雏形</b>，底座已支持常驻、编排未用</div>
+      <div class="deps"><span class="dl">依赖</span><a class="dep" href="#ws-1">WS-1</a></div>
+      <button class="more-btn" aria-expanded="false"><span class="tri">▶</span>展开</button>
+      <div class="detail"><ul>
+        <li>状态机：活跃 / 休眠 / 合并 / 结束 + 开线三门槛</li>
+        <li>专注数据：任务专属上下文，可检索但不推送</li>
+        <li>冒泡三分法：完成 / 需决策 / 出错</li>
+        <li>注意力 = 资源调度，四条外部边界，不做内部审查</li>
+      </ul></div>
+    </div>
+
+    <div class="ws" id="ws-3">
+      <div class="head"><span class="code">WS-3</span><h4>记忆系统</h4><span class="st new tag">全新</span></div>
+      <div class="one">流式记忆 + 激活召回 + 双时态 + 夜间整理。</div>
+      <div class="now">现状：<b>无</b>；机制推演最深的一章</div>
+      <div class="deps"><span class="dl">依赖</span><span class="dep none">较独立</span></div>
+      <button class="more-btn" aria-expanded="false"><span class="tri">▶</span>展开</button>
+      <div class="detail"><ul>
+        <li>激活度 = 频率 × 近因（ACT-R）+ Trace 调用痕迹</li>
+        <li>两段式检索 + Softmax 概率采样——同一句话不同状态召回不同记忆，是特性</li>
+        <li>旧事实只标有效区间，不改写不删除</li>
+        <li>当前状态层先用刚性代码跑最小集，不上大模型</li>
+        <li>记忆由 Agent 自己确认，不可删、可溯源</li>
+      </ul></div>
+    </div>
+
+    <div class="ws" id="ws-4">
+      <div class="head"><span class="code">WS-4</span><h4>世界图 + 本体</h4><span class="st new tag">全新</span></div>
+      <div class="one">五原语元模型；存最小事实，能力由规则实时算出。</div>
+      <div class="now">现状：<b>无</b>；存储选型待拍板（D2）</div>
+      <div class="deps"><span class="dl">依赖</span><a class="dep" href="#ws-3">WS-3</a></div>
+      <button class="more-btn" aria-expanded="false"><span class="tri">▶</span>展开</button>
+      <div class="detail"><ul>
+        <li>Self / Entity / Relation / Affordance / Event，边是一等公民</li>
+        <li>可供性 = 关系 ∩ 能力，动态算出</li>
+        <li>认知标注：「我认为的事实 ≠ 世界的事实」</li>
+        <li>Schema 后验：先存事实，类型从实例生长</li>
+      </ul></div>
+    </div>
+
+    <div class="ws" id="ws-5">
+      <div class="head"><span class="code">WS-5</span><h4>技能系统</h4><span class="st new tag">全新</span></div>
+      <div class="one">失败 3 次生成候选 skill，重测通过才入库；夜间固化。</div>
+      <div class="now">现状：<b>无</b></div>
+      <div class="deps"><span class="dl">依赖</span><a class="dep" href="#ws-3">WS-3</a><a class="dep" href="#ws-4">WS-4</a></div>
+      <button class="more-btn" aria-expanded="false"><span class="tri">▶</span>展开</button>
+      <div class="detail"><ul>
+        <li>能力库存恒在：执行失败不影响「我会」</li>
+        <li>技能挂世界图对象类型，成功后状态写回</li>
+        <li>扩展三途径：用户购买 / 自学 / 商城自购</li>
+      </ul></div>
+    </div>
+
+    <div class="ws" id="ws-6">
+      <div class="head"><span class="code">WS-6</span><h4>人格生成</h4><span class="st new tag">全新</span></div>
+      <div class="one">人生发生器：真实跑过推演，不是角色属性表。</div>
+      <div class="now">现状：<b>无</b>；最大单点投入</div>
+      <div class="deps"><span class="dl">依赖</span><a class="dep" href="#ws-3">WS-3</a><a class="dep" href="#ws-4">WS-4</a></div>
+      <button class="more-btn" aria-expanded="false"><span class="tri">▶</span>展开</button>
+      <div class="detail"><ul>
+        <li>随机种子（大五）→ 真实历史约束 + 有界随机推演</li>
+        <li>关键事件构建人格；启动时人生完整、记忆自洽</li>
+        <li>计算不可约：想看 42 岁的人格，就必须（加速）跑到 42 岁</li>
+      </ul></div>
+    </div>
+
+    <div class="ws" id="ws-7">
+      <div class="head"><span class="code">WS-7</span><h4>情绪 + 关系</h4><span class="st new tag">全新</span></div>
+      <div class="one">情绪是状态的投影，不是模块。</div>
+      <div class="now">现状：<b>无</b>；数值模型未定义、🟡 项最多</div>
+      <div class="deps"><span class="dl">依赖</span><a class="dep" href="#ws-3">WS-3</a><a class="dep" href="#ws-6">WS-6</a></div>
+      <button class="more-btn" aria-expanded="false"><span class="tri">▶</span>展开</button>
+      <div class="detail"><ul>
+        <li>情绪影响三件事：召回 / 风险判断 / 语言风格</li>
+        <li>主观印象 = ≤140 字自然语言概述，否决数值分</li>
+        <li>贝叶斯印象：第一印象是先验，交互做更新</li>
+      </ul></div>
+    </div>
+
+    <div class="ws" id="ws-8">
+      <div class="head"><span class="code">WS-8</span><h4>一致性 + 行动门</h4><span class="st new tag">全新</span></div>
+      <div class="one">不建仲裁器，靠记忆一致性兜底。</div>
+      <div class="now">现状：<b>无</b>；串行化点是工程底线，要早做</div>
+      <div class="deps"><span class="dl">依赖</span><a class="dep" href="#ws-2">WS-2</a><a class="dep" href="#ws-3">WS-3</a></div>
+      <button class="more-btn" aria-expanded="false"><span class="tri">▶</span>展开</button>
+      <div class="detail"><ul>
+        <li>同一资源（钱包 / 对外身份）写操作必须串行化</li>
+        <li>冲突结论带置信度 + 时间戳落库，时序记忆裁决</li>
+        <li>多 Agent 辩论常不优于单 Agent——支持不建仲裁器</li>
+      </ul></div>
+    </div>
+
+    <div class="ws" id="ws-9">
+      <div class="head"><span class="code">WS-9</span><h4>主动说话闭环</h4><span class="st todo tag">有雏形</span></div>
+      <div class="one">被触发时，没人说话也能开口。</div>
+      <div class="now">现状：<b>闪念回插 = 被动雏形</b>，要等下轮</div>
+      <div class="deps"><span class="dl">依赖</span><a class="dep" href="#ws-2">WS-2</a><a class="dep" href="#road">语音A/B1</a></div>
+      <button class="more-btn" aria-expanded="false"><span class="tri">▶</span>展开</button>
+      <div class="detail"><ul>
+        <li>触发 ≠ 说：表现层自主决定说不说</li>
+        <li>语音侧时机 = 播放时间轴调度（赶得上就接，赶不上就沉淀）</li>
+        <li>打字模式先验证：Web 里主动发消息</li>
+      </ul></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════ 04 路线图 ═══════════ -->
+<section id="road" class="reveal d5">
+  <div class="sec-head">
+    <h2>分期路线</h2><span class="sub">PHASES 0–4 + VOICE LANE</span>
+  </div>
+  <div class="road">
+
+    <div class="phase now">
+      <div class="dot">P0</div>
+      <div class="body">
+        <div class="top"><h4>评审 + 方案设计</h4><span class="st todo tag">现在</span></div>
+        <div class="goal">过 5 个决策 → 存储选型 → DSH 插件映射 → 里程碑定义</div>
+        <div class="chips">
+          <span class="dep">5 个决策</span><span class="dep">OQ 清单</span><span class="dep">技术方案文档</span>
+        </div>
+        <div class="gate"><b>出口</b>技术方案定稿，Phase 1 开工</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="dot">P1</div>
+      <div class="body">
+        <div class="top"><h4>「活着的」骨架</h4><span class="st new tag">待开发</span></div>
+        <div class="goal">事件流 + 常驻思考线 + 写操作串行化 + 打字版主动说话</div>
+        <div class="chips">
+          <a class="dep ws-chip" href="#ws-1">WS-1</a><a class="dep ws-chip" href="#ws-2">WS-2</a><a class="dep ws-chip" href="#ws-8">WS-8</a><a class="dep ws-chip" href="#ws-9">WS-9 打字版</a>
+        </div>
+        <div class="gate"><b>验收</b>没人说话，它仍在运转、自主开口——不等语音链路</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="dot">P2</div>
+      <div class="body">
+        <div class="top"><h4>记忆</h4><span class="st new tag">待开发</span></div>
+        <div class="goal">记忆系统全量：人格的载体</div>
+        <div class="chips"><a class="dep ws-chip" href="#ws-3">WS-3</a></div>
+        <div class="gate"><b>验收</b>跨会话记得；同一句话不同状态召回不同记忆</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="dot">P3</div>
+      <div class="body">
+        <div class="top"><h4>世界图 + 技能</h4><span class="st new tag">待开发</span></div>
+        <div class="goal">认知可操作化：知道此刻能做什么、怎么做更好</div>
+        <div class="chips"><a class="dep ws-chip" href="#ws-4">WS-4</a><a class="dep ws-chip" href="#ws-5">WS-5</a></div>
+        <div class="gate"><b>验收</b>可供性可算；技能可固化、可重测入库</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="dot">P4</div>
+      <div class="body">
+        <div class="top"><h4>人格 + 情绪</h4><span class="st new tag">待开发</span></div>
+        <div class="goal">人生发生器 + 情绪投影——依赖最重，放最后</div>
+        <div class="chips"><a class="dep ws-chip" href="#ws-6">WS-6</a><a class="dep ws-chip" href="#ws-7">WS-7</a></div>
+        <div class="gate"><b>验收</b>推演产出自洽人格；情绪影响召回 / 风险 / 风格</div>
+      </div>
+    </div>
+
+    <div class="voice-lane">
+      <div class="vt"><h4>⇄ 语音并行泳道</h4><span class="st note">不阻塞人格化</span></div>
+      <div class="flow">
+        <span class="step">A · LiveKit console 跑通</span><span class="arr">→</span>
+        <span class="step">B1 · 播放时间轴调度</span><span class="arr">→</span>
+        <span class="step merge">与 WS-9 汇合：主动说话的最终形态</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════ 05 待拍板 ═══════════ -->
+<section id="decide" class="reveal d5">
+  <div class="sec-head">
+    <h2>待拍板 ×5</h2><span class="sub">DECISIONS BEFORE DESIGN</span>
+    <span class="count">点了会记住（本机）</span>
+  </div>
+  <div class="decs">
+
+    <div class="dec" data-dec="d1">
+      <span class="done-tag">✓ 已拍板</span>
+      <div class="top"><span class="code">D1</span><h4>前提变化口径</h4></div>
+      <div class="q">worker 要不要被强制告知「这事不用做了」？</div>
+      <div class="rec"><b>建议</b>按暂定口径通过：强制送达保留、强制终止不做——收到后继不继续它自己定。</div>
+      <button class="mark" aria-pressed="false">○ 点此标记已拍板</button>
+    </div>
+
+    <div class="dec" data-dec="d2">
+      <span class="done-tag">✓ 已拍板</span>
+      <div class="top"><span class="code">D2</span><h4>存储选型</h4></div>
+      <div class="q">思考线状态 + 世界图用什么存？（OQ-8 / OQ-10）</div>
+      <div class="rec"><b>建议</b>SQLite 关系表起步：边作行存 + 双时态字段；Graphiti 只作参照，不引图库。schema 本来就后验，后迁成本低。</div>
+      <button class="mark" aria-pressed="false">○ 点此标记已拍板</button>
+    </div>
+
+    <div class="dec" data-dec="d3">
+      <span class="done-tag">✓ 已拍板</span>
+      <div class="top"><span class="code">D3</span><h4>行动门范围</h4></div>
+      <div class="q">高价值动作清单现在定义吗？（OQ-4）</div>
+      <div class="rec"><b>建议</b>第一期只做「同一资源写操作串行化」，清单推迟。</div>
+      <button class="mark" aria-pressed="false">○ 点此标记已拍板</button>
+    </div>
+
+    <div class="dec" data-dec="d4">
+      <span class="done-tag">✓ 已拍板</span>
+      <div class="top"><span class="code">D4</span><h4>人生发生器排期</h4></div>
+      <div class="q">WS-6 放哪期？</div>
+      <div class="rec"><b>建议</b>Phase 4 最后做——依赖记忆 + 世界图，且是最大单点投入。</div>
+      <button class="mark" aria-pressed="false">○ 点此标记已拍板</button>
+    </div>
+
+    <div class="dec" data-dec="d5">
+      <span class="done-tag">✓ 已拍板</span>
+      <div class="top"><span class="code">D5</span><h4>语音先后</h4></div>
+      <div class="q">等语音链路，还是打字模式先验证人格化？</div>
+      <div class="rec"><b>建议</b>打字先行，语音线 A 并行推进，两边只在 WS-9 汇合。</div>
+      <button class="mark" aria-pressed="false">○ 点此标记已拍板</button>
+    </div>
+
+  </div>
+  <div class="dec-summary">
+    <span>已拍板</span><b id="dec-count">0 / 5</b>
+    <div class="bar"><i id="dec-bar"></i></div>
+    <span id="dec-note">过完这 5 条 → 出技术方案</span>
+  </div>
+</section>
+
+<footer>
+  <b>输入来源</b><br>
+  需求集 · <a href="docs/waibrain-persona/README.md">docs/waibrain-persona/</a>（v0.1 待评审，2026-09-16）<br>
+  语音方案 · plans/2026-09-04-waibrain-voice-development-plan.md<br>
+  已实现 · apps/waibrain（1+N 打字版）<br>
+  本页 · 2026-09-17 拆解产出，决策状态存于浏览器本地
+</footer>
+
+</main>
+
+<script>
+/* ── 工作流卡片展开 ── */
+(function(){
+try{
+  document.querySelectorAll('.ws .more-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const ws=btn.closest('.ws');
+      const open=ws.classList.toggle('open');
+      btn.setAttribute('aria-expanded',open);
+      btn.lastChild.textContent=open?' 收起':' 展开';
+    });
+  });
+}catch(e){/* 展开失败时细节已不可见，无兜底必要 */}
+})();
+
+/* ── 决策勾选 + 本地记忆 ── */
+(function(){
+try{
+const KEY='waibrain-persona-roadmap-decisions';
+const saved=new Set(JSON.parse(localStorage.getItem(KEY)||'[]'));
+function renderDecs(){
+  let n=0;
+  document.querySelectorAll('.dec').forEach(d=>{
+    const on=saved.has(d.dataset.dec);
+    d.classList.toggle('done',on);
+    const btn=d.querySelector('.mark');
+    btn.setAttribute('aria-pressed',on);
+    btn.textContent=on?'✓ 已拍板（点击撤销）':'○ 点此标记已拍板';
+    if(on)n++;
+  });
+  document.getElementById('dec-count').textContent=n+' / 5';
+  document.getElementById('dec-bar').style.width=(n/5*100)+'%';
+  document.getElementById('nav-dec').textContent='决策 '+n+' / 5';
+  document.getElementById('dec-note').textContent=n===5?'✓ 齐了 → 出技术方案':'过完这 5 条 → 出技术方案';
+}
+document.querySelectorAll('.dec .mark').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const id=btn.closest('.dec').dataset.dec;
+    saved.has(id)?saved.delete(id):saved.add(id);
+    localStorage.setItem(KEY,JSON.stringify([...saved]));
+    renderDecs();
+  });
+});
+renderDecs();
+}catch(e){/* 决策勾选失败只损失记忆功能，不处理 */}
+})();
+
+/* ── 导航高亮（独立隔离，失败不影响其他功能） ── */
+(function(){
+  try{
+    const secs=[...document.querySelectorAll('main section[id]')];
+    const links=[...document.querySelectorAll('nav ul li a')];
+    function markActive(){
+      let active=null;
+      for(const s of secs){
+        if(s.getBoundingClientRect().top<window.innerHeight*.4) active=s.id;
+      }
+      for(const l of links){
+        l.classList.toggle('active',active!=null&&l.getAttribute('href')==='#'+active);
+      }
+    }
+    addEventListener('scroll',markActive,{passive:true});
+    addEventListener('resize',markActive);
+    markActive();
+  }catch(e){/* 导航高亮失败只是少了高亮，不处理 */}
+})();
+</script>
+</body>
+</html>
