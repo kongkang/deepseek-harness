@@ -1,0 +1,20 @@
+# @deepseek-ai/dsh-reai-voice bundle patch: compose official speech, translation, and this console.
+# Rows mirror @deepseek-ai/dsh-experimental-voice-input-bundle; translation adds the
+# official translator service. The reai-voice row owns the Remote and all browser UI.
+- insert:
+    - id: speech-to-text
+      name: '@deepseek-ai/dsh-experimental-speech-to-text'
+      config:
+        defaultProvider: sensevoice-local
+    - id: speech-to-text-sensevoice
+      name: '@deepseek-ai/dsh-experimental-speech-to-text-sensevoice'
+      config:
+        dataRoot: !!js dshHomePath('speech-to-text', 'sensevoice')
+    - id: api-speech-to-text
+      name: '@deepseek-ai/dsh-experimental-api-speech-to-text'
+    - id: translator
+      name: '@deepseek-ai/dsh-experimental-translator'
+    - id: reai-voice
+      name: '@deepseek-ai/dsh-reai-voice'
+      config:
+        engine: local

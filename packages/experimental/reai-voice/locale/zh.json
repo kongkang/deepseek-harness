@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "ReAI 语音",
+    "description": "在输入框里听写或语音翻译，并用键盘进入对话、新建对话、唤起对话列表。",
+    "detail": "docs/DETAIL.zh.md"
+  }
+}
