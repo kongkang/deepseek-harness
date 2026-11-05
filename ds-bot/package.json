@@ -69,5 +69,8 @@
   },
   "dependencies": {
     "deep-view": "0.1.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
   }
 }
