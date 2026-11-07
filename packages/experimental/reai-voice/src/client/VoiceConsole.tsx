@@ -7,8 +7,11 @@ import type { SpeechSelection, Transcript } from '@deepseek-ai/dsh-experimental-
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ReaiVoiceInfo, ReaiVoiceTranslateRequest } from '../types.ts'
-import { audioBase64, RecordingError, type Recording as RecordingHandle } from './audio.ts'
+import { audioBase64, captureSupport, RecordingError, type Recording as RecordingHandle } from './audio.ts'
+import { ModelPreparation } from './ModelPreparation.tsx'
+import type { ModelPreparationActions } from './ModelPreparation.tsx'
 import type { SpeechReadiness } from './readiness.ts'
+import { SetupDialog } from './SetupDialog.tsx'
 import { Button, IconCloseOutlineRegular, IconGlobeOutlineRegular, IconMicrophoneOutlineRegular, IconStopFillRegular, StateDot, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './VoiceConsole.module.css'
 import { NS, type ReaiVoiceKey } from './locales.ts'
@@ -26,12 +29,14 @@ export interface VoiceConsoleActions {
 }
 
 /** Entry-injected readiness, preferences, and the keyboard-bridge controller. */
-export interface VoiceConsoleInjected extends VoiceConsoleActions {
+export interface VoiceConsoleInjected extends VoiceConsoleActions, ModelPreparationActions {
   hooks: {
     speechReadiness: HostObservable<SpeechReadiness>
     engine: HostObservable<ReaiVoiceInfo>
     /** Keyboard bridge owned by the mount; the console registers itself as the current handler. */
     controller: HostObservable<VoiceConsoleBridge>
+    /** Whether the Plugins page offers its navigation; the setup dialog omits the details button otherwise. */
+    pluginNavigation: HostObservable<boolean>
   }
 }
 
@@ -72,6 +77,7 @@ async function disposeCapture(capture: RecordingHandle): Promise<void> {
 
 function failureText(failure: unknown, t: (key: ReaiVoiceKey, params?: Record<string, unknown>) => string): string {
   if (failure instanceof RecordingError) {
+    if (failure.kind === 'unavailable') return t('console.unsupported')
     if (failure.kind === 'permission') return t('console.permission')
     if (failure.kind === 'empty') return t('console.empty')
     if (failure.kind === 'cancelled') return t('console.cancelled')
@@ -83,26 +89,30 @@ function failureText(failure: unknown, t: (key: ReaiVoiceKey, params?: Record<st
 
 /** Render compact dictation/translate buttons or the expanded capture row. */
 export function VoiceConsole({ sessionId, inputActions, locked, onActiveChange, createRecording, transcribe, translate,
-  useSpeechReadiness, useEngine, useController, t }: VoiceConsoleProps) {
+  prepare, cancelPreparation, openSettings, useSpeechReadiness, useEngine, useController, usePluginNavigation, t }: VoiceConsoleProps) {
   const readiness = useSpeechReadiness(value => value), catalog = readiness.catalog
   const engine = useEngine(value => value)
   const controller = useController(value => value)
+  const navigable = usePluginNavigation(present => present)
   const provider = catalog?.providers.find(item => item.id === catalog.selection.providerId)
   const usable = readiness.connected && (provider?.preparation.phase === 'ready' || provider?.preparation.phase === 'standby'
     || provider?.preparation.phase === 'waking')
   const [phase, setPhase] = useState<Phase>('idle'), [message, setMessage] = useState(''), [pending, setPending] = useState('')
   const [pendingIsTranslation, setPendingIsTranslation] = useState(false)
+  const support = captureSupport()
+  const [setupOpen, setSetupOpen] = useState(false)
   const [level, setLevel] = useState(0)
   const current = useRef<ActiveCapture>(), generation = useRef(0)
   const expanded = phase !== 'idle'
   useLayoutEffect(() => { onActiveChange(expanded); return () => { onActiveChange(false) } }, [expanded, onActiveChange])
+  useEffect(() => { if (support === 'ready' && usable) setSetupOpen(false) }, [usable, support])
 
   const cancel = (): void => {
     generation.current++
     const active = current.current
     current.current = undefined
     if (active) { clearTimeout(active.timer); active.abort.abort(); void disposeCapture(active.capture) }
-    setPending(''); setMessage(''); setPhase('idle')
+    setPending(''); setMessage(''); setPhase('idle'); setSetupOpen(false)
   }
   const feedback = (text: string): void => { setMessage(text); setPhase('feedback') }
 
@@ -139,7 +149,7 @@ export function VoiceConsole({ sessionId, inputActions, locked, onActiveChange, 
   }
 
   const start = async (mode: VoiceConsoleMode): Promise<void> => {
-    if (!catalog || !usable || locked || current.current) return
+    if (!catalog || support !== 'ready' || !usable || locked || current.current) return
     if (engine.engine === 'cloud') { feedback(t('console.cloudComingSoon')); return }
     const run = ++generation.current
     const active: ActiveCapture = { mode, capture: createRecording(), abort: new AbortController(),
@@ -171,7 +181,7 @@ export function VoiceConsole({ sessionId, inputActions, locked, onActiveChange, 
   }, [phase])
 
   useEffect(() => {
-    setPending(''); setMessage(''); setPhase('idle')
+    setPending(''); setMessage(''); setPhase('idle'); setSetupOpen(false)
     const blur = (): void => { if (current.current?.phase === 'recording') cancel() }
     const visibility = (): void => {
       if (document.hidden && current.current && current.current.phase !== 'transcribing' && current.current.phase !== 'translating') cancel()
@@ -189,7 +199,7 @@ export function VoiceConsole({ sessionId, inputActions, locked, onActiveChange, 
       current.current = undefined
       if (active) { clearTimeout(active.timer); active.abort.abort(); void disposeCapture(active.capture) }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset per session like the official console.
+    // Reset per Session like the official voice console.
   }, [sessionId])
 
   useLayoutEffect(() => controller.register(sessionId, {
@@ -200,26 +210,43 @@ export function VoiceConsole({ sessionId, inputActions, locked, onActiveChange, 
         else if (active.phase === 'requesting') cancel()
         return
       }
+      if (support !== 'ready' || !usable) { setSetupOpen(true); return }
       if (phase === 'feedback') { setPhase('idle'); void start(mode); return }
       void start(mode)
     },
-  }), [controller, sessionId, phase, usable, locked, engine])
+  }), [controller, sessionId, phase, usable, locked, engine, support])
 
+  /** The console can record only when both this page and the Host are ready. */
+  const ready = support === 'ready' && usable
+  /** The browser's own limits come first: neither a prepared model nor a download can lift them. */
+  const setupReason = support !== 'ready' ? support
+    : readiness.connected && provider?.location === 'host-local'
+      && (provider.preparation.phase === 'unprepared' || provider.preparation.phase === 'cancelled'
+        || provider.preparation.phase === 'failed') ? 'install' : 'unavailable'
   if (!expanded) return <>
-    <Tooltip label={t('console.dictate')} disabled={!usable} side="top" portal>
+    <Tooltip label={ready ? t('console.dictate') : t('setup.micHint')} side="top" portal>
       <span className={css.triggerAnchor}><Button className={css.trigger} size="sm" disabled={locked}
-        aria-label={t('console.dictate')}
+        aria-label={ready ? t('console.dictate') : t('setup.micHint')}
+        aria-haspopup={ready ? undefined : 'dialog'}
         onMouseDown={(event) => { event.preventDefault() }}
-        onClick={() => { if (usable) void start('dictate'); else feedback(t('console.unavailable')) }}>
+        onClick={() => { if (ready) void start('dictate'); else setSetupOpen(true) }}>
         <IconMicrophoneOutlineRegular size={18} /></Button></span>
     </Tooltip>
-    <Tooltip label={t('console.translate')} disabled={!usable} side="top" portal>
+    <Tooltip label={ready ? t('console.translate') : t('setup.micHint')} side="top" portal>
       <span className={css.triggerAnchor}><Button className={css.trigger} size="sm" disabled={locked}
-        aria-label={t('console.translate')}
+        aria-label={ready ? t('console.translate') : t('setup.micHint')}
+        aria-haspopup={ready ? undefined : 'dialog'}
         onMouseDown={(event) => { event.preventDefault() }}
-        onClick={() => { if (usable) void start('translate'); else feedback(t('console.unavailable')) }}>
+        onClick={() => { if (ready) void start('translate'); else setSetupOpen(true) }}>
         <IconGlobeOutlineRegular size={18} /></Button></span>
     </Tooltip>
+    <SetupDialog open={setupOpen && !ready} reason={setupReason}
+      onDismiss={() => { setSetupOpen(false) }}
+      onOpenDetails={navigable ? () => { setSetupOpen(false); openSettings() } : undefined} t={t}>
+      {(setupReason === 'install' || setupReason === 'unavailable')
+        && <ModelPreparation provider={provider} connected={readiness.connected}
+          error={readiness.error ?? undefined} prepare={prepare} cancelPreparation={cancelPreparation} t={t} />}
+    </SetupDialog>
   </>
   return <div className={css.captureRow} data-voice-activity={phase}>
     <Button type="button" className={css.roundButton} size="sm" aria-label={t('console.cancel')}
@@ -239,7 +266,8 @@ export function VoiceConsole({ sessionId, inputActions, locked, onActiveChange, 
       ? <Button className={css.inlineAction} size="sm" type="button" onClick={() => {
         if (inputActions.insertText(pending, inputActions.captureInsertion())) { setPending(''); setPhase('idle') }
       }}>{pendingIsTranslation ? t('console.insertOriginal') : t('console.insert')}</Button>
-      : <Button className={css.roundButton} size="sm" type="button" aria-label={t('console.start')} disabled={!usable || locked}
+      : <Button className={css.roundButton} size="sm" type="button" aria-label={t('console.start')}
+        disabled={support !== 'ready' || !usable || locked}
         onClick={() => { void start('dictate') }}><IconMicrophoneOutlineRegular size={18} /></Button>)}
   </div>
 }

@@ -12,6 +12,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { TypertRemoteContribution } from '@deepseek-ai/dsh-typert-protocol'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { TranscriptionRequest } from '@deepseek-ai/dsh-experimental-api-speech-to-text/types'
+import type { SpeechPreparationOptions, SpeechProviderId } from '@deepseek-ai/dsh-experimental-speech-to-text/types'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { VoiceConsole, type VoiceConsoleBridge, type VoiceConsoleHandle, type VoiceConsoleMode } from './VoiceConsole.tsx'
 import { Recording } from './audio.ts'
@@ -50,6 +51,16 @@ function registerUi(ctx: Context): void {
     void ctx.remote.reaiVoice.info().then((result) => { if (result.ok) engine.set(result.value) }).catch(() => undefined)
   }
   refreshEngine()
+
+  /** Host-owned preparation controls; a rejected transport result surfaces in the preparation card. */
+  const prepare = async (providerId: SpeechProviderId, options?: SpeechPreparationOptions): Promise<void> => {
+    const result = await ctx.remote.speech.prepare(providerId, options)
+    if (!result.ok) throw result.error
+  }
+  const cancelPreparation = async (providerId: SpeechProviderId): Promise<void> => {
+    const result = await ctx.remote.speech.cancelPreparation(providerId)
+    if (!result.ok) throw result.error
+  }
 
   /** Live console handles so global shortcuts reach the visible Session's control. */
   const handles = new Map<SessionId | undefined, VoiceConsoleHandle>()
@@ -103,7 +114,7 @@ function registerUi(ctx: Context): void {
     scope.effect(() => form.subscribe(refreshEngine))
     scope.effect(() => ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
       name: 'plugins.bundle.config', key: '@deepseek-ai/dsh-reai-voice', locale: NS,
-      inject: () => ({ hooks: { info: engine }, form }),
+      inject: () => ({ prepare, cancelPreparation, form, hooks: { info: engine, speechReadiness: readiness.state } }),
     }, SettingsCard)))
   })
 
@@ -127,7 +138,10 @@ function registerUi(ctx: Context): void {
   }
   ctx.slots.inject('conversation.input.activity', () => ctx.slots.register({
     name: 'conversation.input.activity', locale: NS,
-    inject: () => ({ ...actions, hooks: { speechReadiness: readiness.state, engine, controller: bridgeStore } }),
+    inject: () => ({
+      ...actions, prepare, cancelPreparation,
+      hooks: { speechReadiness: readiness.state, engine, controller: bridgeStore, pluginNavigation },
+    }),
   }, VoiceConsole))
 }
 

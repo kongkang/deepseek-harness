@@ -1,21 +1,28 @@
-/** Bundle-details settings card: the one v1 preference, recognition engine. */
+/** Bundle-details settings card: the recognition engine and the local model it needs. */
 import type { HostObservable, InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SettingsFormScope } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ReaiVoiceEngine, ReaiVoiceInfo } from '../types.ts'
+import { ModelPreparation, type ModelPreparationActions } from './ModelPreparation.tsx'
+import type { SpeechReadiness } from './readiness.ts'
 import { NS } from './locales.ts'
 import css from './SettingsCard.module.css'
 
-/** Host-backed form scope plus the Remote info mirror. */
-export interface SettingsCardInjected {
+/** Host-backed form scope, the Remote info mirror, and the shared speech readiness. */
+export interface SettingsCardInjected extends ModelPreparationActions {
   readonly form: SettingsFormScope<{ engine?: ReaiVoiceEngine }>
-  readonly hooks: { readonly info: HostObservable<ReaiVoiceInfo> }
+  readonly hooks: {
+    readonly info: HostObservable<ReaiVoiceInfo>
+    readonly speechReadiness: HostObservable<SpeechReadiness>
+  }
 }
 
 export type SettingsCardProps = PropsLocale<typeof NS> & InjectFace<SettingsCardInjected>
 
-/** Render the engine radio; the cloud option stays visible but disabled. */
-export function SettingsCard({ useInfo, form, t }: SettingsCardProps) {
+/** Render the engine radio and the selected recognizer's preparation card. */
+export function SettingsCard({ useInfo, useSpeechReadiness, prepare, cancelPreparation, form, t }: SettingsCardProps) {
   const mirror = useInfo(value => value)
+  const readiness = useSpeechReadiness(value => value), catalog = readiness.catalog
+  const provider = catalog?.providers.find(item => item.id === catalog.selection.providerId)
   const scope = form.getSnapshot()
   const engine = scope.value?.engine ?? mirror.engine
   const saving = scope.status !== 'ready' || !scope.writable
@@ -37,5 +44,7 @@ export function SettingsCard({ useInfo, form, t }: SettingsCardProps) {
       </label>
     </div>
     <p className={css.note}>{t('settings.note')}</p>
+    <ModelPreparation provider={provider} connected={readiness.connected} error={readiness.error ?? undefined}
+      prepare={prepare} cancelPreparation={cancelPreparation} t={t} />
   </section>
 }

@@ -5,6 +5,21 @@ export class RecordingError extends Error {
   constructor(readonly kind: 'unavailable' | 'permission' | 'empty' | 'cancelled' | 'interrupted' | 'deviceMissing') { super(kind); this.name = 'RecordingError' }
 }
 
+/** Why this page cannot capture audio, or 'ready' when it can. */
+export type CaptureSupport = 'ready' | 'insecure' | 'unsupported'
+
+/**
+ * Classify the recording APIs this page may use. Browsers expose `mediaDevices`
+ * only in a secure context, so an http:// LAN address reports 'insecure' and the
+ * microphone is unavailable no matter what the Host prepared.
+ * @returns 'ready' when recording can start; otherwise the blocking cause.
+ */
+export function captureSupport(): CaptureSupport {
+  const devices = typeof navigator === 'undefined' ? undefined : (navigator as Partial<Navigator>).mediaDevices
+  if (devices !== undefined && typeof MediaRecorder !== 'undefined') return 'ready'
+  return typeof window !== 'undefined' && window.isSecureContext === false ? 'insecure' : 'unsupported'
+}
+
 /**
  * Encode mono floating-point samples as the canonical PCM16 WAV accepted by the Host.
  * @param samples - native-resampled 16 kHz mono samples.
@@ -56,7 +71,7 @@ export class Recording {
    * @returns after capture starts; a cancelled permission grant immediately releases its tracks.
    */
   async start(onError?: (error: RecordingError) => void): Promise<void> {
-    const devices = (navigator as Partial<Navigator>).mediaDevices
+    const devices = typeof navigator === 'undefined' ? undefined : (navigator as Partial<Navigator>).mediaDevices
     if (!devices || typeof MediaRecorder === 'undefined') throw new RecordingError('unavailable')
     let stream: MediaStream
     try {
