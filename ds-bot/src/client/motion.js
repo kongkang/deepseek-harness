@@ -171,9 +171,9 @@ export function Segmented({ label, value, className, children }) {
 }
 
 // Children of `list` matching `selector` slide from where they were to where a change of
-// `key` put them, on SPRING_LIST, and children that were not there before clear from a
-// blur; `id` names a child across renders. offsetTop ignores transforms, so a slide in
-// flight does not skew the next one.
+// `key` put them, on SPRING_LIST; children that were not there before appear at once.
+// `id` names a child across renders. offsetTop ignores transforms, so a slide in flight
+// does not skew the next one.
 export function useFlip(list, key, selector, id = node => node.dataset.flip) {
   const tops = useRef(null)
   useLayoutEffect(() => {
@@ -187,9 +187,7 @@ export function useFlip(list, key, selector, id = node => node.dataset.flip) {
       next.set(name, top)
       if (!moving) continue
       const before = tops.current.get(name)
-      if (before === undefined) {
-        node.animate([{ opacity: 0, filter: 'blur(4px)' }, { opacity: 1, filter: 'blur(0)' }], { duration: 180, easing: 'ease-out' })
-      } else if (Math.abs(before - top) > 0.5) {
+      if (before !== undefined && Math.abs(before - top) > 0.5) {
         node.animate([{ transform: `translateY(${before - top}px)` }, { transform: 'none' }], { duration: SPRING_LIST.duration, easing: SPRING_LIST.easing })
       }
     }

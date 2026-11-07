@@ -320,7 +320,7 @@ export const SECRET_CSS = `
 [data-step-process]:has(.bt-secret)>[data-step-process-body]{display:block!important;content-visibility:visible!important;max-height:none!important;overflow:visible!important;mask-image:none!important;scrollbar-gutter:auto!important}
 .bt-secret-ok{display:flex;align-items:center;gap:4px;margin-top:6px;animation:bt-secret-in .22s cubic-bezier(.22,1,.36,1)}
 .bt-secret-ok svg{width:13px;height:13px;color:#16a34a}
-@keyframes bt-secret-in{from{opacity:0;transform:translateY(-2px)}}
+@keyframes bt-secret-in{}
 .bt-secret-saved{display:flex;align-items:center;gap:6px;font-size:13px;line-height:18px;color:var(--bt-ink-2)}
 .bt-secret-note{font-size:12px;line-height:17px;color:var(--bt-ink-3)}
 .bt-secret-note code,.bt-secret-about code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px}
@@ -332,8 +332,8 @@ export const SECRET_CSS = `
 .bt-secret-scope-tag{font-weight:400;color:var(--bt-ink-3)}
 .bt-secret-check{color:var(--bt-green,#22a06b);animation:bt-secret-pop ${SPRING_POP.duration}ms ${SPRING_POP.easing} backwards}
 .bt-secret-done{animation:bt-secret-settle .32s cubic-bezier(.22,1,.36,1) backwards}
-@keyframes bt-secret-pop{from{opacity:0;transform:scale(.4)}}
-@keyframes bt-secret-settle{from{opacity:.4;transform:scale(.985)}}
+@keyframes bt-secret-pop{}
+@keyframes bt-secret-settle{}
 .bt-secret-event{display:inline-flex;align-items:center;gap:5px}
 .bt-secret-dock{flex-direction:column;align-items:center}
 .bt-secret-dock .bt-q{max-width:min(550px,calc(100% - 32px))}

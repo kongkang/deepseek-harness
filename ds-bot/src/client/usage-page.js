@@ -733,12 +733,12 @@ button.bt-us-row:hover{background:var(--bt-hover)}
 .bt-us-skel-sheet>.bt-us-pair>.bt-us-skel:last-child{border-radius:0 0 16px 0}
 .bt-us-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:72px 16px;text-align:center;font-size:13px;line-height:18px;color:var(--bt-ink-3)}
 .bt-us-empty b{margin-top:6px;font-size:15px;font-weight:600;color:var(--bt-ink)}
-@keyframes bt-us-in{from{opacity:0;transform:translateY(6px)}}
-@keyframes bt-us-grow{from{transform:scaleY(0)}}
-@keyframes bt-us-fill{from{transform:scaleX(0)}}
-@keyframes bt-us-pop{from{opacity:0;transform:translateY(3px) scale(.97)}}
-@keyframes bt-us-drop{from{opacity:0;transform:translateY(-4px) scale(.96)}}
-@keyframes bt-us-fade{from{opacity:0}}
+@keyframes bt-us-in{}
+@keyframes bt-us-grow{}
+@keyframes bt-us-fill{}
+@keyframes bt-us-pop{}
+@keyframes bt-us-drop{}
+@keyframes bt-us-fade{}
 @keyframes bt-us-cell{from{opacity:0;transform:scale(.5)}}
 @keyframes bt-us-ring{from{stroke-dasharray:0 ${Math.ceil(RING)}}}
 @keyframes bt-us-pulse{50%{opacity:.25}}
