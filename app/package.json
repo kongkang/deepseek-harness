@@ -86,5 +86,10 @@
     "@deepseek-ai/dsh-llm": "0.2.1-rc.5",
     "@deepseek-ai/dsh-tools": "0.2.1-rc.5",
     "@deepseek-ai/dsh-web": "0.2.1-rc.5"
+  },
+  "allowScripts": {
+    "koffi@3.1.1": true,
+    "node-pty@1.2.0-beta.15": true,
+    "protobufjs@7.6.6": true
   }
 }
