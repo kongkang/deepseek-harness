@@ -49,8 +49,12 @@ import { pruneCrashReports, RendererConsoleTail, writeCrashReport, type CrashRep
 import { OperationJournal } from './operation-journal.ts'
 import { runOperationReportJob, type OperationReportJobResult } from './operation-report-job.ts'
 import { openWelcomeWindow } from './welcome-window.ts'
-import { WELCOME_IPC, needsWelcome, type WelcomeNotice } from './welcome-api.ts'
+import { WELCOME_IPC, needsWelcome, type ExternalSignInOutcome, type WelcomeNotice } from './welcome-api.ts'
 import { connectDesktopWelcome, type DesktopWelcomeBackend } from './welcome-backend.ts'
+import {
+  connectExternalSignIn, ExternalSignIn, probeExternalSignIn,
+  type ExternalSignInChannel, type ExternalSignInDescriptor,
+} from './external-sign-in.ts'
 import { DesktopUpdateJournal } from './update-journal.ts'
 import { DesktopUpdatePreparationError } from './update-error.ts'
 import { DesktopUpdateSchedule, resolveDesktopUpdateScheduleConfig } from './update-schedule.ts'
@@ -244,6 +248,21 @@ function developmentHostInspectPort(enabled: boolean): number | undefined {
  */
 function chromeFallbackFill(): string {
   return nativeTheme.shouldUseDarkColors ? '#1b1b1c' : '#f9fafb'
+}
+
+/**
+ * Account service the packaged AI employee profile mounts. Its plugin owns the
+ * vendor protocol, the credential store, and token renewal; the shell only
+ * needs the endpoints it serves over the Host. A stock DSH profile mounts none
+ * of them, so the probe keeps the welcome window on its own entries there.
+ */
+const EXTERNAL_SIGN_IN: ExternalSignInDescriptor = {
+  rpcPath: '/api/ai-employee',
+  probeEndpoint: 'providers.status',
+  startEndpoint: 'wainao.start',
+  completeEndpoint: 'wainao.complete',
+  callbackPath: '/api/ai-employee/oauth/callback',
+  timeoutMs: 300_000,
 }
 
 /**
@@ -492,6 +511,9 @@ async function main(): Promise<void> {
     } catch (_error) { /* Analytics cannot interrupt native actions. */ }
   }
   let stopAccount: (() => void) | undefined
+  let externalSignInChannel: ExternalSignInChannel | undefined
+  let externalSignIn: ExternalSignIn | undefined
+  let externalSignInAvailable: boolean | undefined
   let openedAttempt: string | undefined
   let returnedAttempt: string | undefined
   let pendingWelcomeNotice: WelcomeNotice | undefined
@@ -545,6 +567,9 @@ async function main(): Promise<void> {
         injections = ready.injections
         welcomeBackend = connectDesktopWelcome(ready.url, cookie)
         analyticsEnabled = await welcomeBackend.analyticsEnabled().catch(() => false)
+        externalSignInChannel = connectExternalSignIn(ready.url, cookie, EXTERNAL_SIGN_IN)
+        externalSignIn = undefined
+        externalSignInAvailable = undefined
         if (!reportedLaunch) { reportedLaunch = true; void track('desktop_app_launch', {}) }
         stopAccount?.()
         const accountBackend = welcomeBackend.account
@@ -1362,6 +1387,29 @@ async function main(): Promise<void> {
       window.webContents.openDevTools({ mode: 'detach' })
     }
   }
+  /**
+   * Resolve the profile's account service once per Host; a Host without the
+   * plugin answers through the probe and keeps the welcome window on its own entries.
+   */
+  const resolveExternalSignIn = async (): Promise<ExternalSignIn | undefined> => {
+    const channel = externalSignInChannel
+    if (channel === undefined) return undefined
+    externalSignInAvailable ??= await probeExternalSignIn(channel, 2000)
+    if (externalSignIn === undefined && externalSignInAvailable) {
+      externalSignIn = new ExternalSignIn({
+        descriptor: EXTERNAL_SIGN_IN,
+        channel,
+        // The vendor page carries no Desktop theme parameter; only the URL it returned opens.
+        openExternal: async (url) => { await shell.openExternal(url) },
+        enterWorkspace: async () => { await enterWorkspace() },
+        completionPage: () => {
+          const copy = locale.messages.welcomeExternalCompleted
+          return `<!doctype html><meta charset="utf-8"><title>${copy}</title><p>${copy}</p>`
+        },
+      })
+    }
+    return externalSignIn
+  }
   let openingWelcome: Promise<void> | undefined
   const showWelcome = (): Promise<void> => {
     if (quitting) return Promise.resolve()
@@ -1372,6 +1420,8 @@ async function main(): Promise<void> {
       return Promise.resolve()
     }
     openingWelcome ??= (async () => {
+      // The window's operations outlive this scope, so they close over the service it opened with.
+      const openingSignIn = await resolveExternalSignIn()
       welcomeWindow = await openWelcomeWindow(locale, {
         analytics: track,
         analyticsEnabled: () => Promise.resolve(analyticsEnabled),
@@ -1403,8 +1453,15 @@ async function main(): Promise<void> {
           return { ok: true }
         },
         skip: enterWorkspace,
+        ...openingSignIn === undefined ? {} : {
+          externalSignIn: {
+            start: (): Promise<ExternalSignInOutcome> => openingSignIn.signIn(),
+            cancel: (): void => { openingSignIn.cancel() },
+          },
+        },
       })
       const window = welcomeWindow
+      window.once('closed', () => { externalSignIn?.cancel() })
       window.once('closed', () => {
         void welcomeBackend?.account.state().then((state) => {
           if (state.attempt !== null && !enteredWorkspace) return welcomeBackend?.account.cancel(state.attempt.id)
@@ -1477,6 +1534,7 @@ async function main(): Promise<void> {
     backgroundNotice?.dispose()
     tray?.dispose()
     stopAccount?.()
+    externalSignIn?.cancel()
     if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.hide()
     if (mainWindow !== undefined && !mainWindow.isDestroyed()) mainWindow.hide()
     updateSchedule.dispose()

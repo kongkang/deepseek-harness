@@ -3,11 +3,18 @@ import type { AccountView, SignInAttemptId } from '@deepseek-ai/dsh-deepseek-acc
 
 import { contextBridge, ipcRenderer } from 'electron'
 import { resolveDesktopLocale } from './locale.ts'
-import { WELCOME_IPC, type WelcomeApi, type WelcomeNotice, type WelcomeSaveResult } from './welcome-api.ts'
+import {
+  WELCOME_IPC,
+  type ExternalSignInOutcome,
+  type WelcomeApi,
+  type WelcomeNotice,
+  type WelcomeSaveResult,
+} from './welcome-api.ts'
 
 const prefix = '--dsh-welcome-locale='
 const locale = process.argv.find(argument => argument.startsWith(prefix))?.slice(prefix.length)
 if (locale === undefined) throw new Error('desktop welcome: missing window locale')
+const externalSignIn = process.argv.includes('--dsh-welcome-external-sign-in=1')
 const api: WelcomeApi = {
   ...resolveDesktopLocale(locale),
   analytics: async (eventName, attributes) => {
@@ -25,5 +32,11 @@ const api: WelcomeApi = {
   },
   saveApiKey: (value: string) => ipcRenderer.invoke(WELCOME_IPC.saveApiKey, value) as Promise<WelcomeSaveResult>,
   skip: () => ipcRenderer.invoke(WELCOME_IPC.skip) as Promise<void>,
+  ...externalSignIn ? {
+    externalSignIn: {
+      start: () => ipcRenderer.invoke(WELCOME_IPC.externalStart) as Promise<ExternalSignInOutcome>,
+      cancel: () => { void ipcRenderer.invoke(WELCOME_IPC.externalCancel) },
+    },
+  } : {},
 }
 contextBridge.exposeInMainWorld('dshWelcome', api)

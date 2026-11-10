@@ -6,7 +6,7 @@ import { StateDot } from '@deepseek-ai/dsh-client-ui-primitives/src/StateDot.tsx
 import type { AccountView } from '@deepseek-ai/dsh-deepseek-account/types'
 import type { WelcomeApi } from '../welcome-api.ts'
 
-type Page = 'entry' | 'key' | 'account'
+type Page = 'entry' | 'key' | 'account' | 'external'
 
 /**
  * Render the standalone welcome flow using shell-owned operations and localized copy.
@@ -20,6 +20,7 @@ export function Welcome({ api }: { api: WelcomeApi }) {
   const [page, setPage] = useState<Page>('entry')
   const pageRef = useRef<Page>('entry')
   const visiblePage = useRef<Page>('entry')
+  const [external, setExternal] = useState<'idle' | 'starting' | 'failed'>('idle')
   const [attempt, setAttempt] = useState<AccountView['attempt']>(null)
   const attemptRef = useRef<AccountView['attempt']>(null)
   const [starting, setStarting] = useState(false)
@@ -41,7 +42,8 @@ export function Welcome({ api }: { api: WelcomeApi }) {
     setPage(next)
   }
   function showAccount(state: AccountView) {
-    if (pageRef.current === 'key' || (state.attempt === null && pageRef.current === 'entry')) return
+    if (pageRef.current === 'key' || pageRef.current === 'external'
+      || (state.attempt === null && pageRef.current === 'entry')) return
     attemptRef.current = state.attempt
     setAttempt(state.attempt)
     setStarting(false)
@@ -138,6 +140,25 @@ export function Welcome({ api }: { api: WelcomeApi }) {
       if (mounted.current && revision.current === current) setStarting(false)
     }
   }
+  async function startExternal() {
+    const signIn = api.externalSignIn
+    if (signIn === undefined || external === 'starting') return
+    navigate('external')
+    setExternal('starting')
+    try {
+      // A completed attempt closes this window; anything else returns here for a retry.
+      const outcome = await signIn.start()
+      if (!mounted.current) return
+      setExternal(outcome === 'entered' ? 'idle' : 'failed')
+    } catch {
+      if (mounted.current) setExternal('failed')
+    }
+  }
+  function cancelExternal() {
+    api.externalSignIn?.cancel()
+    setExternal('idle')
+    navigate('entry')
+  }
   async function cancel() {
     if (cancelling || attemptRef.current === null) return
     setCancelling(true)
@@ -169,7 +190,8 @@ export function Welcome({ api }: { api: WelcomeApi }) {
   const title = phase === 'initializing' ? m.welcomeAuthStarting
     : waiting ? m.welcomeAuthWaiting : phase === 'expired' ? m.welcomeAuthExpired
       : phase === 'failed' ? m.welcomeAuthFailed : m.welcomeAuthExchanging
-  const heading = page === 'entry' ? 'welcome-heading' : page === 'key' ? 'key-title' : 'auth-status'
+  const heading = page === 'entry' ? 'welcome-heading'
+    : page === 'key' ? 'key-title' : page === 'account' ? 'auth-status' : 'external-status'
 
   return <>
     {expiryNotice && <Toast text={m.welcomeSessionExpired} onDone={() => { setExpiryNotice(false) }} />}
@@ -209,8 +231,18 @@ export function Welcome({ api }: { api: WelcomeApi }) {
           onClick={() => { void cancel() }}>{m.welcomeAuthCancel}</button>
       </div>
       <div id="entry-actions" className="actions" hidden={page !== 'entry'}>
-        <button id="sign-in" className="primary" type="button" onClick={() => { void api.analytics?.('auth_page_click', { button_name: 'sign_in' }); void start() }}>{m.welcomeSignIn}</button>
+        {api.externalSignIn !== undefined && <button id="external-sign-in" className="primary" type="button" onClick={() => { void startExternal() }}>{m.welcomeExternalSignIn}</button>}
+        <button id="sign-in" className={api.externalSignIn === undefined ? 'primary' : 'secondary'} type="button" onClick={() => { void api.analytics?.('auth_page_click', { button_name: 'sign_in' }); void start() }}>{m.welcomeSignIn}</button>
         <button ref={keyButton} id="api-key" className="secondary" type="button" onClick={() => { void api.analytics?.('auth_page_click', { button_name: 'api-key' }); navigate('key') }}>{m.welcomeApiKey}</button>
+      </div>
+      <section id="external-page" className={`key-heading ${external === 'failed' ? 'auth-expired' : 'auth-waiting'}`}
+        hidden={page !== 'external'} aria-live="polite">
+        <h1 id="external-status">{external === 'failed' ? m.welcomeAuthFailed : m.welcomeExternalSignIn}</h1>
+        <p id="external-description">{external === 'failed' ? m.welcomeExternalFailedDescription : m.welcomeExternalWaiting}</p>
+      </section>
+      <div id="external-actions" className="actions" hidden={page !== 'external'}>
+        <button id="external-retry" className="primary" type="button" hidden={external !== 'failed'} onClick={() => { void startExternal() }}>{m.welcomeAuthRetry}</button>
+        <button id="external-cancel" className="secondary" type="button" onClick={cancelExternal}>{m.welcomeAuthCancel}</button>
       </div>
       <div id="key-actions" className="actions" hidden={page !== 'key'}>
         <button id="save-key" className="primary" type="submit" form="key-form" disabled={busy || draft.trim() === ''}>{m.welcomeKeySave}</button>

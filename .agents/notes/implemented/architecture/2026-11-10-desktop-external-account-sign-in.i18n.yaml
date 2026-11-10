@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-11-10-desktop-external-account-sign-in.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-10-desktop-external-account-sign-in.md
+/agent-note-desktop-welcome-accepts-a-profile-s-own-account-service:
+  en: 9452424b7b630733
+  zh: 3761eb849671dd12
+/agent-note-desktop-welcome-accepts-a-profile-s-own-account-service/problem:
+  en: 2de124ca1394ec50
+  zh: 2a3fd1efb04643aa
+/agent-note-desktop-welcome-accepts-a-profile-s-own-account-service/decision:
+  en: 3922a29396375f5d
+  zh: 850c7f923f2bc2a5
+/agent-note-desktop-welcome-accepts-a-profile-s-own-account-service/alternatives-considered:
+  en: 7090c4a25e7a3488
+  zh: 45ddd85396bc9aba
+/agent-note-desktop-welcome-accepts-a-profile-s-own-account-service/consequences:
+  en: 59a49671f3f1fe56
+  zh: 8526340688458e22
