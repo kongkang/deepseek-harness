@@ -11,10 +11,15 @@ import type { WelcomeSaveResult, WelcomeNotice } from '../src/welcome-api.ts'
 const html = readFileSync(join(import.meta.dirname, '../renderer/welcome.html'), 'utf8')
 afterEach(cleanup)
 
-function mount(language = 'zh-CN', takeNotice = vi.fn<() => Promise<WelcomeNotice | undefined>>().mockResolvedValue(undefined)) {
+function mount(
+  language = 'zh-CN',
+  takeNotice = vi.fn<() => Promise<WelcomeNotice | undefined>>().mockResolvedValue(undefined),
+  externalSignIn?: { start: () => Promise<'entered' | 'failed'>; cancel: () => void },
+) {
   cleanup()
   const stopAccount = vi.fn()
   const api = {
+    ...externalSignIn === undefined ? {} : { externalSignIn },
     takeNotice,
     analytics: vi.fn(async (_event: string, _attributes: object) => {}),
     analyticsEnabled: async () => true,
@@ -48,6 +53,35 @@ function mount(language = 'zh-CN', takeNotice = vi.fn<() => Promise<WelcomeNotic
 }
 
 describe('desktop welcome presentation', () => {
+  it('offers the profile account service ahead of the stock entries', async () => {
+    const start = vi.fn(async (): Promise<'entered' | 'failed'> => 'failed')
+    const cancel = vi.fn()
+    const view = mount('zh-CN', undefined, { start, cancel })
+    const external = view.button('#external-sign-in')
+    expect(external.textContent).toBe(view.api.messages.welcomeExternalSignIn)
+    expect(external.className).toBe('primary')
+    expect(view.button('#sign-in').className).toBe('secondary')
+    fireEvent.click(external)
+    expect(start).toHaveBeenCalledOnce()
+    await vi.waitFor(() => {
+      expect(view.document.querySelector<HTMLElement>('#external-page')!.hidden).toBe(false)
+    })
+    expect(view.document.querySelector('#external-status')!.textContent).toBe(view.api.messages.welcomeAuthFailed)
+    expect(view.document.querySelector('#external-description')!.textContent)
+      .toBe(view.api.messages.welcomeExternalFailedDescription)
+    fireEvent.click(view.button('#external-retry'))
+    expect(start).toHaveBeenCalledTimes(2)
+    fireEvent.click(view.button('#external-cancel'))
+    expect(cancel).toHaveBeenCalledOnce()
+    expect(view.document.querySelector<HTMLElement>('#entry-actions')!.hidden).toBe(false)
+  })
+
+  it('keeps the stock entries when the profile mounts no account service', () => {
+    const view = mount('zh-CN')
+    expect(view.document.querySelector('#external-sign-in')).toBeNull()
+    expect(view.button('#sign-in').className).toBe('primary')
+  })
+
   it.each(['zh-CN', 'en'])('renders the %s entry and API-key step', async (language) => {
     const view = mount(language)
     expect(view.document.documentElement.lang).toBe(language)

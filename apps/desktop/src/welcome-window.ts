@@ -11,9 +11,14 @@ import { WELCOME_IPC, type WelcomeOperations } from './welcome-api.ts'
  * Resolve the fixed-size welcome window's native material and controls.
  * @param platform - operating system hosting Electron.
  * @param locale - shell-owned localized copy.
+ * @param externalSignIn - whether the profile's account service offers its own sign-in.
  * @returns sandboxed window options with a locale-only preload.
  */
-export function welcomeWindowOptions(platform: NodeJS.Platform, locale: DesktopLocale): BrowserWindowConstructorOptions {
+export function welcomeWindowOptions(
+  platform: NodeJS.Platform,
+  locale: DesktopLocale,
+  externalSignIn = false,
+): BrowserWindowConstructorOptions {
   return {
     width: 600,
     height: 700,
@@ -38,7 +43,10 @@ export function welcomeWindowOptions(platform: NodeJS.Platform, locale: DesktopL
     } as const : {}),
     webPreferences: {
       preload: fileURLToPath(new URL('./preload-welcome.cjs', import.meta.url)),
-      additionalArguments: [`--dsh-welcome-locale=${locale.id}`],
+      additionalArguments: [
+        `--dsh-welcome-locale=${locale.id}`,
+        ...externalSignIn ? ['--dsh-welcome-external-sign-in=1'] : [],
+      ],
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -57,7 +65,7 @@ let disposeActiveHandlers: (() => void) | undefined
  * @returns the visible window; a failed load destroys it before rejecting.
  */
 export async function openWelcomeWindow(locale: DesktopLocale, operations: WelcomeOperations): Promise<BrowserWindow> {
-  const options = welcomeWindowOptions(process.platform, locale)
+  const options = welcomeWindowOptions(process.platform, locale, operations.externalSignIn !== undefined)
   const window = new BrowserWindow(options)
   disposeActiveHandlers?.()
   let active = true
@@ -67,6 +75,7 @@ export async function openWelcomeWindow(locale: DesktopLocale, operations: Welco
     for (const channel of [
       WELCOME_IPC.analyticsEnabled, WELCOME_IPC.analytics, WELCOME_IPC.takeNotice, WELCOME_IPC.saveApiKey,
       WELCOME_IPC.skip, WELCOME_IPC.start, WELCOME_IPC.cancel, WELCOME_IPC.copyLink,
+      WELCOME_IPC.externalStart, WELCOME_IPC.externalCancel,
     ]) {
       ipcMain.removeHandler(channel)
     }
@@ -112,6 +121,15 @@ export async function openWelcomeWindow(locale: DesktopLocale, operations: Welco
     assertSender(event)
     if (typeof id !== 'string') throw new Error('desktop welcome: invalid attempt')
     return operations.copySignInLink(id as SignInAttemptId)
+  })
+  ipcMain.handle(WELCOME_IPC.externalStart, async (event) => {
+    assertSender(event)
+    if (operations.externalSignIn === undefined) throw new Error('desktop welcome: external sign-in is unavailable')
+    return operations.externalSignIn.start()
+  })
+  ipcMain.handle(WELCOME_IPC.externalCancel, (event) => {
+    assertSender(event)
+    operations.externalSignIn?.cancel()
   })
   window.once('closed', disposeHandlers)
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))

@@ -15,6 +15,8 @@ export const WELCOME_IPC = {
   copyLink: 'dsh-welcome:copy-link',
   state: 'dsh-welcome:state',
   takeNotice: 'dsh-welcome:take-notice',
+  externalStart: 'dsh-welcome:external-start',
+  externalCancel: 'dsh-welcome:external-cancel',
 } as const
 
 /** Credential writes return a safe outcome without exposing Host diagnostics. */
@@ -51,7 +53,20 @@ export interface WelcomeOperations {
    * @returns completion after the workspace opens.
    */
   skip(): Promise<void>
+  /**
+   * Sign in through the account service the application profile mounts, which
+   * stores its own credentials and enters the workspace on success.
+   */
+  externalSignIn?: {
+    /** @returns the outcome once the browser flow and workspace entry settle. */
+    start(): Promise<ExternalSignInOutcome>
+    /** Abandon the attempt in flight; a late browser redirect cannot enter the workspace. */
+    cancel(): void
+  }
 }
+
+/** Whether the shell's own account flow reached the workspace. */
+export type ExternalSignInOutcome = 'entered' | 'failed'
 
 /** The renderer receives localized copy, login operations, and safe account snapshots. */
 export type WelcomeApi = DesktopLocale & WelcomeOperations & {

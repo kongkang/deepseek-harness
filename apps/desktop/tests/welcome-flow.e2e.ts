@@ -1,6 +1,6 @@
 /** Built Desktop Host acceptance; run after the repository build, without provider credentials. */
 
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,6 +12,8 @@ import { DesktopProjectManager } from '../src/project-manager.ts'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import { desktopClientMetadata } from '../src/client-metadata.ts'
 import { connectDesktopWelcome, type DesktopWelcomeBackend } from '../src/welcome-backend.ts'
+import { needsWelcome } from '../src/welcome-api.ts'
+import { authenticateWebHost } from '../src/web-document.ts'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { prepareDevelopmentProject } from '../scripts/development-project.ts'
 
@@ -121,31 +123,63 @@ describe.skipIf(!existsSync(builtHost))('built Desktop welcome flow', () => {
         dsh: project,
       })
       await manager.applyRelease()
-      writeFileSync(join(paths.profile, 'cordis.patch.yml'), `- id: webserver\n  config:\n    host: 127.0.0.1\n    port: 0\n- id: deepseek-account\n  config:\n${process.platform === 'linux' ? '    desktopPlatform: darwin\n' : ''}    platformOrigin: ${platform.origin}\n    allowLoopbackHttp: true\n    requestHeaders:\n      Cookie: test_gate=synthetic\n`)
+      const stockPatch = `- id: webserver\n  config:\n    host: 127.0.0.1\n    port: 0\n- id: deepseek-account\n  config:\n${process.platform === 'linux' ? '    desktopPlatform: darwin\n' : ''}    platformOrigin: ${platform.origin}\n    allowLoopbackHttp: true\n    requestHeaders:\n      Cookie: test_gate=synthetic\n`
+      writeFileSync(join(paths.profile, 'cordis.patch.yml'), stockPatch)
       let backend: DesktopWelcomeBackend
       let hostOrigin = ''
+      let hostCookie = ''
       const restart = async (): Promise<void> => {
         await host?.stop()
         host = new DesktopHostProcess(process.execPath, project, paths.profile)
         const { url } = await host.start()
         hostOrigin = new URL(url).origin
-        let cookie = ''
-        const send: typeof fetch = async (input, init) => {
-          const headers = new Headers(init?.headers)
-          if (cookie !== '') headers.set('cookie', cookie)
-          const response = await fetch(input, { ...init, headers, redirect: 'manual' })
-          if (response.status !== 303) return response
-          cookie = response.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
-          await response.body?.cancel()
-          return fetch(new URL(response.headers.get('location')!, url), { headers: { cookie } })
-        }
-        backend = await connectDesktopWelcome(url, send, () => Promise.resolve(cookie))
+        hostCookie = await authenticateWebHost(url)
+        backend = connectDesktopWelcome(url, hostCookie)
+      }
+      /** @returns the Host RPC result for one namespace method, as the welcome backend sees it. */
+      const rpc = async (method: string, args: Record<string, unknown>): Promise<unknown> => {
+        const rpcId = randomUUID()
+        const response = await fetch(new URL(`/api/${method}`, hostOrigin).href, {
+          method: 'POST', redirect: 'error',
+          headers: { 'content-type': 'application/json', cookie: hostCookie },
+          body: JSON.stringify({ type: 'client-request', rpcId, method, payload: { args } }),
+        })
+        expect(response.status).toBe(200)
+        const envelope = await response.json() as { result?: { ok?: boolean; value?: unknown } }
+        expect(envelope.result?.ok).toBe(true)
+        return envelope.result?.value
       }
       const status = async () => backend.read()
       const fingerprint = (): string => createHash('sha256')
         .update(readFileSync(join(home, '.credentials.yaml'))).digest('hex')
       await restart()
       expect(await status()).toMatchObject({ hasApiKey: false, localePreference: null })
+      // A profile route that names its own credential is authentication by itself: the stored
+      // token opens the welcome gate without a DeepSeek account or the official key.
+      writeFileSync(join(paths.profile, 'cordis.patch.yml'), `${stockPatch}- id: llm-pi-ai
+  config:
+    providers:
+      external:
+        displayName: External
+        api: openai-completions
+        baseURL: https://external.example/api
+        apiKeyEnv: WAINAO_ACCESS_TOKEN
+        models:
+          - id: external-chat
+`)
+      await restart()
+      expect(await status()).toMatchObject({ hasApiKey: false, loggedIn: false })
+      await rpc('credentials/set', { ref: 'WAINAO_ACCESS_TOKEN', value: 'wno-external-token' })
+      expect(await status()).toMatchObject({ hasApiKey: true, loggedIn: false })
+      expect(needsWelcome({ loggedIn: false, hasApiKey: true })).toBe(false)
+      await restart()
+      expect(await status()).toMatchObject({ hasApiKey: true, loggedIn: false })
+      expect(needsWelcome(await status())).toBe(false)
+      // The official entries below need the stock profile back.
+      writeFileSync(join(paths.profile, 'cordis.patch.yml'), stockPatch)
+      await restart()
+      await rpc('credentials/unset', { ref: 'WAINAO_ACCESS_TOKEN' })
+      expect(await status()).toMatchObject({ hasApiKey: false, loggedIn: false })
       const before = fingerprint()
       await host!.stop()
       writeFileSync(join(paths.profile, 'cordis.patch.yml'),

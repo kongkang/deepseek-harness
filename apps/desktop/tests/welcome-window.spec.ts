@@ -180,6 +180,37 @@ describe('desktop welcome window', () => {
     expect(electron.handlers.size).toBe(0)
   })
 
+  it('offers the profile account service only when its operations are supplied', async () => {
+    expect(welcomeWindowOptions('darwin', resolveDesktopLocale('en')).webPreferences?.additionalArguments)
+      .toEqual(['--dsh-welcome-locale=en'])
+    expect(welcomeWindowOptions('darwin', resolveDesktopLocale('en'), true).webPreferences?.additionalArguments)
+      .toEqual(['--dsh-welcome-locale=en', '--dsh-welcome-external-sign-in=1'])
+
+    const window = createWindow()
+    electron.create.mockReturnValue(window)
+    const start = vi.fn(async () => 'failed' as const)
+    const cancel = vi.fn()
+    await openWelcomeWindow(resolveDesktopLocale('en'), { ...operations, externalSignIn: { start, cancel } })
+    const own = { sender: window.webContents, senderFrame: window.webContents.mainFrame }
+    expect(await electron.handlers.get(WELCOME_IPC.externalStart)!(own)).toBe('failed')
+    expect(start).toHaveBeenCalledOnce()
+    await electron.handlers.get(WELCOME_IPC.externalCancel)!(own)
+    expect(cancel).toHaveBeenCalledOnce()
+    await expect(electron.handlers.get(WELCOME_IPC.externalStart)!({
+      sender: { mainFrame: {} }, senderFrame: {},
+    })).rejects.toThrow('unowned frame')
+  })
+
+  it('refuses the account service when the window was opened without it', async () => {
+    const window = createWindow()
+    electron.create.mockReturnValue(window)
+    await openWelcomeWindow(resolveDesktopLocale('en'), operations)
+    const own = { sender: window.webContents, senderFrame: window.webContents.mainFrame }
+    await expect(electron.handlers.get(WELCOME_IPC.externalStart)!(own))
+      .rejects.toThrow('external sign-in is unavailable')
+    await electron.handlers.get(WELCOME_IPC.externalCancel)!(own)
+  })
+
   it('shows the entry after logout only without a separately configured API key', () => {
     expect(needsWelcome({ loggedIn: true, hasApiKey: false })).toBe(false)
     expect(needsWelcome({ loggedIn: false, hasApiKey: false })).toBe(true)
